@@ -448,7 +448,7 @@ function authPage(title, returnTo, error = "", status = 200, registering = false
   return shell(title, `
     <main class="auth">
       <p class="kicker">OPTIONAL ACCOUNT</p><h1>${title}</h1>
-      <p class="account-purpose">Accounts are for cross-device progress sync. Sync is not available yet, so you can play without an account for now.</p>
+      <p class="account-purpose">Accounts sync supported game progress between devices. You can still play without an account.</p>
       ${error ? `<p class="error" role="alert">${escapeHtml(error)}</p>` : ""}
       <form method="post" action="/_guard/${action}?return=${encodeURIComponent(returnTo)}">
         <label>Username<input name="username" autocomplete="username" required minlength="3" maxlength="32"></label>
