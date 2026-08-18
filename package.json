@@ -1,0 +1,12 @@
+{
+  "name": "games-site",
+  "private": true,
+  "scripts": {
+    "check": "node --check worker/index.js",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.30.0"
+  }
+}
