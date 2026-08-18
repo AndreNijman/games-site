@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "games-guard",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-08-18",
+  "observability": { "enabled": true },
+  "routes": [
+    { "pattern": "games.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "topout.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "defenders.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "overpop.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "tung.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "isaac.andrenijman.com/*", "zone_name": "andrenijman.com" }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "games-guard",
+      "database_id": "70dd6bf0-302b-4800-88dc-9fbd814e1157"
+    }
+  ]
+}
