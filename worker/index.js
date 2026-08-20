@@ -14,6 +14,15 @@ const HOSTS = new Set([
   "tung.andrenijman.com",
   "isaac.andrenijman.com",
 ]);
+const GAME_TITLES = {
+  "topout.andrenijman.com": "TOPOUT",
+  "defenders.andrenijman.com": "Garden Defenders 2",
+  "overpop.andrenijman.com": "OVERPOP",
+  "wildbound.andrenijman.com": "Wildbound.io",
+  "tree.andrenijman.com": "tree",
+  "tung.andrenijman.com": "Tung Tung Tung Sahorror",
+  "isaac.andrenijman.com": "ISUCK",
+};
 
 export default {
   async fetch(request, env) {
@@ -51,6 +60,11 @@ async function handleRequest(request, env) {
     const login = new URL("https://games.andrenijman.com/_guard/login");
     login.searchParams.set("return", safeReturn(url.toString()));
     return withCookies(Response.redirect(login, 302), identity.cookies);
+  }
+
+  if (GAME_TITLES[url.hostname] && request.method === "GET" &&
+      request.headers.get("Accept")?.includes("text/html") && !url.searchParams.has("_games_frame")) {
+    return withCookies(gameFramePage(url, GAME_TITLES[url.hostname]), identity.cookies);
   }
 
   const upstream = await fetchFreshUpstream(request);
@@ -653,6 +667,56 @@ function shell(title, content, status = 200) {
       "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
       "Referrer-Policy": "no-referrer",
       "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+function gameFramePage(url, title) {
+  const gameUrl = new URL(url);
+  gameUrl.searchParams.set("_games_frame", "1");
+  const safeTitle = escapeHtml(title);
+  return new Response(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#141110">
+  <title>${safeTitle} | Andre Nijman</title>
+  <style>
+    :root{color-scheme:dark;--paper:#141110;--panel:#201c18;--ink:#f0ece3;--muted:#9c9282;--accent:#55a37c;--line:rgba(240,236,227,.2);font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace}
+    *{box-sizing:border-box}
+    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--paper);color:var(--ink)}
+    .game-shell{height:100dvh;min-height:100%;display:grid;grid-template-rows:36px minmax(0,1fr) 30px;padding:8px}
+    .game-chrome{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 4px;color:var(--muted);font-size:11px;letter-spacing:.04em;white-space:nowrap}
+    .game-chrome a{display:flex;align-items:center;height:100%;color:inherit;text-decoration:none;transition:color 140ms ease-out}
+    .game-chrome a:hover,.game-chrome a:focus-visible{color:var(--accent)}
+    .game-chrome a:focus-visible{outline:1px solid var(--accent);outline-offset:-2px}
+    .game-window{min-width:0;min-height:0;border:1px solid var(--line);background:#080907;box-shadow:0 18px 48px rgba(0,0,0,.32);overflow:hidden}
+    .game-window iframe{display:block;width:100%;height:100%;border:0;background:#080907}
+    .game-title{display:flex;align-items:end;justify-content:center;padding-top:6px;color:var(--ink);font:500 15px/1 Georgia,"Times New Roman",serif;letter-spacing:.01em}
+    @media(max-width:640px){.game-shell{grid-template-rows:32px minmax(0,1fr) 26px;padding:4px}.game-chrome{font-size:9px;padding:0 2px}.game-title{font-size:13px;padding-top:5px}}
+  </style>
+</head>
+<body>
+  <main class="game-shell">
+    <header class="game-chrome">
+      <a href="https://andrenijman.com" aria-label="Visit Andre Nijman's portfolio">game made by Andre Nijman</a>
+      <a href="https://games.andrenijman.com" aria-label="Back to all games">games.andrenijman.com &uarr;</a>
+    </header>
+    <div class="game-window">
+      <iframe src="${escapeHtml(gameUrl.toString())}" title="${safeTitle}" allow="autoplay; fullscreen; gamepad; clipboard-read; clipboard-write" allowfullscreen></iframe>
+    </div>
+    <footer class="game-title">${safeTitle}</footer>
+  </main>
+</body>
+</html>`, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "private, no-store, no-cache, must-revalidate, max-age=0",
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; base-uri 'none'; frame-ancestors 'self'",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Games-Guard": "framed",
     },
   });
 }
