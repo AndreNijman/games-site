@@ -88,6 +88,7 @@ async function handleGuardRoute(request, env, url) {
   if (url.pathname === "/_guard/login") return login(request, env, url);
   if (url.pathname === "/_guard/register") return register(request, env, url);
   if (url.pathname === "/_guard/profile") return gameProfile(request, env, url);
+  if (url.pathname === "/_guard/saves" || url.pathname === "/_guard/save") return gameSaves(request, env, url);
   if (url.pathname === "/_guard/status") {
     const identity = await identify(request, env, url.hostname);
     const response = Response.json({
@@ -149,12 +150,14 @@ async function tungLobbies(request, env, url) {
     return withCookies(Response.json({ error: "admin account required" }, { status: 403 }), identity.cookies);
   }
   const path = wantsAdmin ? "/admin/lobbies" : "/lobbies";
+  const headers = {
+    Accept: "application/json",
+    Cookie: request.headers.get("Cookie") || "",
+    Origin: "https://tung.andrenijman.com",
+  };
+  if (wantsAdmin) headers["X-Tung-Proxy-Authorization"] = `Bearer ${env.TUNG_PROXY_SECRET}`;
   const upstream = await fetch(`https://relay.tung.andrenijman.com${path}`, {
-    headers: {
-      Accept: "application/json",
-      Cookie: request.headers.get("Cookie") || "",
-      Origin: "https://tung.andrenijman.com",
-    },
+    headers,
   });
   const response = new Response(upstream.body, {
     status: upstream.status,
@@ -191,6 +194,92 @@ async function gameProfile(request, env, url) {
     ON CONFLICT(account_id, game) DO UPDATE SET profile_json = excluded.profile_json, updated_at = CURRENT_TIMESTAMP
   `).bind(identity.account.id, game, JSON.stringify(profile)).run();
   return withCookies(Response.json({ saved: true }), identity.cookies);
+}
+
+async function gameSaves(request, env, url) {
+  const identity = await identify(request, env, url.hostname);
+  if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
+  if (!identity.account) {
+    return withCookies(Response.json({ error: "account required" }, { status: 401 }), identity.cookies);
+  }
+  const game = url.hostname.split('.')[0].slice(0, 32);
+  if (url.pathname === "/_guard/saves") {
+    if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
+    const result = await env.DB.prepare(`
+      SELECT save_id, name, updated_at, deleted_at, evil, hardmode, victory
+      FROM game_saves WHERE account_id = ? AND game = ? ORDER BY updated_at DESC
+    `).bind(identity.account.id, game).all();
+    const worlds = (result.results || []).map(row => ({
+      id: row.save_id,
+      name: row.name,
+      updatedAt: Number(row.updated_at),
+      deletedAt: row.deleted_at == null ? null : Number(row.deleted_at),
+      evil: row.evil,
+      hardmode: Boolean(row.hardmode),
+      victory: Boolean(row.victory),
+      data: null,
+    }));
+    return withCookies(Response.json({ worlds }, { headers: { "Cache-Control": "no-store" } }), identity.cookies);
+  }
+
+  const id = url.searchParams.get("id") || "";
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return Response.json({ error: "invalid save id" }, { status: 400 });
+  if (request.method === "GET") {
+    const row = await env.DB.prepare(`
+      SELECT save_id, name, save_json, updated_at, deleted_at, evil, hardmode, victory
+      FROM game_saves WHERE account_id = ? AND game = ? AND save_id = ?
+    `).bind(identity.account.id, game, id).first();
+    if (!row || row.deleted_at != null) return Response.json({ error: "world not found" }, { status: 404 });
+    const world = {
+      id: row.save_id,
+      name: row.name,
+      createdAt: Number(row.updated_at),
+      updatedAt: Number(row.updated_at),
+      deletedAt: null,
+      evil: row.evil,
+      hardmode: Boolean(row.hardmode),
+      victory: Boolean(row.victory),
+      data: JSON.parse(row.save_json),
+    };
+    return withCookies(Response.json({ world }, { headers: { "Cache-Control": "no-store" } }), identity.cookies);
+  }
+  if (request.method !== "PUT" && request.method !== "DELETE") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+  const text = await request.text();
+  if (text.length > 1900000) return Response.json({ error: "world save is too large" }, { status: 413 });
+  let body;
+  try { body = JSON.parse(text || "{}"); } catch { return Response.json({ error: "invalid save" }, { status: 400 }); }
+  const name = String(body.name || "Unnamed World").replace(/\s+/g, " ").trim().slice(0, 32) || "Unnamed World";
+  const updatedAt = Number.isFinite(body.updatedAt) && body.updatedAt > 0 ? Math.floor(body.updatedAt) : Date.now();
+
+  if (request.method === "DELETE") {
+    await env.DB.prepare(`
+      INSERT INTO game_saves (account_id, game, save_id, name, save_json, updated_at, deleted_at)
+      VALUES (?, ?, ?, ?, '{}', ?, ?)
+      ON CONFLICT(account_id, game, save_id) DO UPDATE SET
+        name = excluded.name, save_json = '{}', updated_at = excluded.updated_at, deleted_at = excluded.deleted_at
+      WHERE excluded.updated_at >= game_saves.updated_at
+    `).bind(identity.account.id, game, id, name, updatedAt, updatedAt).run();
+    return withCookies(Response.json({ deleted: true, updatedAt }), identity.cookies);
+  }
+
+  if (!body.save || typeof body.save !== "object" || Array.isArray(body.save) ||
+      body.save.format !== 1 || typeof body.save.tiles !== "string") {
+    return Response.json({ error: "invalid world save" }, { status: 400 });
+  }
+  const saveJson = JSON.stringify(body.save);
+  if (saveJson.length > 1850000) return Response.json({ error: "world save is too large" }, { status: 413 });
+  const evil = body.evil === "crimson" ? "crimson" : body.evil === "corrupt" ? "corrupt" : "random";
+  await env.DB.prepare(`
+    INSERT INTO game_saves (account_id, game, save_id, name, save_json, updated_at, deleted_at, evil, hardmode, victory)
+    VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+    ON CONFLICT(account_id, game, save_id) DO UPDATE SET
+      name = excluded.name, save_json = excluded.save_json, updated_at = excluded.updated_at,
+      deleted_at = NULL, evil = excluded.evil, hardmode = excluded.hardmode, victory = excluded.victory
+    WHERE excluded.updated_at >= game_saves.updated_at
+  `).bind(identity.account.id, game, id, name, saveJson, updatedAt, evil, body.hardmode ? 1 : 0, body.victory ? 1 : 0).run();
+  return withCookies(Response.json({ saved: true, updatedAt }), identity.cookies);
 }
 
 async function identify(request, env, game) {
