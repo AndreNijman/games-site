@@ -182,6 +182,32 @@
     .nav-back { text-decoration: none; color: var(--mut); transition: color 0.18s; }
     .nav-back:hover { color: var(--accent); }
 
+    /* account */
+    .nav-right { display: flex; align-items: baseline; gap: 18px; }
+    .account { display: flex; align-items: baseline; gap: 10px; font-size: 12px; color: var(--mut); }
+    .account[hidden], .nav-signin[hidden] { display: none; }
+    .account-name { color: var(--body); }
+    .logout-form { margin: 0; display: contents; }
+    .logout, .nav-signin {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--mut);
+      background: none;
+      border: 1px solid var(--hair);
+      border-radius: 999px;
+      padding: 5px 12px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.18s, border-color 0.18s;
+    }
+    .logout:hover, .nav-signin:hover { color: var(--accent); border-color: var(--accent); }
+
+    @media (max-width: 560px) {
+      .nav { flex-wrap: wrap; gap: 12px; }
+      .nav-right { gap: 12px; }
+      .account-label { display: none; }
+    }
+
     /* hero */
     .hero { padding: clamp(48px, 9vw, 96px) 0 clamp(36px, 5vw, 56px); }
     .eyebrow { font-size: 12.5px; color: var(--accent); letter-spacing: 0.04em; display: block; margin-bottom: 22px; }
@@ -267,7 +293,17 @@
     <div class="wrap">
       <nav class="nav" aria-label="Primary">
         <a class="brand" href="https://andrenijman.com"><span class="mark">&gt;</span>Andre Nijman</a>
-        <a class="nav-back" href="https://andrenijman.com">← portfolio</a>
+        <div class="nav-right">
+          <span class="account" id="account" hidden>
+            <span><span class="account-label">signed in as </span><span class="account-name" id="account-name"></span></span>
+            <form class="logout-form" method="post" action="/_guard/logout">
+              <input type="hidden" name="return" value="https://games.andrenijman.com/" />
+              <button class="logout" type="submit">log out</button>
+            </form>
+          </span>
+          <a class="nav-signin" id="nav-signin" href="/_guard/login?return=https%3A%2F%2Fgames.andrenijman.com%2F" hidden>sign in</a>
+          <a class="nav-back" href="https://andrenijman.com">← portfolio</a>
+        </div>
       </nav>
     </div>
   </header>
@@ -395,5 +431,27 @@
       </div>
     </div>
   </footer>
+
+  <script>
+    (function () {
+      function render(status) {
+        if (!status) return;
+        if (status.signedIn && status.username) {
+          document.getElementById('account-name').textContent = status.username;
+          document.getElementById('account').hidden = false;
+        } else {
+          document.getElementById('nav-signin').hidden = false;
+        }
+      }
+      if (window.__gamesGuardStatus) {
+        render(window.__gamesGuardStatus);
+        return;
+      }
+      fetch('/_guard/status', { cache: 'no-store', credentials: 'same-origin' })
+        .then(function (response) { return response.ok ? response.json() : null; })
+        .then(render)
+        .catch(function () {});
+    }());
+  </script>
 </body>
 </html>
