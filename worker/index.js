@@ -3,7 +3,9 @@ const SESSION_COOKIE = "games_session";
 const GUEST_COOKIE = "games_guest";
 const COOKIE_DOMAIN = ".andrenijman.com";
 const SESSION_DAYS = 30;
+const NAME_PROMPT_DAYS = 30;
 const PBKDF2_ITERATIONS = 100000;
+const ACCEPT_CH = "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version, Sec-CH-UA-Full-Version-List, Sec-CH-UA-Arch, Sec-CH-UA-Bitness";
 const HOSTS = new Set([
   "games.andrenijman.com",
   "topout.andrenijman.com",
@@ -76,6 +78,7 @@ async function handleRequest(request, env) {
   response.headers.set("Pragma", "no-cache");
   response.headers.set("Expires", "0");
   response.headers.set("X-Games-Guard", "active");
+  response.headers.set("Accept-CH", ACCEPT_CH);
   const contentVersion = upstream.headers.get("ETag") || upstream.headers.get("Last-Modified") || "";
   const isHtml = response.headers.get("Content-Type")?.includes("text/html");
   if (isHtml) response.headers.set("Clear-Site-Data", '"cache"');
@@ -102,6 +105,8 @@ async function handleGuardRoute(request, env, url) {
   if (url.pathname === "/_guard/bop-lobbies") return bopLobbies(request, env, url);
   if (url.pathname.startsWith("/_guard/admin")) return handleAdmin(request, env, url);
   if (url.pathname === "/_guard/skip") return skipAccount(request, env, url);
+  if (url.pathname === "/_guard/device-name") return deviceName(request, env, url);
+  if (url.pathname === "/_guard/device-profile") return deviceProfile(request, env, url);
   if (url.pathname === "/_guard/logout") return logout(request, env);
   if (url.pathname === "/_guard/login") return login(request, env, url);
   if (url.pathname === "/_guard/register") return register(request, env, url);
@@ -109,10 +114,14 @@ async function handleGuardRoute(request, env, url) {
   if (url.pathname === "/_guard/saves" || url.pathname === "/_guard/save") return gameSaves(request, env, url);
   if (url.pathname === "/_guard/status") {
     const identity = await identify(request, env, url.hostname);
+    const allowed = !identity.blocked && Boolean(identity.account || identity.guest);
     const response = Response.json({
-      allowed: !identity.blocked && Boolean(identity.account || identity.guest),
+      allowed,
       signedIn: Boolean(identity.account),
       username: identity.account?.username || null,
+      deviceName: identity.device?.label_source === "auto" ? null : identity.device?.label || null,
+      needsName: allowed && needsName(identity.device),
+      needsProfile: allowed && needsProfile(identity.device),
       reason: identity.blocked ? identity.reason : undefined,
     }, { status: identity.blocked ? 403 : identity.account || identity.guest ? 200 : 401 });
     response.headers.set("Cache-Control", "no-store");
@@ -351,23 +360,37 @@ async function identify(request, env, game) {
 
   const metadata = deviceMetadata(request);
   await env.DB.prepare(`
-    INSERT INTO devices (id, account_id, label, user_agent, browser, os, ip_prefix, country, last_game)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO devices (
+      id, account_id, label, user_agent, browser, browser_version, os, os_version,
+      model, arch, ip_prefix, country, city, region, asn_org, last_game
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       account_id = COALESCE(excluded.account_id, devices.account_id),
+      label = CASE WHEN devices.label_source = 'auto' THEN excluded.label ELSE devices.label END,
       user_agent = excluded.user_agent,
       browser = excluded.browser,
+      browser_version = CASE WHEN excluded.browser_version <> '' THEN excluded.browser_version ELSE devices.browser_version END,
       os = excluded.os,
+      os_version = CASE WHEN excluded.os_version <> '' THEN excluded.os_version ELSE devices.os_version END,
+      model = CASE WHEN excluded.model <> '' THEN excluded.model ELSE devices.model END,
+      arch = CASE WHEN excluded.arch <> '' THEN excluded.arch ELSE devices.arch END,
       ip_prefix = excluded.ip_prefix,
       country = excluded.country,
+      city = excluded.city,
+      region = excluded.region,
+      asn_org = excluded.asn_org,
       last_game = excluded.last_game,
       last_seen_at = CURRENT_TIMESTAMP
   `).bind(deviceId, account?.id || null, defaultDeviceLabel(metadata, deviceId), metadata.userAgent,
-    metadata.browser, metadata.os, metadata.ipPrefix, metadata.country, game).run();
+    metadata.browser, metadata.browserVersion, metadata.os, metadata.osVersion, metadata.model,
+    metadata.arch, metadata.ipPrefix, metadata.country, metadata.city, metadata.region,
+    metadata.asnOrg, game).run();
 
-  const device = await env.DB.prepare(
-    "SELECT banned_at, ban_reason FROM devices WHERE id = ?"
-  ).bind(deviceId).first();
+  const device = await env.DB.prepare(`
+    SELECT banned_at, ban_reason, label, label_source, name_asked_at, profile_at, model
+    FROM devices WHERE id = ?
+  `).bind(deviceId).first();
   const reason = device?.banned_at
     ? device.ban_reason || "This device has been blocked."
     : account?.banned_at
@@ -375,6 +398,7 @@ async function identify(request, env, game) {
       : null;
   return {
     account,
+    device,
     deviceId,
     guest: cookies[GUEST_COOKIE] === "1",
     blocked: Boolean(reason),
@@ -383,20 +407,105 @@ async function identify(request, env, game) {
   };
 }
 
+// Only nag an unnamed device, and only once a month.
+function needsName(device) {
+  if (!device || device.label_source !== "auto") return false;
+  const asked = timestampMs(device.name_asked_at);
+  return !asked || Date.now() - asked > NAME_PROMPT_DAYS * 86400000;
+}
+
+function needsProfile(device) {
+  return Boolean(device) && !device.profile_at;
+}
+
+function timestampMs(value) {
+  if (!value) return 0;
+  const parsed = Date.parse(`${String(value).replace(" ", "T")}Z`);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 async function skipAccount(request, env, url) {
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const identity = await identify(request, env, url.hostname);
   if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
   const form = await request.formData();
-  const name = String(form.get("name") || "").trim().slice(0, 80);
+  const name = cleanText(form.get("name"), 80);
   if (name) {
-    await env.DB.prepare("UPDATE devices SET label = ? WHERE id = ?").bind(name, identity.deviceId).run();
+    await env.DB.prepare(`
+      UPDATE devices SET label = ?, label_source = 'self', named_at = CURRENT_TIMESTAMP,
+        name_asked_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(name, identity.deviceId).run();
   }
   const returnTo = safeReturn(form.get("return"));
   return withCookies(Response.redirect(returnTo, 302), [
     ...identity.cookies,
     cookie(GUEST_COOKIE, "1", 31536000),
   ]);
+}
+
+async function deviceName(request, env, url) {
+  if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  const identity = await identify(request, env, url.hostname);
+  if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
+  if (!identity.account && !identity.guest) {
+    return withCookies(Response.json({ error: "access required" }, { status: 401 }), identity.cookies);
+  }
+  const text = await request.text();
+  if (text.length > 512) return Response.json({ error: "name too long" }, { status: 413 });
+  let body;
+  try { body = JSON.parse(text || "{}"); } catch { return Response.json({ error: "invalid request" }, { status: 400 }); }
+  const name = cleanText(body.name, 80);
+  if (!name) {
+    await env.DB.prepare("UPDATE devices SET name_asked_at = CURRENT_TIMESTAMP WHERE id = ?")
+      .bind(identity.deviceId).run();
+    return withCookies(Response.json({ saved: false, asked: true }), identity.cookies);
+  }
+  await env.DB.prepare(`
+    UPDATE devices SET label = ?, label_source = 'self', named_at = CURRENT_TIMESTAMP,
+      name_asked_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(name, identity.deviceId).run();
+  return withCookies(Response.json({ saved: true, name }), identity.cookies);
+}
+
+async function deviceProfile(request, env, url) {
+  if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  const identity = await identify(request, env, url.hostname);
+  if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
+  if (!identity.account && !identity.guest) {
+    return withCookies(Response.json({ error: "access required" }, { status: 401 }), identity.cookies);
+  }
+  const text = await request.text();
+  if (text.length > 2048) return Response.json({ error: "profile too large" }, { status: 413 });
+  let body;
+  try { body = JSON.parse(text || "{}"); } catch { return Response.json({ error: "invalid profile" }, { status: 400 }); }
+  const screen = /^\d{2,5}x\d{2,5}@\d(?:\.\d{1,3})?$/.test(String(body.screen || "")) ? String(body.screen) : "";
+  // NULLIF keeps a previously reported value when this report omits the field;
+  // the integer columns are always sent together, and 0 is meaningful for touch.
+  await env.DB.prepare(`
+    UPDATE devices SET
+      gpu = COALESCE(NULLIF(?, ''), gpu),
+      screen = COALESCE(NULLIF(?, ''), screen),
+      cpu_cores = ?, device_memory = ?, touch_points = ?,
+      timezone = COALESCE(NULLIF(?, ''), timezone),
+      languages = COALESCE(NULLIF(?, ''), languages),
+      profile_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(cleanText(body.gpu, 80), screen, boundedInt(body.cores, 0, 512),
+    boundedInt(body.memory, 0, 1024), boundedInt(body.touch, 0, 32),
+    cleanText(body.timezone, 48), cleanText(body.languages, 64), identity.deviceId).run();
+  return withCookies(Response.json({ saved: true }), identity.cookies);
+}
+
+function cleanText(value, max) {
+  return String(value ?? "").replace(/[\s\u0000-\u001f]+/g, " ").trim().slice(0, max);
+}
+
+function boundedInt(value, min, max) {
+  const number = Math.floor(Number(value));
+  if (!Number.isFinite(number)) return min;
+  return Math.min(max, Math.max(min, number));
 }
 
 async function login(request, env, url) {
@@ -489,7 +598,8 @@ async function handleAdmin(request, env, url) {
     } else if (action === "unban-device") {
       await env.DB.prepare("UPDATE devices SET banned_at = NULL, ban_reason = NULL WHERE id = ?").bind(id).run();
     } else if (action === "label-device") {
-      await env.DB.prepare("UPDATE devices SET label = ? WHERE id = ?").bind(reason.slice(0, 80), id).run();
+      await env.DB.prepare("UPDATE devices SET label = ?, label_source = 'admin' WHERE id = ?")
+        .bind(reason.slice(0, 80), id).run();
     } else if (action === "ban-account") {
       await env.DB.prepare("UPDATE accounts SET banned_at = CURRENT_TIMESTAMP, ban_reason = ? WHERE id = ?")
         .bind(reason, accountId).run();
@@ -505,9 +615,46 @@ async function handleAdmin(request, env, url) {
   const devices = await env.DB.prepare(`
     SELECT devices.*, accounts.username, accounts.banned_at AS account_banned_at
     FROM devices LEFT JOIN accounts ON accounts.id = devices.account_id
-    ORDER BY devices.banned_at IS NOT NULL DESC, devices.last_seen_at DESC LIMIT 500
+    ORDER BY devices.last_seen_at DESC LIMIT 500
   `).all();
-  return adminPage(devices.results || [], adminEmail);
+  return adminPage(groupDevices(devices.results || []), adminEmail);
+}
+
+// One row per browser profile is unreadable once a person owns four of them.
+// Devices that have signed into the same account are the same person, so group
+// on that and leave everything else in a single unclaimed bucket.
+function groupDevices(devices) {
+  const people = new Map();
+  const unclaimed = { key: "unclaimed", accountId: null, username: null, accountBanned: null, devices: [] };
+  for (const device of devices) {
+    if (!device.account_id) {
+      unclaimed.devices.push(device);
+      continue;
+    }
+    const key = String(device.account_id);
+    if (!people.has(key)) {
+      people.set(key, {
+        key,
+        accountId: device.account_id,
+        username: device.username,
+        accountBanned: device.account_banned_at,
+        devices: [],
+      });
+    }
+    people.get(key).devices.push(device);
+  }
+  const groups = [...people.values()];
+  for (const group of groups) {
+    group.lastSeen = group.devices[0]?.last_seen_at || "";
+    group.blocked = Boolean(group.accountBanned) || group.devices.some((device) => device.banned_at);
+  }
+  groups.sort((a, b) => (Number(b.blocked) - Number(a.blocked)) || String(b.lastSeen).localeCompare(String(a.lastSeen)));
+  if (unclaimed.devices.length) {
+    unclaimed.lastSeen = unclaimed.devices[0]?.last_seen_at || "";
+    unclaimed.blocked = unclaimed.devices.some((device) => device.banned_at);
+    groups.push(unclaimed);
+  }
+  return groups;
 }
 
 function isAdminEmail(email, env) {
@@ -523,17 +670,60 @@ function isAdminEmail(email, env) {
 function deviceMetadata(request) {
   const userAgent = (request.headers.get("User-Agent") || "").slice(0, 500);
   const ip = request.headers.get("CF-Connecting-IP") || "";
+  const bitness = hintValue(request.headers.get("Sec-CH-UA-Bitness"));
+  const arch = [hintValue(request.headers.get("Sec-CH-UA-Arch")), bitness ? `${bitness}-bit` : ""]
+    .filter(Boolean).join(" ");
   return {
     userAgent,
     browser: detectBrowser(userAgent),
+    browserVersion: (brandVersion(request.headers.get("Sec-CH-UA-Full-Version-List")) || uaVersion(userAgent)).slice(0, 40),
+    // Kept UA-derived on purpose: hints are absent on the first navigation and
+    // on Firefox/Safari entirely, so mixing sources makes the column flip.
     os: detectOs(userAgent),
+    osVersion: hintValue(request.headers.get("Sec-CH-UA-Platform-Version")).slice(0, 20),
+    model: hintValue(request.headers.get("Sec-CH-UA-Model")).slice(0, 60),
+    arch: arch.slice(0, 30),
     ipPrefix: maskIp(ip),
     country: (request.cf?.country || "").slice(0, 2),
+    city: String(request.cf?.city || "").slice(0, 60),
+    region: String(request.cf?.region || "").slice(0, 60),
+    asnOrg: String(request.cf?.asOrganization || "").slice(0, 80),
   };
 }
 
+// Client hints arrive as RFC 8941 structured headers: quoted strings for single
+// values, an empty string on platforms that have no answer (desktop Chromium
+// reports no model). Firefox and Safari send nothing at all.
+function hintValue(value) {
+  if (!value) return "";
+  return value.trim().replace(/^"(.*)"$/s, "$1").replace(/\\"/g, '"').trim();
+}
+
+function brandVersion(list) {
+  if (!list) return "";
+  const brands = [...list.matchAll(/"([^"]+)";\s*v="([^"]+)"/g)]
+    .map(([, brand, version]) => ({ brand: brand.trim(), version }))
+    .filter(({ brand }) => !/not.?a.?brand/i.test(brand));
+  const preferred = brands.find(({ brand }) => !/^chromium$/i.test(brand)) || brands[0];
+  return preferred ? `${preferred.brand} ${preferred.version}` : "";
+}
+
+function uaVersion(ua) {
+  const firefox = ua.match(/Firefox\/([\d.]+)/);
+  if (firefox) return `Firefox ${firefox[1]}`;
+  const safari = ua.match(/Version\/([\d.]+)[^)]*Safari\//);
+  if (safari) return `Safari ${safari[1]}`;
+  const edge = ua.match(/Edg\/([\d.]+)/);
+  if (edge) return `Edge ${edge[1]}`;
+  const chrome = ua.match(/(?:CriOS|Chrome)\/([\d.]+)/);
+  if (chrome) return `Chrome ${chrome[1]}`;
+  return "";
+}
+
 function defaultDeviceLabel(metadata, deviceId) {
-  return `${metadata.os} ${metadata.browser} · ${metadata.country || "Unknown"} · ${deviceId.slice(0, 4)}`;
+  const hardware = metadata.model || `${metadata.os} ${metadata.browser}`;
+  const place = [metadata.city, metadata.country].filter(Boolean).join(" ") || "Unknown";
+  return `${hardware} · ${place} · ${deviceId.slice(0, 4)}`;
 }
 
 function detectBrowser(ua) {
@@ -683,19 +873,84 @@ function authPage(title, returnTo, error = "", status = 200, registering = false
     </main>`, status);
 }
 
-function adminPage(devices, email) {
-  const rows = devices.map((device) => `<tr class="${device.banned_at ? "blocked-row" : ""}">
-    <td><strong>${escapeHtml(device.label || "Unlabelled")}</strong><small>${escapeHtml(device.id)}</small></td>
-    <td>${escapeHtml(device.username || "Not signed in")}</td>
-    <td>${escapeHtml(device.os)} / ${escapeHtml(device.browser)}<small>${escapeHtml(device.ip_prefix)} ${escapeHtml(device.country)}</small></td>
-    <td>${escapeHtml(device.last_game.replace(".andrenijman.com", ""))}<small>${escapeHtml(device.last_seen_at)}</small></td>
-    <td><form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><input type="hidden" name="account_id" value="${escapeHtml(device.account_id || "")}"><input name="reason" maxlength="200" placeholder="Label or reason"><span class="actions"><button name="action" value="label-device">Label</button><button class="danger" name="action" value="${device.banned_at ? "unban-device" : "ban-device"}">${device.banned_at ? "Unban" : "Ban device"}</button>${device.account_id ? `<button class="danger" name="action" value="${device.account_banned_at ? "unban-account" : "ban-account"}">${device.account_banned_at ? "Unban account" : "Ban account"}</button>` : ""}</span></form></td>
-  </tr>`).join("");
-  return shell("Device access", `<main class="admin"><header><div><p class="kicker">ACCESS CONTROL</p><h1>Known devices</h1></div><p>${escapeHtml(email)}</p></header><p class="notice">A device ban applies only to that signed browser profile and its known duplicate IDs. It does not block other devices sharing the same network.</p><div class="table"><table><thead><tr><th>Device</th><th>Account</th><th>Client</th><th>Last seen</th><th>Control</th></tr></thead><tbody>${rows || `<tr><td colspan="5">No devices recorded.</td></tr>`}</tbody></table></div></main>`);
+function adminPage(groups, email) {
+  const deviceCount = groups.reduce((total, group) => total + group.devices.length, 0);
+  const namedCount = groups.reduce((total, group) =>
+    total + group.devices.filter((device) => device.label_source !== "auto").length, 0);
+  const accountGroups = groups.filter((group) => group.accountId).length;
+  const sections = groups.map((group) => {
+    const heading = group.accountId
+      ? `<h2>${escapeHtml(group.username || `Account ${group.accountId}`)}</h2>`
+      : `<h2 class="anon">Unclaimed devices</h2>`;
+    const named = group.devices.find((device) => device.label_source !== "auto");
+    const summary = [
+      `${group.devices.length} device${group.devices.length === 1 ? "" : "s"}`,
+      group.accountId ? `account ${group.accountId}` : "never signed in",
+      named ? `named "${escapeHtml(named.label)}"` : "no self-chosen name yet",
+      `last seen ${escapeHtml(group.lastSeen || "unknown")}`,
+    ].join(" · ");
+    const accountControl = group.accountId
+      ? `<form method="post"><input type="hidden" name="account_id" value="${escapeHtml(group.accountId)}"><input name="reason" maxlength="200" placeholder="Reason"><button class="danger" name="action" value="${group.accountBanned ? "unban-account" : "ban-account"}">${group.accountBanned ? "Unban account" : "Ban account"}</button></form>`
+      : "";
+    return `<section class="person${group.blocked ? " blocked-person" : ""}">
+      <header>${heading}<p class="summary">${summary}</p>${accountControl}</header>
+      <div class="table"><table><thead><tr><th>Device</th><th>Hardware</th><th>Client</th><th>Network</th><th>Last seen</th><th>Control</th></tr></thead><tbody>${group.devices.map(deviceRow).join("")}</tbody></table></div>
+    </section>`;
+  }).join("");
+  return shell("Device access", `<main class="admin">
+    <header><div><p class="kicker">ACCESS CONTROL</p><h1>Who is playing</h1></div><p>${escapeHtml(email)}</p></header>
+    <p class="summary-line">${accountGroups} account${accountGroups === 1 ? "" : "s"} · ${deviceCount} device${deviceCount === 1 ? "" : "s"} · ${namedCount} named</p>
+    <p class="notice">Names come from the player or from you; everything else is measured. Browsers cannot report a real computer name, so an unnamed device only ever shows its hardware class. A device ban applies to that signed browser profile and its known duplicate IDs, not to a household or a network.</p>
+    ${sections || `<p class="summary-line">No devices recorded.</p>`}
+  </main>`);
+}
+
+function deviceRow(device) {
+  const badge = device.label_source === "self"
+    ? `<span class="badge">self-named</span>`
+    : device.label_source === "admin"
+      ? `<span class="badge">your label</span>`
+      : `<span class="badge auto">auto</span>`;
+  const hardware = [
+    device.model || "",
+    device.gpu || "",
+    device.screen || "",
+    [device.cpu_cores ? `${device.cpu_cores} cores` : "", device.device_memory ? `${device.device_memory} GB` : "",
+      device.touch_points ? `${device.touch_points}-touch` : ""].filter(Boolean).join(" · "),
+  ].filter(Boolean);
+  const client = [
+    [device.os, device.os_version].filter(Boolean).join(" "),
+    device.browser_version || device.browser,
+    device.arch || "",
+  ].filter(Boolean);
+  const network = [
+    device.asn_org || "",
+    [device.city, device.region, device.country].filter(Boolean).join(", "),
+    device.ip_prefix || "",
+  ].filter(Boolean);
+  return `<tr class="${device.banned_at ? "blocked-row" : ""}">
+    <td><strong>${escapeHtml(device.label || "Unlabelled")}</strong> ${badge}<small>${escapeHtml(device.id)}</small>${device.ban_reason ? `<small>${escapeHtml(device.ban_reason)}</small>` : ""}</td>
+    <td>${cell(hardware, "Not reported yet")}</td>
+    <td>${cell(client, "Unknown")}</td>
+    <td>${cell(network, "Unknown")}</td>
+    <td>${escapeHtml(String(device.last_game || "").replace(".andrenijman.com", "")) || "&mdash;"}<small>${escapeHtml(device.last_seen_at)}</small><small>first ${escapeHtml(device.first_seen_at)}</small></td>
+    <td><form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><input type="hidden" name="account_id" value="${escapeHtml(device.account_id || "")}"><input name="reason" maxlength="200" placeholder="Label or reason"><span class="actions"><button name="action" value="label-device">Label</button><button class="danger" name="action" value="${device.banned_at ? "unban-device" : "ban-device"}">${device.banned_at ? "Unban" : "Ban device"}</button></span></form></td>
+  </tr>`;
+}
+
+function cell(parts, empty) {
+  if (!parts.length) return `<span class="muted">${escapeHtml(empty)}</span>`;
+  const [first, ...rest] = parts;
+  return `${escapeHtml(first)}${rest.map((part) => `<small>${escapeHtml(part)}</small>`).join("")}`;
 }
 
 function privacyPage() {
-  return shell("Privacy", `<main class="auth privacy"><p class="kicker">PRIVACY</p><h1>Site data</h1><p>The site records an optional account or device name, a browser identifier, browser and operating-system family, partial IP network, country, games visited, and first/last visit times. Signed-in players may also store supported game progress and named world saves in their account.</p><p>This information is used to operate and secure the games site. Ask the site owner to inspect or delete your record.</p><a class="alternate" href="/_guard/login">Return to the games</a></main>`);
+  return shell("Privacy", `<main class="auth privacy"><p class="kicker">PRIVACY</p><h1>Site data</h1>
+    <p>The site records an optional account, a name you choose for your device, a random browser identifier, and the games you visit with first and last visit times.</p>
+    <p>It also records what your browser reports about itself: browser and operating-system family and version, processor architecture, device model on Android, screen size and pixel ratio, processor core count, rough memory size, touch support, time zone, and languages, plus the graphics adapter name your browser exposes to web pages.</p>
+    <p>From the network connection it records a partial IP network, country, city, region, and the network operator name. Signed-in players may also store supported game progress and named world saves in their account.</p>
+    <p>None of this is a hardware serial number or a permanent identifier: it describes the browser and its device class so the site owner can tell one player apart from another and block abuse. It is not sold or shared. Ask the site owner to inspect or delete your record.</p>
+    <a class="alternate" href="/_guard/login">Return to the games</a></main>`);
 }
 
 function htmlPage(title, message, status = 200) {
@@ -708,6 +963,7 @@ function shell(title, content, status = 200) {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
+      "Accept-CH": ACCEPT_CH,
       "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
       "Referrer-Policy": "no-referrer",
       "X-Content-Type-Options": "nosniff",
@@ -760,6 +1016,7 @@ function gameFramePage(url, title) {
       "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; base-uri 'none'; frame-ancestors 'self'",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "X-Content-Type-Options": "nosniff",
+      "Accept-CH": ACCEPT_CH,
       "X-Games-Guard": "framed",
     },
   });
@@ -779,6 +1036,32 @@ const CLIENT_JS = `(function () {
     document.documentElement.innerHTML = '<head><title>Access required</title></head><body style="font:16px monospace;padding:2rem;background:#10110f;color:#eee">Online access check failed or access is blocked. <a style="color:#d1b24b" href="https://games.andrenijman.com/_guard/login?return=' + encodeURIComponent(location.href) + '">Sign in</a></body>';
     window.stop();
     throw new Error('Games access denied');
+  }
+
+  if (result && result.needsProfile) {
+    try {
+      var canvas = document.createElement('canvas');
+      var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      var renderer = '';
+      if (gl) {
+        var debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        renderer = String(debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER) || '');
+      }
+      fetch('/_guard/device-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          gpu: renderer,
+          screen: screen.width + 'x' + screen.height + '@' + (Math.round((window.devicePixelRatio || 1) * 100) / 100),
+          cores: navigator.hardwareConcurrency || 0,
+          memory: navigator.deviceMemory || 0,
+          touch: navigator.maxTouchPoints || 0,
+          timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone) || '',
+          languages: (navigator.languages || [navigator.language || '']).slice(0, 3).join(',')
+        })
+      }).catch(function () {});
+    } catch (error) {}
   }
 
   if ('serviceWorker' in navigator) {
@@ -808,5 +1091,5 @@ const CLIENT_JS = `(function () {
 const RETIRED_SERVICE_WORKER = `self.addEventListener('install', function () { self.skipWaiting(); }); self.addEventListener('activate', function (event) { event.waitUntil(Promise.all([caches.keys().then(function (keys) { return Promise.all(keys.map(function (key) { return caches.delete(key); })); }), self.registration.unregister(), self.clients.claim()])); }); self.addEventListener('fetch', function (event) { event.respondWith(fetch(event.request)); });`;
 
 const CSS = `
-:root{--bg:#10110f;--surface:#181a17;--text:#ebe9df;--muted:#9b9d94;--line:#35382f;--accent:#d1b24b;--danger:#c76155;--s1:4px;--s2:8px;--s3:16px;--s4:24px;--s5:32px;--s6:48px;font-family:Arial,sans-serif;color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}a{color:var(--accent)}h1{font:400 clamp(2.2rem,6vw,4.5rem)/.95 Georgia,serif;letter-spacing:-.04em;margin:var(--s2) 0 var(--s4)}p{line-height:1.6;color:var(--muted)}.kicker,th,small,button,label{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.kicker{font-size:.72rem;letter-spacing:.14em;color:var(--accent)}.account-purpose{margin:0 0 var(--s5)}.auth{width:min(100% - 40px,480px);margin:8vh auto}.auth form{display:grid;gap:var(--s3)}label{display:grid;gap:var(--s2);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase}input{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--text);font:inherit}button{min-height:44px;padding:10px 16px;border:1px solid var(--line);border-radius:4px;background:var(--accent);color:var(--bg);cursor:pointer}button:hover{filter:brightness(1.08)}.alternate{display:inline-block;margin-top:var(--s4)}.choice{display:flex;align-items:center;gap:var(--s3);margin:var(--s4) 0;color:var(--muted);font:12px ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase}.choice:before,.choice:after{content:"";height:1px;background:var(--line);flex:1}.skip-button{display:flex;min-height:56px;align-items:center;justify-content:center;padding:10px 16px;border-radius:4px;background:var(--text);color:var(--bg);font:1rem ui-monospace,SFMono-Regular,Consolas,monospace;text-decoration:none}.skip-button:hover{filter:brightness(1.08)}.fine{font-size:.78rem;margin-top:var(--s4)}.error,.notice{padding:var(--s3);border-left:3px solid var(--danger);background:var(--surface);color:var(--text)}.privacy{max-width:640px}.admin{width:min(100% - 40px,1500px);margin:var(--s6) auto}.admin header{display:flex;justify-content:space-between;align-items:start;gap:var(--s4)}.admin h1{margin-bottom:var(--s3)}.table{overflow:auto;border-top:1px solid var(--line);margin-top:var(--s5)}table{width:100%;border-collapse:collapse;min-width:1050px}th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:.7rem;letter-spacing:.1em;color:var(--muted)}td{font-size:.88rem}small{display:block;color:var(--muted);font-size:.68rem;margin-top:var(--s1)}td form{display:grid;gap:var(--s2)}.actions{display:flex;gap:var(--s2)}.actions button{min-height:36px;padding:6px 10px}.danger{background:transparent;color:var(--danger);border-color:var(--danger)}tr.blocked-row{background:#281b18}@media(max-width:600px){.admin header{display:block}.auth{margin-top:var(--s5)}.actions{flex-wrap:wrap}}
+:root{--bg:#10110f;--surface:#181a17;--text:#ebe9df;--muted:#9b9d94;--line:#35382f;--accent:#d1b24b;--danger:#c76155;--s1:4px;--s2:8px;--s3:16px;--s4:24px;--s5:32px;--s6:48px;font-family:Arial,sans-serif;color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}a{color:var(--accent)}h1{font:400 clamp(2.2rem,6vw,4.5rem)/.95 Georgia,serif;letter-spacing:-.04em;margin:var(--s2) 0 var(--s4)}p{line-height:1.6;color:var(--muted)}.kicker,th,small,button,label{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.kicker{font-size:.72rem;letter-spacing:.14em;color:var(--accent)}.account-purpose{margin:0 0 var(--s5)}.auth{width:min(100% - 40px,480px);margin:8vh auto}.auth form{display:grid;gap:var(--s3)}label{display:grid;gap:var(--s2);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase}input{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--text);font:inherit}button{min-height:44px;padding:10px 16px;border:1px solid var(--line);border-radius:4px;background:var(--accent);color:var(--bg);cursor:pointer}button:hover{filter:brightness(1.08)}.alternate{display:inline-block;margin-top:var(--s4)}.choice{display:flex;align-items:center;gap:var(--s3);margin:var(--s4) 0;color:var(--muted);font:12px ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase}.choice:before,.choice:after{content:"";height:1px;background:var(--line);flex:1}.skip-button{display:flex;min-height:56px;align-items:center;justify-content:center;padding:10px 16px;border-radius:4px;background:var(--text);color:var(--bg);font:1rem ui-monospace,SFMono-Regular,Consolas,monospace;text-decoration:none}.skip-button:hover{filter:brightness(1.08)}.fine{font-size:.78rem;margin-top:var(--s4)}.error,.notice{padding:var(--s3);border-left:3px solid var(--danger);background:var(--surface);color:var(--text)}.privacy{max-width:640px}.admin{width:min(100% - 40px,1500px);margin:var(--s6) auto}.admin header{display:flex;justify-content:space-between;align-items:start;gap:var(--s4)}.admin h1{margin-bottom:var(--s3)}.summary-line{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;letter-spacing:.04em}.person{margin-top:var(--s6);border-top:1px solid var(--line);padding-top:var(--s3)}.person>header{align-items:baseline;flex-wrap:wrap;gap:var(--s3)}.person h2{font:400 1.5rem/1.1 Georgia,serif;margin:0}.person h2.anon{color:var(--muted)}.person .summary{flex:1;margin:0;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.72rem;letter-spacing:.03em}.person>header form{display:flex;gap:var(--s2)}.person>header input{width:auto;min-width:150px}.person>header button{min-height:36px;padding:6px 10px;white-space:nowrap}.person .table{margin-top:var(--s3)}.blocked-person h2{color:var(--danger)}.badge{display:inline-block;padding:2px 7px;border:1px solid var(--accent);border-radius:999px;color:var(--accent);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;vertical-align:middle}.badge.auto{border-color:var(--line);color:var(--muted)}.muted{color:var(--muted)}.table{overflow:auto;border-top:1px solid var(--line);margin-top:var(--s5)}table{width:100%;border-collapse:collapse;min-width:1050px}th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:.7rem;letter-spacing:.1em;color:var(--muted)}td{font-size:.88rem}small{display:block;color:var(--muted);font-size:.68rem;margin-top:var(--s1)}td form{display:grid;gap:var(--s2)}.actions{display:flex;gap:var(--s2)}.actions button{min-height:36px;padding:6px 10px}.danger{background:transparent;color:var(--danger);border-color:var(--danger)}tr.blocked-row{background:#281b18}@media(max-width:600px){.admin header{display:block}.auth{margin-top:var(--s5)}.actions{flex-wrap:wrap}}
 `;
