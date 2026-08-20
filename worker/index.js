@@ -14,6 +14,7 @@ const HOSTS = new Set([
   "tung.andrenijman.com",
   "isaac.andrenijman.com",
 ]);
+const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
 const GAME_TITLES = {
   "topout.andrenijman.com": "TOPOUT",
   "defenders.andrenijman.com": "Garden Defenders 2",
@@ -159,7 +160,7 @@ async function tungLobbies(request, env, url) {
     return withCookies(Response.json({ error: "access required" }, { status: 401 }), identity.cookies);
   }
   const wantsAdmin = url.searchParams.get("admin") === "1";
-  const isAdmin = identity.account && ["andrenijman", "mechtical"].includes(String(identity.account.username).toLowerCase());
+  const isAdmin = identity.account && TUNG_ADMINS.has(String(identity.account.username).toLowerCase());
   if (wantsAdmin && !isAdmin) {
     return withCookies(Response.json({ error: "admin account required" }, { status: 403 }), identity.cookies);
   }
@@ -447,8 +448,8 @@ async function logout(request, env) {
 
 async function handleAdmin(request, env, url) {
   const adminEmail = request.headers.get("CF-Access-Authenticated-User-Email") || "";
-  if (!env.ADMIN_EMAIL || adminEmail.toLowerCase() !== env.ADMIN_EMAIL.toLowerCase()) {
-    return htmlPage("Forbidden", "This dashboard requires the configured Cloudflare Access administrator.", 403);
+  if (!isAdminEmail(adminEmail, env)) {
+    return htmlPage("Forbidden", "This dashboard requires a configured Cloudflare Access administrator.", 403);
   }
 
   if (request.method === "POST") {
@@ -482,6 +483,16 @@ async function handleAdmin(request, env, url) {
     ORDER BY devices.banned_at IS NOT NULL DESC, devices.last_seen_at DESC LIMIT 500
   `).all();
   return adminPage(devices.results || [], adminEmail);
+}
+
+function isAdminEmail(email, env) {
+  const candidate = String(email || "").trim().toLowerCase();
+  if (!candidate) return false;
+  const allowed = `${env.ADMIN_EMAILS || ""} ${env.ADMIN_EMAIL || ""}`
+    .split(/[,\s]+/)
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  return allowed.includes(candidate);
 }
 
 function deviceMetadata(request) {
