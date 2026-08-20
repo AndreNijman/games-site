@@ -432,9 +432,17 @@ async function register(request, env, url) {
 }
 
 async function logout(request, env) {
+  if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const token = parseCookies(request.headers.get("Cookie") || "")[SESSION_COOKIE];
   if (token) await env.DB.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(await sha256(token)).run();
-  return withCookies(Response.redirect("https://games.andrenijman.com/_guard/login", 303), [sessionCookie("", 0)]);
+  let returnTo = "https://games.andrenijman.com/";
+  try {
+    const form = await request.formData();
+    returnTo = safeReturn(form.get("return"));
+  } catch {}
+  const login = new URL("https://games.andrenijman.com/_guard/login");
+  login.searchParams.set("return", returnTo);
+  return withCookies(Response.redirect(login, 303), [sessionCookie("", 0), cookie(GUEST_COOKIE, "", 0)]);
 }
 
 async function handleAdmin(request, env, url) {
@@ -729,6 +737,7 @@ const CLIENT_JS = `(function () {
     request.send();
     var result = JSON.parse(request.responseText);
     allowed = request.status === 200 && result.allowed === true;
+    window.__gamesGuardStatus = result;
   } catch (error) {}
   if (!allowed) {
     document.documentElement.innerHTML = '<head><title>Access required</title></head><body style="font:16px monospace;padding:2rem;background:#10110f;color:#eee">Online access check failed or access is blocked. <a style="color:#d1b24b" href="https://games.andrenijman.com/_guard/login?return=' + encodeURIComponent(location.href) + '">Sign in</a></body>';
