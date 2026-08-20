@@ -149,12 +149,14 @@ async function tungLobbies(request, env, url) {
     return withCookies(Response.json({ error: "admin account required" }, { status: 403 }), identity.cookies);
   }
   const path = wantsAdmin ? "/admin/lobbies" : "/lobbies";
+  const headers = {
+    Accept: "application/json",
+    Cookie: request.headers.get("Cookie") || "",
+    Origin: "https://tung.andrenijman.com",
+  };
+  if (wantsAdmin) headers["X-Tung-Proxy-Authorization"] = `Bearer ${env.TUNG_PROXY_SECRET}`;
   const upstream = await fetch(`https://relay.tung.andrenijman.com${path}`, {
-    headers: {
-      Accept: "application/json",
-      Cookie: request.headers.get("Cookie") || "",
-      Origin: "https://tung.andrenijman.com",
-    },
+    headers,
   });
   const response = new Response(upstream.body, {
     status: upstream.status,
