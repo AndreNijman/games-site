@@ -13,6 +13,7 @@ const HOSTS = new Set([
   "tree.andrenijman.com",
   "tung.andrenijman.com",
   "isaac.andrenijman.com",
+  "bop.andrenijman.com",
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
 const GAME_TITLES = {
@@ -23,6 +24,7 @@ const GAME_TITLES = {
   "tree.andrenijman.com": "tree",
   "tung.andrenijman.com": "Tung Tung Tung Sahorror",
   "isaac.andrenijman.com": "ISUCK",
+  "bop.andrenijman.com": "BOP",
 };
 
 export default {
@@ -97,6 +99,7 @@ async function handleGuardRoute(request, env, url) {
   }
   if (url.pathname === "/_guard/version") return contentVersion(request, url);
   if (url.pathname === "/_guard/tung-lobbies") return tungLobbies(request, env, url);
+  if (url.pathname === "/_guard/bop-lobbies") return bopLobbies(request, env, url);
   if (url.pathname.startsWith("/_guard/admin")) return handleAdmin(request, env, url);
   if (url.pathname === "/_guard/skip") return skipAccount(request, env, url);
   if (url.pathname === "/_guard/logout") return logout(request, env);
@@ -148,6 +151,28 @@ async function contentVersion(request, url) {
   return Response.json({ version }, {
     headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
   });
+}
+
+// Same-origin proxy for the BOP lobby directory. The relay lives on a
+// workers.dev hostname, so fetching it straight from the game page would be a
+// cross-origin request that the guard's session cookie never reaches.
+async function bopLobbies(request, env, url) {
+  if (url.hostname !== "bop.andrenijman.com" || request.method !== "GET") {
+    return new Response("Not found", { status: 404 });
+  }
+  const identity = await identify(request, env, url.hostname);
+  if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
+  if (!identity.account && !identity.guest) {
+    return withCookies(Response.json({ error: "access required" }, { status: 401 }), identity.cookies);
+  }
+  const upstream = await fetch("https://bop-relay.tung-tung-tung-sahur.workers.dev/lobbies", {
+    headers: { Accept: "application/json", Origin: "https://bop.andrenijman.com" },
+  });
+  const response = new Response(upstream.body, {
+    status: upstream.status,
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+  });
+  return withCookies(response, identity.cookies);
 }
 
 async function tungLobbies(request, env, url) {

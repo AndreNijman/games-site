@@ -12,7 +12,8 @@
     { "pattern": "wildbound.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "tree.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "tung.andrenijman.com/*", "zone_name": "andrenijman.com" },
-    { "pattern": "isaac.andrenijman.com/*", "zone_name": "andrenijman.com" }
+    { "pattern": "isaac.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "bop.andrenijman.com/*", "zone_name": "andrenijman.com" }
   ],
   "d1_databases": [
     {
