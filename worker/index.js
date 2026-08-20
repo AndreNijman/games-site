@@ -53,14 +53,19 @@ async function handleRequest(request, env) {
     return withCookies(Response.redirect(login, 302), identity.cookies);
   }
 
-  const upstream = await fetch(request, { cf: { resolveOverride: "andrenijman.github.io" } });
+  const upstream = await fetchFreshUpstream(request);
   const response = new Response(upstream.body, upstream);
-  response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("Cache-Control", "private, no-store, no-cache, must-revalidate, max-age=0");
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
   response.headers.set("X-Games-Guard", "active");
-  const guarded = response.headers.get("Content-Type")?.includes("text/html")
+  const contentVersion = upstream.headers.get("ETag") || upstream.headers.get("Last-Modified") || "";
+  const isHtml = response.headers.get("Content-Type")?.includes("text/html");
+  if (isHtml) response.headers.set("Clear-Site-Data", '"cache"');
+  const guarded = isHtml
     ? new HTMLRewriter().on("head", {
       element(element) {
-        element.prepend('<script src="/_guard/client.js"></script>', { html: true });
+        element.prepend(`<meta name="games-content-version" content="${escapeHtml(contentVersion)}"><script src="/_guard/client.js"></script>`, { html: true });
       },
     }).transform(response)
     : response;
@@ -75,6 +80,7 @@ async function handleGuardRoute(request, env, url) {
       headers: { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "no-store" },
     });
   }
+  if (url.pathname === "/_guard/version") return contentVersion(request, url);
   if (url.pathname.startsWith("/_guard/admin")) return handleAdmin(request, env, url);
   if (url.pathname === "/_guard/skip") return skipAccount(request, env, url);
   if (url.pathname === "/_guard/logout") return logout(request, env);
@@ -93,6 +99,38 @@ async function handleGuardRoute(request, env, url) {
     return withCookies(response, identity.cookies);
   }
   return new Response("Not found", { status: 404 });
+}
+
+function freshUpstreamRequest(request, path) {
+  const source = new URL(request.url);
+  const target = path ? new URL(path, `https://${source.hostname}`) : new URL(source);
+  target.searchParams.set("__games_fresh", String(Date.now()));
+  const headers = new Headers(request.headers);
+  headers.delete("If-None-Match");
+  headers.delete("If-Modified-Since");
+  headers.set("Cache-Control", "no-cache");
+  return new Request(target, {
+    method: path ? "HEAD" : request.method,
+    headers,
+    body: path || request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
+    redirect: "follow",
+  });
+}
+
+function fetchFreshUpstream(request, path) {
+  return fetch(freshUpstreamRequest(request, path), {
+    cf: { resolveOverride: "andrenijman.github.io", cacheTtl: 0 },
+  });
+}
+
+async function contentVersion(request, url) {
+  let path = url.searchParams.get("path") || "/";
+  if (!path.startsWith("/") || path.startsWith("//") || path.startsWith("/_guard/")) path = "/";
+  const upstream = await fetchFreshUpstream(request, path);
+  const version = upstream.headers.get("ETag") || upstream.headers.get("Last-Modified") || "";
+  return Response.json({ version }, {
+    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+  });
 }
 
 async function gameProfile(request, env, url) {
@@ -500,7 +538,44 @@ function shell(title, content, status = 200) {
   });
 }
 
-const CLIENT_JS = `(function () { var request = new XMLHttpRequest(); try { request.open('GET', '/_guard/status', false); request.send(); var result = JSON.parse(request.responseText); if (request.status === 200 && result.allowed === true) return; } catch (error) {} document.documentElement.innerHTML = '<head><title>Access required</title></head><body style="font:16px monospace;padding:2rem;background:#10110f;color:#eee">Online access check failed or access is blocked. <a style="color:#d1b24b" href="https://games.andrenijman.com/_guard/login?return=' + encodeURIComponent(location.href) + '">Sign in</a></body>'; window.stop(); throw new Error('Games access denied'); }());`;
+const CLIENT_JS = `(function () {
+  var request = new XMLHttpRequest();
+  var allowed = false;
+  try {
+    request.open('GET', '/_guard/status', false);
+    request.send();
+    var result = JSON.parse(request.responseText);
+    allowed = request.status === 200 && result.allowed === true;
+  } catch (error) {}
+  if (!allowed) {
+    document.documentElement.innerHTML = '<head><title>Access required</title></head><body style="font:16px monospace;padding:2rem;background:#10110f;color:#eee">Online access check failed or access is blocked. <a style="color:#d1b24b" href="https://games.andrenijman.com/_guard/login?return=' + encodeURIComponent(location.href) + '">Sign in</a></body>';
+    window.stop();
+    throw new Error('Games access denied');
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function (registrations) {
+      registrations.forEach(function (registration) { registration.unregister(); });
+    }).catch(function () {});
+  }
+  if ('caches' in window) {
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+    }).catch(function () {});
+  }
+
+  var currentVersion = document.querySelector('meta[name="games-content-version"]')?.content || '';
+  function checkForUpdate() {
+    if (document.hidden || !currentVersion) return;
+    fetch('/_guard/version?path=' + encodeURIComponent(location.pathname + location.search), { cache: 'no-store' })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (data) {
+        if (data && data.version && data.version !== currentVersion) location.reload();
+      }).catch(function () {});
+  }
+  setInterval(checkForUpdate, 60000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkForUpdate(); });
+}());`;
 
 const RETIRED_SERVICE_WORKER = `self.addEventListener('install', function () { self.skipWaiting(); }); self.addEventListener('activate', function (event) { event.waitUntil(Promise.all([caches.keys().then(function (keys) { return Promise.all(keys.map(function (key) { return caches.delete(key); })); }), self.registration.unregister(), self.clients.claim()])); }); self.addEventListener('fetch', function (event) { event.respondWith(fetch(event.request)); });`;
 
