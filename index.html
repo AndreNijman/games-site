@@ -221,6 +221,45 @@
       .account-label { display: none; }
     }
 
+    /* device naming prompt */
+    .name-device { border-bottom: 1px solid var(--hair); background: var(--panel); }
+    .name-device[hidden] { display: none; }
+    .name-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 14px;
+      padding: 14px 0;
+      font-size: 12.5px;
+      color: var(--body);
+    }
+    .name-row p { margin: 0; flex: 1 1 260px; line-height: 1.5; }
+    .name-row form { display: flex; flex-wrap: wrap; gap: 8px; }
+    .name-row input {
+      min-width: 190px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--paper);
+      color: var(--ink);
+      font: inherit;
+      font-family: var(--mono);
+    }
+    .name-save, .name-skip {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      border-radius: 999px;
+      padding: 7px 14px;
+      cursor: pointer;
+      transition: color 0.18s, border-color 0.18s, background 0.18s;
+    }
+    .name-save { border: 1px solid var(--accent); background: var(--accent); color: #0d1a14; }
+    .name-save:hover { filter: brightness(1.08); }
+    .name-skip { border: 1px solid var(--hair); background: none; color: var(--mut); }
+    .name-skip:hover { color: var(--ink); border-color: var(--line); }
+    .name-done { color: var(--accent); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
     /* hero */
     .hero { padding: clamp(48px, 9vw, 96px) 0 clamp(36px, 5vw, 56px); }
     .eyebrow { font-size: 12.5px; color: var(--accent); letter-spacing: 0.04em; display: block; margin-bottom: 22px; }
@@ -320,6 +359,20 @@
       </nav>
     </div>
   </header>
+
+  <aside class="name-device" id="name-device" hidden>
+    <div class="wrap">
+      <div class="name-row">
+        <p id="name-copy">Name this device so it shows up as yours instead of a fingerprint. Only you and the site owner see it.</p>
+        <form id="name-form">
+          <label class="sr-only" for="name-input">Device name</label>
+          <input id="name-input" name="name" maxlength="80" autocomplete="nickname" placeholder="e.g. Andre's laptop" />
+          <button class="name-save" type="submit">save</button>
+          <button class="name-skip" type="button" id="name-skip">not now</button>
+        </form>
+      </div>
+    </div>
+  </aside>
 
   <main>
     <section class="hero">
@@ -461,6 +514,39 @@
 
   <script>
     (function () {
+      var prompt = document.getElementById('name-device');
+      var copy = document.getElementById('name-copy');
+      var form = document.getElementById('name-form');
+
+      function saveName(payload) {
+        return fetch('/_guard/device-name', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload)
+        });
+      }
+
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var value = document.getElementById('name-input').value.trim();
+        if (!value) return;
+        saveName({ name: value }).then(function (response) {
+          if (!response.ok) throw new Error('save failed');
+          form.hidden = true;
+          copy.className = 'name-done';
+          copy.textContent = 'Saved. This device now shows up as "' + value + '".';
+          window.setTimeout(function () { prompt.hidden = true; }, 3000);
+        }).catch(function () {
+          copy.textContent = 'That name could not be saved. Try again later.';
+        });
+      });
+
+      document.getElementById('name-skip').addEventListener('click', function () {
+        prompt.hidden = true;
+        saveName({}).catch(function () {});
+      });
+
       function render(status) {
         if (!status) return;
         if (status.signedIn && status.username) {
@@ -469,6 +555,7 @@
         } else {
           document.getElementById('nav-signin').hidden = false;
         }
+        if (status.needsName) prompt.hidden = false;
       }
       if (window.__gamesGuardStatus) {
         render(window.__gamesGuardStatus);

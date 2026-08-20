@@ -1,8 +1,10 @@
 # Games access guard
 
-This Worker puts browser-device access checks in front of every game subdomain. Accounts are optional and can sync supported game progress and named world saves across devices. It records a random signed browser ID, optional account, manually assigned label, browser/OS family, masked IP network, country, last game, and first/last seen timestamps.
+This Worker puts browser-device access checks in front of every game subdomain. Accounts are optional and can sync supported game progress and named world saves across devices. It records a random signed browser ID, optional account, a label, browser/OS family and version, processor architecture, device model where the browser reports one, graphics adapter name, screen size and pixel ratio, core count, rough memory, touch support, time zone, languages, masked IP network, country/city/region, network operator name, last game, and first/last seen timestamps.
 
-It does not and cannot read a hardware serial number, MAC address, real name, or produce a permanent cross-browser hardware ban. Account bans are the durable identity-level control. A device ban applies to the signed browser profile; deleting cookies creates a new profile, although signing into the same banned account remains blocked.
+Labels have a `label_source`: `auto` is a generated fingerprint, `self` is a name the player typed, `admin` is a name you typed. Only `auto` labels are ever overwritten, so a real name is never lost. Unnamed devices are asked to name themselves on the hub at most once every 30 days (`NAME_PROMPT_DAYS`).
+
+Identification is a device *class*, not a device identity. Browsers expose no computer name, hardware serial or MAC address, and there is no permanent cross-browser hardware ban. `Sec-CH-UA-Model` only returns a real model on Chromium mobile; desktop Chromium returns nothing and Firefox and Safari send no client hints at all. The graphics adapter name is masked by Firefox's resistFingerprinting and generic on Safari. Treat all of it as a strong hint, and a player-chosen name as the only authoritative one. Account bans are the durable identity-level control. A device ban applies to the signed browser profile; deleting cookies creates a new profile, although signing into the same banned account remains blocked.
 
 ## Deploy
 
