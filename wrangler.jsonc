@@ -10,6 +10,7 @@
     { "pattern": "defenders.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "overpop.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "wildbound.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "tree.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "tung.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "isaac.andrenijman.com/*", "zone_name": "andrenijman.com" }
   ],

@@ -10,6 +10,7 @@ const HOSTS = new Set([
   "defenders.andrenijman.com",
   "overpop.andrenijman.com",
   "wildbound.andrenijman.com",
+  "tree.andrenijman.com",
   "tung.andrenijman.com",
   "isaac.andrenijman.com",
 ]);
