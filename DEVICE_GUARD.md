@@ -1,6 +1,6 @@
 # Games access guard
 
-This Worker puts browser-device access checks in front of every game subdomain. Accounts are optional and intended for future cross-device progress sync. It records a random signed browser ID, optional account, manually assigned label, browser/OS family, masked IP network, country, last game, and first/last seen timestamps.
+This Worker puts browser-device access checks in front of every game subdomain. Accounts are optional and can sync supported game progress and named world saves across devices. It records a random signed browser ID, optional account, manually assigned label, browser/OS family, masked IP network, country, last game, and first/last seen timestamps.
 
 It does not and cannot read a hardware serial number, MAC address, real name, or produce a permanent cross-browser hardware ban. Account bans are the durable identity-level control. A device ban applies to the signed browser profile; deleting cookies creates a new profile, although signing into the same banned account remains blocked.
 
