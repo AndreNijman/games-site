@@ -81,6 +81,7 @@ async function handleGuardRoute(request, env, url) {
     });
   }
   if (url.pathname === "/_guard/version") return contentVersion(request, url);
+  if (url.pathname === "/_guard/tung-lobbies") return tungLobbies(request, env, url);
   if (url.pathname.startsWith("/_guard/admin")) return handleAdmin(request, env, url);
   if (url.pathname === "/_guard/skip") return skipAccount(request, env, url);
   if (url.pathname === "/_guard/logout") return logout(request, env);
@@ -131,6 +132,35 @@ async function contentVersion(request, url) {
   return Response.json({ version }, {
     headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
   });
+}
+
+async function tungLobbies(request, env, url) {
+  if (url.hostname !== "tung.andrenijman.com" || request.method !== "GET") {
+    return new Response("Not found", { status: 404 });
+  }
+  const identity = await identify(request, env, url.hostname);
+  if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
+  if (!identity.account && !identity.guest) {
+    return withCookies(Response.json({ error: "access required" }, { status: 401 }), identity.cookies);
+  }
+  const wantsAdmin = url.searchParams.get("admin") === "1";
+  const isAdmin = identity.account && String(identity.account.username).toLowerCase() === "andrenijman";
+  if (wantsAdmin && !isAdmin) {
+    return withCookies(Response.json({ error: "admin account required" }, { status: 403 }), identity.cookies);
+  }
+  const path = wantsAdmin ? "/admin/lobbies" : "/lobbies";
+  const upstream = await fetch(`https://relay.tung.andrenijman.com${path}`, {
+    headers: {
+      Accept: "application/json",
+      Cookie: request.headers.get("Cookie") || "",
+      Origin: "https://tung.andrenijman.com",
+    },
+  });
+  const response = new Response(upstream.body, {
+    status: upstream.status,
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+  });
+  return withCookies(response, identity.cookies);
 }
 
 async function gameProfile(request, env, url) {
