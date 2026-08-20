@@ -11,8 +11,8 @@ It does not and cannot read a hardware serial number, MAC address, real name, or
 3. Put the returned database ID in `wrangler.jsonc`.
 4. Apply the schema: `npx wrangler d1 execute games-guard --remote --file worker/schema.sql`.
 5. Create the cookie signing secret: `openssl rand -base64 48 | npx wrangler secret put COOKIE_SECRET`.
-6. Set the one administrator email: `npx wrangler secret put ADMIN_EMAIL`.
-7. In Cloudflare Zero Trust, protect `games.andrenijman.com/_guard/admin*` with an Access policy allowing only that email. The Worker verifies the resulting `CF-Access-Authenticated-User-Email` header as a second check.
+6. Set the administrator emails: `npx wrangler secret put ADMIN_EMAILS` (comma- or space-separated; the older single-value `ADMIN_EMAIL` is still honoured). Emails live in a secret because this repository is public.
+7. In Cloudflare Zero Trust, protect `games.andrenijman.com/_guard/admin*` with an Access policy allowing exactly those emails. The Worker verifies the resulting `CF-Access-Authenticated-User-Email` header as a second check, so both lists must be updated together — Access decides who reaches the Worker, and `ADMIN_EMAILS` decides who the Worker accepts.
 8. Proxy the six game DNS records through Cloudflare. Keep each existing CNAME target; the Worker route uses that target as its origin.
 9. Run `npm run deploy`.
 
@@ -27,6 +27,7 @@ The Worker also sends `Clear-Site-Data: "cache"` on blocked online responses and
 ## Operations
 
 - Dashboard: `https://games.andrenijman.com/_guard/admin`
+- Two independent admin surfaces exist. The device console is gated on **email** (Cloudflare Access policy plus `ADMIN_EMAILS`). Tung lobby admin is gated on **game account username** via `TUNG_ADMINS` in `worker/index.js`, and the same username list is duplicated in the Tung client and the Tung relay. Granting one does not grant the other.
 - Health check: `https://games.andrenijman.com/_guard/health`
 - Player disclosure: `https://games.andrenijman.com/_guard/privacy`
 - Players can use the prominent guest option without creating an account.
