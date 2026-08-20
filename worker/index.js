@@ -159,7 +159,7 @@ async function tungLobbies(request, env, url) {
     return withCookies(Response.json({ error: "access required" }, { status: 401 }), identity.cookies);
   }
   const wantsAdmin = url.searchParams.get("admin") === "1";
-  const isAdmin = identity.account && String(identity.account.username).toLowerCase() === "andrenijman";
+  const isAdmin = identity.account && ["andrenijman", "mechtical"].includes(String(identity.account.username).toLowerCase());
   if (wantsAdmin && !isAdmin) {
     return withCookies(Response.json({ error: "admin account required" }, { status: 403 }), identity.cookies);
   }
