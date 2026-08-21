@@ -102,6 +102,7 @@ async function handleGuardRoute(request, env, url) {
   }
   if (url.pathname === "/_guard/version") return contentVersion(request, url);
   if (url.pathname === "/_guard/tung-lobbies") return tungLobbies(request, env, url);
+  if (url.pathname === "/_guard/tung-ws") return tungSocket(request, env, url);
   if (url.pathname === "/_guard/bop-lobbies") return bopLobbies(request, env, url);
   if (url.pathname.startsWith("/_guard/admin")) return handleAdmin(request, env, url);
   if (url.pathname === "/_guard/skip") return skipAccount(request, env, url);
@@ -204,7 +205,10 @@ async function tungLobbies(request, env, url) {
     Cookie: request.headers.get("Cookie") || "",
     Origin: "https://tung.andrenijman.com",
   };
-  if (wantsAdmin) headers["X-Tung-Proxy-Authorization"] = `Bearer ${env.TUNG_PROXY_SECRET}`;
+  if (wantsAdmin) {
+    headers["X-Tung-Proxy-Authorization"] = `Bearer ${env.TUNG_PROXY_SECRET}`;
+    headers["X-Tung-Proxy-Admin-Name"] = String(identity.account.username).toLowerCase();
+  }
   const upstream = await fetch(`https://relay.tung.andrenijman.com${path}`, {
     headers,
   });
@@ -213,6 +217,26 @@ async function tungLobbies(request, env, url) {
     headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
   return withCookies(response, identity.cookies);
+}
+
+async function tungSocket(request, env, url) {
+  if (url.hostname !== "tung.andrenijman.com" || request.method !== "GET" ||
+      request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+    return new Response("WebSocket upgrade required", { status: 426 });
+  }
+  const identity = await identify(request, env, url.hostname);
+  if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
+  if (!identity.account && !identity.guest) return new Response("Access required", { status: 401 });
+
+  const username = String(identity.account?.username || "").toLowerCase();
+  const target = new URL("https://relay.tung.andrenijman.com/ws");
+  target.search = url.search;
+  const upstream = new Request(target, request);
+  upstream.headers.set("Origin", "https://tung.andrenijman.com");
+  upstream.headers.set("X-Tung-Proxy-Authorization", `Bearer ${env.TUNG_PROXY_SECRET}`);
+  upstream.headers.set("X-Tung-Proxy-Admin-Name", TUNG_ADMINS.has(username) ? username : "");
+  upstream.headers.delete("Cookie");
+  return fetch(upstream);
 }
 
 async function gameProfile(request, env, url) {
