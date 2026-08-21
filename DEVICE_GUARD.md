@@ -34,5 +34,6 @@ The Worker also sends `Clear-Site-Data: "cache"` on blocked online responses and
 - Player disclosure: `https://games.andrenijman.com/_guard/privacy`
 - A required device name is enough to use the site without an account. A named guest can sign into or create an account later without changing the saved device identity.
 - Device labels and ban reasons are editable in the dashboard.
+- Administrators can rename accounts and reset passwords. Existing passwords and hashes are never shown; a reset stores a new salted hash and deletes every active session for that account.
 - Account bans delete active sessions and block every device that signs into that account.
 - Device bans block the current signed browser profile across all `*.andrenijman.com` games.
