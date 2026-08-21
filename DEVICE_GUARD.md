@@ -15,16 +15,16 @@ Identification is a device *class*, not a device identity. Browsers expose no co
 5. Create the cookie signing secret: `openssl rand -base64 48 | npx wrangler secret put COOKIE_SECRET`.
 6. Set the administrator emails: `npx wrangler secret put ADMIN_EMAILS` (comma- or space-separated; the older single-value `ADMIN_EMAIL` is still honoured). Emails live in a secret because this repository is public.
 7. In Cloudflare Zero Trust, protect `games.andrenijman.com/_guard/admin*` with an Access policy allowing exactly those emails. The Worker verifies the resulting `CF-Access-Authenticated-User-Email` header as a second check, so both lists must be updated together — Access decides who reaches the Worker, and `ADMIN_EMAILS` decides who the Worker accepts.
-8. Proxy the six game DNS records through Cloudflare. Keep each existing CNAME target; the Worker route uses that target as its origin.
+8. Proxy every configured game DNS record through Cloudflare. Keep each existing CNAME target; the Worker route uses that target as its origin.
 9. Run `npm run deploy`.
 
 Do not deploy before the Access policy exists. Otherwise the admin route returns 403, but it should still be protected at Cloudflare's edge.
 
 ## Offline games
 
-Several games currently install service workers and cache enough files to run offline. No online ban system can revoke files that are already stored on somebody's device. To require enforceable access, each game must remove offline navigation caching and load `/_guard/client.js` as the first blocking script on every HTML entry point. The client performs an online status check and fails closed. Existing service-worker registrations may continue using their old cache until the browser refreshes the registration.
+Several games previously installed service workers and cached enough files to run offline. No online ban system can revoke files that somebody already downloaded. Document navigations and protected APIs are identity-gated, while ordinary static assets are cached without a D1 lookup so game startup does not perform hundreds of database writes. Guarded HTML receives the already-verified status from the Worker and loads `/_guard/client.js` without a second render-blocking status request.
 
-The Worker also sends `Clear-Site-Data: "cache"` on blocked online responses and disables edge/browser caching for guarded responses. This limits new offline copies but cannot delete files a visitor manually downloaded.
+The client unregisters old service workers and automatically reloads once if one was still controlling the current tab. The retired service-worker response clears its old caches, and blocked online responses still send `Clear-Site-Data: "cache"`. Personalized HTML remains private and uncached; raw upstream HTML has a 30-second edge cache and static assets have a one-hour edge cache with five-minute browser freshness.
 
 ## Operations
 

@@ -474,6 +474,13 @@
         render(window.__gamesGuardStatus);
         return;
       }
+      var statusMeta = document.querySelector('meta[name="games-guard-status"]');
+      if (statusMeta) {
+        try {
+          render(JSON.parse(statusMeta.content));
+          return;
+        } catch (error) {}
+      }
       fetch('/_guard/status', { cache: 'no-store', credentials: 'same-origin' })
         .then(function (response) { return response.ok ? response.json() : null; })
         .then(render)
