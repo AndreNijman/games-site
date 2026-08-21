@@ -609,15 +609,17 @@ async function handleAdmin(request, env, url) {
     } else {
       return new Response("Unknown action", { status: 400 });
     }
-    return Response.redirect("https://games.andrenijman.com/_guard/admin", 303);
+    const redirect = new URL("https://games.andrenijman.com/_guard/admin");
+    redirect.search = url.search;
+    return Response.redirect(redirect, 303);
   }
 
   const devices = await env.DB.prepare(`
     SELECT devices.*, accounts.username, accounts.banned_at AS account_banned_at
     FROM devices LEFT JOIN accounts ON accounts.id = devices.account_id
-    ORDER BY devices.last_seen_at DESC LIMIT 500
+    ORDER BY devices.last_seen_at DESC LIMIT 1000
   `).all();
-  return adminPage(groupDevices(devices.results || []), adminEmail);
+  return adminPage(groupDevices(devices.results || []), adminEmail, url);
 }
 
 // One row per browser profile is unreadable once a person owns four of them.
@@ -873,36 +875,141 @@ function authPage(title, returnTo, error = "", status = 200, registering = false
     </main>`, status);
 }
 
-function adminPage(groups, email) {
+function adminPage(groups, email, url) {
+  const allowedViews = new Set(["all", "accounts", "unclaimed", "blocked"]);
+  const requestedView = String(url.searchParams.get("view") || "all");
+  const view = allowedViews.has(requestedView) ? requestedView : "all";
+  const query = cleanText(url.searchParams.get("q"), 80);
+  const queryLower = query.toLowerCase();
+  const pageSize = 30;
+  const requestedPage = boundedInt(url.searchParams.get("page"), 1, 1000);
+
+  const accountGroups = groups.filter((group) => group.accountId);
+  const unclaimed = groups.find((group) => !group.accountId);
   const deviceCount = groups.reduce((total, group) => total + group.devices.length, 0);
   const namedCount = groups.reduce((total, group) =>
     total + group.devices.filter((device) => device.label_source !== "auto").length, 0);
-  const accountGroups = groups.filter((group) => group.accountId).length;
-  const sections = groups.map((group) => {
-    const heading = group.accountId
-      ? `<h2>${escapeHtml(group.username || `Account ${group.accountId}`)}</h2>`
-      : `<h2 class="anon">Unclaimed devices</h2>`;
-    const named = group.devices.find((device) => device.label_source !== "auto");
-    const summary = [
-      `${group.devices.length} device${group.devices.length === 1 ? "" : "s"}`,
-      group.accountId ? `account ${group.accountId}` : "never signed in",
-      named ? `named "${escapeHtml(named.label)}"` : "no self-chosen name yet",
-      `last seen ${escapeHtml(group.lastSeen || "unknown")}`,
-    ].join(" · ");
-    const accountControl = group.accountId
-      ? `<form method="post"><input type="hidden" name="account_id" value="${escapeHtml(group.accountId)}"><input name="reason" maxlength="200" placeholder="Reason"><button class="danger" name="action" value="${group.accountBanned ? "unban-account" : "ban-account"}">${group.accountBanned ? "Unban account" : "Ban account"}</button></form>`
-      : "";
-    return `<section class="person${group.blocked ? " blocked-person" : ""}">
-      <header>${heading}<p class="summary">${summary}</p>${accountControl}</header>
-      <div class="table"><table><thead><tr><th>Device</th><th>Hardware</th><th>Client</th><th>Network</th><th>Last seen</th><th>Control</th></tr></thead><tbody>${group.devices.map(deviceRow).join("")}</tbody></table></div>
-    </section>`;
+  const blockedCount = groups.filter((group) => group.blocked).length;
+
+  let visible = groups.filter((group) => {
+    if (view === "accounts") return Boolean(group.accountId);
+    if (view === "unclaimed") return !group.accountId;
+    if (view === "blocked") return group.blocked;
+    return true;
+  }).map((group) => {
+    if (view === "blocked" && !group.accountId) {
+      const blockedDevices = group.devices.filter((device) => device.banned_at);
+      return { ...group, devices: blockedDevices, matchCount: blockedDevices.length };
+    }
+    if (!queryLower) return { ...group, matchCount: group.devices.length };
+    const groupMatch = [group.username, group.accountId, group.key]
+      .some((value) => String(value || "").toLowerCase().includes(queryLower));
+    const matchingDevices = group.devices.filter((device) => deviceMatches(device, queryLower));
+    return {
+      ...group,
+      devices: groupMatch ? group.devices : matchingDevices,
+      matchCount: groupMatch ? group.devices.length : matchingDevices.length,
+    };
+  }).filter((group) => group.matchCount > 0);
+
+  const onlyResult = visible.length === 1 && Boolean(queryLower || view !== "all");
+  const sections = visible.map((group) => {
+    const total = group.devices.length;
+    const confirmedNames = [...new Set(group.devices
+      .filter((device) => device.label_source !== "auto" && device.label)
+      .map((device) => device.label))];
+    const pages = group.accountId ? 1 : Math.max(1, Math.ceil(total / pageSize));
+    const page = group.accountId ? 1 : Math.min(requestedPage, pages);
+    const start = (page - 1) * pageSize;
+    const devices = group.accountId ? group.devices : group.devices.slice(start, start + pageSize);
+    return personSection({ ...group, devices }, {
+      total,
+      page,
+      pages,
+      pageSize,
+      open: onlyResult || (!group.accountId && view === "unclaimed"),
+      confirmedNames,
+      query,
+      view,
+    });
   }).join("");
+
+  const tabs = [
+    ["all", "All", groups.length],
+    ["accounts", "Accounts", accountGroups.length],
+    ["unclaimed", "Unclaimed", unclaimed?.devices.length || 0],
+    ["blocked", "Blocked", blockedCount],
+  ].map(([value, label, count]) => `<a href="${escapeHtml(adminHref(value, query))}"${view === value ? ` aria-current="page"` : ""}>${label}<span>${count}</span></a>`).join("");
+
   return shell("Device access", `<main class="admin">
-    <header><div><p class="kicker">ACCESS CONTROL</p><h1>Who is playing</h1></div><p>${escapeHtml(email)}</p></header>
-    <p class="summary-line">${accountGroups} account${accountGroups === 1 ? "" : "s"} · ${deviceCount} device${deviceCount === 1 ? "" : "s"} · ${namedCount} named</p>
-    <p class="notice">Names come from the player or from you; everything else is measured. Browsers cannot report a real computer name, so an unnamed device only ever shows its hardware class. A device ban applies to that signed browser profile and its known duplicate IDs, not to a household or a network.</p>
-    ${sections || `<p class="summary-line">No devices recorded.</p>`}
+    <header class="admin-title"><div><p class="kicker">ACCESS CONTROL</p><h1>Who is playing</h1><p class="summary-line">${accountGroups.length} accounts · ${deviceCount} devices · ${namedCount} named</p></div><p>${escapeHtml(email)}</p></header>
+    <form class="admin-search" method="get" action="/_guard/admin">
+      <input type="hidden" name="view" value="${escapeHtml(view)}">
+      <label class="sr-only" for="admin-q">Search accounts and devices</label>
+      <input id="admin-q" type="search" name="q" value="${escapeHtml(query)}" maxlength="80" placeholder="Search name, account, model, network or ID">
+      <button type="submit">Search</button>
+      ${query ? `<a href="${escapeHtml(adminHref(view))}">Clear</a>` : ""}
+    </form>
+    <nav class="admin-tabs" aria-label="Device filters">${tabs}</nav>
+    <details class="admin-help"><summary>How identification works</summary><p>Player and admin names are authoritative; measured hardware and network details are only hints. A device ban applies to one signed browser profile, not to a household or network.</p></details>
+    ${query ? `<p class="result-line">${visible.length} matching ${visible.length === 1 ? "group" : "groups"} for “${escapeHtml(query)}”</p>` : ""}
+    <div class="people">${sections || `<p class="empty-state">No accounts or devices match this view.</p>`}</div>
   </main>`);
+}
+
+function personSection(group, options) {
+  const isAccount = Boolean(group.accountId);
+  const title = isAccount ? group.username || `Account ${group.accountId}` : "Unclaimed devices";
+  const names = options.confirmedNames;
+  const named = names.length ? names.slice(0, 2).join(", ") : "No confirmed names";
+  const accountControl = isAccount ? `<details class="manage account-manage"><summary>Account controls</summary>
+    <form method="post"><input type="hidden" name="account_id" value="${escapeHtml(group.accountId)}"><label>Reason<input name="reason" maxlength="200" placeholder="Optional reason"></label><button class="danger" name="action" value="${group.accountBanned ? "unban-account" : "ban-account"}">${group.accountBanned ? "Unban account" : "Ban account"}</button></form>
+  </details>` : "";
+  const from = options.total ? (options.page - 1) * options.pageSize + 1 : 0;
+  const to = Math.min(options.page * options.pageSize, options.total);
+  const pager = options.pages > 1 ? `<nav class="pager" aria-label="Unclaimed device pages">
+    ${options.page > 1 ? `<a href="${escapeHtml(adminHref(options.view, options.query, options.page - 1))}">Previous</a>` : `<span>Previous</span>`}
+    <span>${from}–${to} of ${options.total}</span>
+    ${options.page < options.pages ? `<a href="${escapeHtml(adminHref(options.view, options.query, options.page + 1))}">Next</a>` : `<span>Next</span>`}
+  </nav>` : "";
+  return `<details class="person${group.blocked ? " blocked-person" : ""}"${options.open ? " open" : ""}>
+    <summary class="person-summary">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span class="person-name">${escapeHtml(title)}${group.blocked ? `<span class="blocked-label">blocked</span>` : ""}<small>${escapeHtml(named)}</small></span>
+      <span class="person-count">${options.total} device${options.total === 1 ? "" : "s"}</span>
+      <span class="person-seen">${escapeHtml(formatAdminTime(group.lastSeen))}</span>
+      <span class="disclosure" aria-hidden="true"></span>
+    </summary>
+    <div class="person-body">${accountControl}
+      <div class="table"><table><thead><tr><th>Device</th><th>Identity</th><th>Network</th><th>Activity</th><th></th></tr></thead><tbody>${group.devices.map(deviceRow).join("")}</tbody></table></div>
+      ${pager}
+    </div>
+  </details>`;
+}
+
+function deviceMatches(device, query) {
+  return [device.id, device.label, device.model, device.gpu, device.screen, device.os,
+    device.os_version, device.browser, device.browser_version, device.arch, device.asn_org,
+    device.city, device.region, device.country, device.ip_prefix, device.last_game]
+    .some((value) => String(value || "").toLowerCase().includes(query));
+}
+
+function adminHref(view = "all", query = "", page = 1) {
+  const params = new URLSearchParams();
+  if (view !== "all") params.set("view", view);
+  if (query) params.set("q", query);
+  if (page > 1) params.set("page", String(page));
+  const suffix = params.toString();
+  return `/_guard/admin${suffix ? `?${suffix}` : ""}`;
+}
+
+function formatAdminTime(value) {
+  if (!value) return "Never";
+  const date = new Date(`${String(value).replace(" ", "T")}Z`);
+  if (!Number.isFinite(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Australia/Perth",
+  }).format(date);
 }
 
 function deviceRow(device) {
@@ -928,13 +1035,13 @@ function deviceRow(device) {
     [device.city, device.region, device.country].filter(Boolean).join(", "),
     device.ip_prefix || "",
   ].filter(Boolean);
+  const identity = [...hardware, ...client];
   return `<tr class="${device.banned_at ? "blocked-row" : ""}">
-    <td><strong>${escapeHtml(device.label || "Unlabelled")}</strong> ${badge}<small>${escapeHtml(device.id)}</small>${device.ban_reason ? `<small>${escapeHtml(device.ban_reason)}</small>` : ""}</td>
-    <td>${cell(hardware, "Not reported yet")}</td>
-    <td>${cell(client, "Unknown")}</td>
+    <td><strong>${escapeHtml(device.label || "Unlabelled")}</strong> ${badge}<small title="${escapeHtml(device.id)}">#${escapeHtml(String(device.id || "").slice(0, 8))}</small>${device.ban_reason ? `<small class="ban-reason">${escapeHtml(device.ban_reason)}</small>` : ""}</td>
+    <td>${cell(identity, "Not reported yet")}</td>
     <td>${cell(network, "Unknown")}</td>
-    <td>${escapeHtml(String(device.last_game || "").replace(".andrenijman.com", "")) || "&mdash;"}<small>${escapeHtml(device.last_seen_at)}</small><small>first ${escapeHtml(device.first_seen_at)}</small></td>
-    <td><form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><input type="hidden" name="account_id" value="${escapeHtml(device.account_id || "")}"><input name="reason" maxlength="200" placeholder="Label or reason"><span class="actions"><button name="action" value="label-device">Label</button><button class="danger" name="action" value="${device.banned_at ? "unban-device" : "ban-device"}">${device.banned_at ? "Unban" : "Ban device"}</button></span></form></td>
+    <td>${escapeHtml(String(device.last_game || "").replace(".andrenijman.com", "")) || "&mdash;"}<small>${escapeHtml(formatAdminTime(device.last_seen_at))}</small><small>Since ${escapeHtml(formatAdminTime(device.first_seen_at))}</small></td>
+    <td><details class="manage"><summary>Manage</summary><form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><input type="hidden" name="account_id" value="${escapeHtml(device.account_id || "")}"><label>Label or reason<input name="reason" maxlength="200" placeholder="Label or ban reason"></label><span class="actions"><button name="action" value="label-device">Save label</button><button class="danger" name="action" value="${device.banned_at ? "unban-device" : "ban-device"}">${device.banned_at ? "Unban" : "Ban"}</button></span></form></details></td>
   </tr>`;
 }
 
@@ -1092,4 +1199,5 @@ const RETIRED_SERVICE_WORKER = `self.addEventListener('install', function () { s
 
 const CSS = `
 :root{--bg:#10110f;--surface:#181a17;--text:#ebe9df;--muted:#9b9d94;--line:#35382f;--accent:#d1b24b;--danger:#c76155;--s1:4px;--s2:8px;--s3:16px;--s4:24px;--s5:32px;--s6:48px;font-family:Arial,sans-serif;color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}a{color:var(--accent)}h1{font:400 clamp(2.2rem,6vw,4.5rem)/.95 Georgia,serif;letter-spacing:-.04em;margin:var(--s2) 0 var(--s4)}p{line-height:1.6;color:var(--muted)}.kicker,th,small,button,label{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.kicker{font-size:.72rem;letter-spacing:.14em;color:var(--accent)}.account-purpose{margin:0 0 var(--s5)}.auth{width:min(100% - 40px,480px);margin:8vh auto}.auth form{display:grid;gap:var(--s3)}label{display:grid;gap:var(--s2);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase}input{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--text);font:inherit}button{min-height:44px;padding:10px 16px;border:1px solid var(--line);border-radius:4px;background:var(--accent);color:var(--bg);cursor:pointer}button:hover{filter:brightness(1.08)}.alternate{display:inline-block;margin-top:var(--s4)}.choice{display:flex;align-items:center;gap:var(--s3);margin:var(--s4) 0;color:var(--muted);font:12px ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase}.choice:before,.choice:after{content:"";height:1px;background:var(--line);flex:1}.skip-button{display:flex;min-height:56px;align-items:center;justify-content:center;padding:10px 16px;border-radius:4px;background:var(--text);color:var(--bg);font:1rem ui-monospace,SFMono-Regular,Consolas,monospace;text-decoration:none}.skip-button:hover{filter:brightness(1.08)}.fine{font-size:.78rem;margin-top:var(--s4)}.error,.notice{padding:var(--s3);border-left:3px solid var(--danger);background:var(--surface);color:var(--text)}.privacy{max-width:640px}.admin{width:min(100% - 40px,1500px);margin:var(--s6) auto}.admin header{display:flex;justify-content:space-between;align-items:start;gap:var(--s4)}.admin h1{margin-bottom:var(--s3)}.summary-line{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;letter-spacing:.04em}.person{margin-top:var(--s6);border-top:1px solid var(--line);padding-top:var(--s3)}.person>header{align-items:baseline;flex-wrap:wrap;gap:var(--s3)}.person h2{font:400 1.5rem/1.1 Georgia,serif;margin:0}.person h2.anon{color:var(--muted)}.person .summary{flex:1;margin:0;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.72rem;letter-spacing:.03em}.person>header form{display:flex;gap:var(--s2)}.person>header input{width:auto;min-width:150px}.person>header button{min-height:36px;padding:6px 10px;white-space:nowrap}.person .table{margin-top:var(--s3)}.blocked-person h2{color:var(--danger)}.badge{display:inline-block;padding:2px 7px;border:1px solid var(--accent);border-radius:999px;color:var(--accent);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;vertical-align:middle}.badge.auto{border-color:var(--line);color:var(--muted)}.muted{color:var(--muted)}.table{overflow:auto;border-top:1px solid var(--line);margin-top:var(--s5)}table{width:100%;border-collapse:collapse;min-width:1050px}th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:.7rem;letter-spacing:.1em;color:var(--muted)}td{font-size:.88rem}small{display:block;color:var(--muted);font-size:.68rem;margin-top:var(--s1)}td form{display:grid;gap:var(--s2)}.actions{display:flex;gap:var(--s2)}.actions button{min-height:36px;padding:6px 10px}.danger{background:transparent;color:var(--danger);border-color:var(--danger)}tr.blocked-row{background:#281b18}@media(max-width:600px){.admin header{display:block}.auth{margin-top:var(--s5)}.actions{flex-wrap:wrap}}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.admin{width:min(100% - 32px,1440px);margin:32px auto}.admin-title{align-items:start}.admin-title h1{font-size:clamp(2rem,4vw,3.5rem);margin:4px 0 8px}.admin-title>p{margin:4px 0;font:11px ui-monospace,SFMono-Regular,Consolas,monospace}.summary-line{margin:0}.admin-search{display:grid;grid-template-columns:minmax(220px,620px) max-content max-content;gap:8px;align-items:center;margin:24px 0 12px}.admin-search input{min-height:44px;padding:8px 12px}.admin-search button{min-height:44px;padding:8px 16px}.admin-search a{padding:8px;color:var(--muted);font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.admin-tabs{display:flex;gap:0;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:none}.admin-tabs::-webkit-scrollbar{display:none}.admin-tabs a{display:flex;align-items:center;gap:7px;min-height:44px;padding:0 14px;border-bottom:2px solid transparent;color:var(--muted);font:11px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.06em;text-decoration:none;text-transform:uppercase;white-space:nowrap}.admin-tabs a:hover,.admin-tabs a:focus-visible{color:var(--text)}.admin-tabs a[aria-current="page"]{color:var(--accent);border-bottom-color:var(--accent)}.admin-tabs span{color:inherit;opacity:.7}.admin-help{margin:8px 0 0;color:var(--muted);font-size:.78rem}.admin-help summary{width:max-content;min-height:44px;padding:13px 0;cursor:pointer;font:11px ui-monospace,SFMono-Regular,Consolas,monospace}.admin-help p{max-width:900px;margin:0 0 12px;font-size:.78rem}.result-line,.empty-state{margin:16px 0;font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.people{margin-top:8px;border-top:1px solid var(--line)}.person{margin:0;padding:0;border:0;border-bottom:1px solid var(--line)}.person-summary{display:grid;grid-template-columns:8px minmax(170px,1fr) 84px 130px 12px;gap:12px;align-items:center;min-height:48px;padding:7px 12px;cursor:pointer;list-style:none}.person-summary::-webkit-details-marker{display:none}.person-summary:hover{background:var(--surface)}.person-summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}.status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}.blocked-person .status-dot{background:var(--danger)}.person-name{min-width:0;font:15px/1.2 Georgia,serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.blocked-label{display:inline;margin-left:7px;color:var(--danger);font:9px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase}.person-name small{display:inline;margin:0 0 0 9px;font:10px ui-monospace,SFMono-Regular,Consolas,monospace}.person-count,.person-seen{color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace;text-align:right;white-space:nowrap}.disclosure{width:7px;height:7px;border-right:1px solid var(--muted);border-bottom:1px solid var(--muted);transform:rotate(45deg) translate(-2px,-2px);transition:transform 140ms ease-out}.person[open]>.person-summary .disclosure{transform:rotate(225deg) translate(-1px,-1px)}.person-body{padding:0 12px 12px;background:rgba(255,255,255,.012)}.person .table{margin:0;border-top:1px solid var(--line)}.person table{min-width:940px}.person th,.person td{padding:8px 10px}.person th{font-size:.62rem}.person td{font-size:.78rem}.person td:first-child{width:24%}.person td:nth-child(2){width:27%}.person td:nth-child(3){width:21%}.person td:nth-child(4){width:16%}.person td:last-child{width:12%}.person small{font-size:.62rem;margin-top:2px}.badge{padding:1px 5px;font-size:.52rem}.ban-reason{color:var(--danger)}.manage{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.manage>summary{width:max-content;min-height:44px;padding:14px 0;color:var(--muted);font-size:.68rem;cursor:pointer}.manage[open]>summary{color:var(--accent)}.manage form{min-width:190px;padding:8px 0}.manage label{gap:4px;font-size:.62rem}.manage input{min-height:44px;padding:7px 9px;font-size:.78rem}.actions{margin-top:6px}.actions button,.account-manage button{min-height:44px;padding:8px 10px;font-size:.68rem}.account-manage{margin-left:auto;padding:8px 0}.account-manage form{display:grid;grid-template-columns:minmax(180px,300px) auto;align-items:end;gap:8px}.pager{display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:10px 0 0;color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace}.pager a{color:var(--accent)}.blocked-row{box-shadow:inset 2px 0 var(--danger)}@media(prefers-reduced-motion:reduce){.disclosure{transition:none}}@media(max-width:700px){.admin{width:min(100% - 24px,1440px);margin:20px auto}.admin-title{display:block}.admin-title>p{margin-top:8px}.admin-search{grid-template-columns:1fr auto}.admin-search a{grid-column:1/-1;padding:0}.person-summary{grid-template-columns:8px minmax(0,1fr) 68px 12px;gap:8px;padding:7px 8px}.person-seen{display:none}.person-name small{display:block;margin:2px 0 0;overflow:hidden;text-overflow:ellipsis}.person-body{padding:0 8px 8px}.person .table{overflow:visible}.person table,.person tbody,.person tr,.person td{display:block;min-width:0}.person thead{display:none}.person tr{padding:8px 0;border-bottom:1px solid var(--line)}.person td{width:auto!important;padding:3px 4px;border:0}.person td:before{display:block;margin-bottom:2px;color:var(--muted);font:9px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase}.person td:nth-child(1):before{content:"Device"}.person td:nth-child(2):before{content:"Identity"}.person td:nth-child(3):before{content:"Network"}.person td:nth-child(4):before{content:"Activity"}.person td:nth-child(5):before{content:"Controls"}.account-manage form{grid-template-columns:1fr}.pager{justify-content:space-between}}
 `;
