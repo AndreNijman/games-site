@@ -1,8 +1,8 @@
 # Games access guard
 
-This Worker puts browser-device access checks in front of every game subdomain. Accounts are optional and can sync supported game progress and named world saves across devices. It records a random signed browser ID, optional account, a label, browser/OS family and version, processor architecture, device model where the browser reports one, graphics adapter name, screen size and pixel ratio, core count, rough memory, touch support, time zone, languages, masked IP network, country/city/region, network operator name, last game, and first/last seen timestamps.
+This Worker puts browser-device access checks in front of every game subdomain. Every browser must choose a device name before it can use the hub, games, account pages, or game APIs. Accounts remain optional and can sync supported game progress and named world saves across devices. It records a random signed browser ID, optional account, the required device name, browser/OS family and version, processor architecture, device model where the browser reports one, graphics adapter name, screen size and pixel ratio, core count, rough memory, touch support, time zone, languages, masked IP network, country/city/region, network operator name, last game, and first/last seen timestamps.
 
-Labels have a `label_source`: `auto` is a generated fingerprint, `self` is a name the player typed, `admin` is a name you typed. Only `auto` labels are ever overwritten, so a real name is never lost. Unnamed devices are asked to name themselves on the hub at most once every 30 days (`NAME_PROMPT_DAYS`).
+Labels have a `label_source`: `auto` is the generated placeholder used before onboarding, `self` is the required write-once name the player typed, and `admin` is a corrected name an administrator typed. Old `auto` devices are forced through the same naming screen on their next request. Logging in or out never clears the signed device cookie or its name. Players cannot rename a saved device themselves; only an administrator can correct it.
 
 Identification is a device *class*, not a device identity. Browsers expose no computer name, hardware serial or MAC address, and there is no permanent cross-browser hardware ban. `Sec-CH-UA-Model` only returns a real model on Chromium mobile; desktop Chromium returns nothing and Firefox and Safari send no client hints at all. The graphics adapter name is masked by Firefox's resistFingerprinting and generic on Safari. Treat all of it as a strong hint, and a player-chosen name as the only authoritative one. Account bans are the durable identity-level control. A device ban applies to the signed browser profile; deleting cookies creates a new profile, although signing into the same banned account remains blocked.
 
@@ -32,7 +32,7 @@ The Worker also sends `Clear-Site-Data: "cache"` on blocked online responses and
 - Two independent admin surfaces exist. The device console is gated on **email** (Cloudflare Access policy plus `ADMIN_EMAILS`). Tung lobby admin is gated on **game account username** via `TUNG_ADMINS` in `worker/index.js`, and the same username list is duplicated in the Tung client and the Tung relay. Granting one does not grant the other.
 - Health check: `https://games.andrenijman.com/_guard/health`
 - Player disclosure: `https://games.andrenijman.com/_guard/privacy`
-- Players can use the prominent guest option without creating an account.
+- A required device name is enough to use the site without an account. A named guest can sign into or create an account later without changing the saved device identity.
 - Device labels and ban reasons are editable in the dashboard.
 - Account bans delete active sessions and block every device that signs into that account.
 - Device bans block the current signed browser profile across all `*.andrenijman.com` games.
