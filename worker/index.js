@@ -33,6 +33,19 @@ export default {
       return await handleRequest(request, env);
     } catch (error) {
       console.error(error);
+      const url = new URL(request.url);
+      if (url.pathname === "/_guard/health") {
+        return Response.json({ ok: false, database: false }, {
+          status: 503,
+          headers: { "Cache-Control": "no-store", "Retry-After": "10" },
+        });
+      }
+      if (!isNavigationRequest(request)) {
+        return new Response("Service unavailable", {
+          status: 503,
+          headers: { "Cache-Control": "no-store", "Retry-After": "10" },
+        });
+      }
       return htmlPage("Service unavailable", "The access service could not complete this request.", 503);
     }
   },
@@ -54,16 +67,18 @@ async function handleRequest(request, env) {
 
   if (url.pathname.startsWith("/_guard/")) return handleGuardRoute(request, env, url);
 
+  if (isAssetRequest(request)) return cachedAssetResponse(request);
+
   const identity = await identify(request, env, url.hostname);
   if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
   if (!hasDeviceName(identity.device)) return deviceNameRequired(request, url, identity.cookies);
 
   if (GAME_TITLES[url.hostname] && request.method === "GET" &&
-      request.headers.get("Accept")?.includes("text/html") && !url.searchParams.has("_games_frame")) {
+      isNavigationRequest(request) && !url.searchParams.has("_games_frame")) {
     return withCookies(gameFramePage(url, GAME_TITLES[url.hostname], identity.device.label), identity.cookies);
   }
 
-  const upstream = await fetchFreshUpstream(request);
+  const upstream = await fetchDocumentUpstream(request);
   const response = new Response(upstream.body, upstream);
   response.headers.set("Cache-Control", "private, no-store, no-cache, must-revalidate, max-age=0");
   response.headers.set("Pragma", "no-cache");
@@ -72,11 +87,18 @@ async function handleRequest(request, env) {
   response.headers.set("Accept-CH", ACCEPT_CH);
   const contentVersion = upstream.headers.get("ETag") || upstream.headers.get("Last-Modified") || "";
   const isHtml = response.headers.get("Content-Type")?.includes("text/html");
-  if (isHtml) response.headers.set("Clear-Site-Data", '"cache"');
+  const guardStatus = JSON.stringify({
+    allowed: true,
+    signedIn: Boolean(identity.account),
+    username: identity.account?.username || null,
+    deviceName: identity.device.label,
+    needsName: false,
+    needsProfile: needsProfile(identity.device),
+  });
   const guarded = isHtml
     ? new HTMLRewriter().on("head", {
       element(element) {
-        element.prepend(`<meta name="games-content-version" content="${escapeHtml(contentVersion)}"><script src="/_guard/client.js"></script>`, { html: true });
+        element.prepend(`<meta name="games-content-version" content="${escapeHtml(contentVersion)}"><meta name="games-guard-status" content="${escapeHtml(guardStatus)}"><script defer src="/_guard/client.js"></script>`, { html: true });
       },
     }).transform(response)
     : response;
@@ -84,13 +106,19 @@ async function handleRequest(request, env) {
 }
 
 async function handleGuardRoute(request, env, url) {
-  if (url.pathname === "/_guard/health") return Response.json({ ok: true });
+  if (url.pathname === "/_guard/health") {
+    const database = await env.DB.prepare("SELECT 1 AS ok").first();
+    return Response.json({ ok: database?.ok === 1, database: database?.ok === 1 }, {
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
   if (url.pathname === "/_guard/privacy") return privacyPage();
   if (url.pathname === "/_guard/client.js") {
     return new Response(CLIENT_JS, {
       headers: { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "no-store" },
     });
   }
+  if (url.pathname === "/_guard/version") return contentVersion(request, url);
   if (url.pathname === "/_guard/name") return deviceNamePage(request, env, url);
   // Kept for old cached pages. Both routes enforce the same write-once name as
   // the current mandatory screen.
@@ -111,7 +139,6 @@ async function handleGuardRoute(request, env, url) {
     return deviceNameRequired(request, url, identity.cookies);
   }
 
-  if (url.pathname === "/_guard/version") return contentVersion(request, url);
   if (url.pathname === "/_guard/tung-lobbies") return tungLobbies(request, env, url, identity);
   if (url.pathname === "/_guard/tung-ws") return tungSocket(request, env, url, identity);
   if (url.pathname === "/_guard/bop-lobbies") return bopLobbies(request, url, identity);
@@ -137,14 +164,15 @@ async function handleGuardRoute(request, env, url) {
   return new Response("Not found", { status: 404 });
 }
 
-function freshUpstreamRequest(request, path) {
+function documentUpstreamRequest(request, path) {
   const source = new URL(request.url);
   const target = path ? new URL(path, `https://${source.hostname}`) : new URL(source);
-  target.searchParams.set("__games_fresh", String(Date.now()));
   const headers = new Headers(request.headers);
+  headers.delete("Authorization");
+  headers.delete("Cookie");
   headers.delete("If-None-Match");
   headers.delete("If-Modified-Since");
-  headers.set("Cache-Control", "no-cache");
+  headers.delete("Cache-Control");
   return new Request(target, {
     method: path ? "HEAD" : request.method,
     headers,
@@ -153,16 +181,58 @@ function freshUpstreamRequest(request, path) {
   });
 }
 
-function fetchFreshUpstream(request, path) {
-  return fetch(freshUpstreamRequest(request, path), {
-    cf: { resolveOverride: "andrenijman.github.io", cacheTtl: 0 },
+function fetchDocumentUpstream(request, path) {
+  return fetch(documentUpstreamRequest(request, path), {
+    cf: {
+      resolveOverride: "andrenijman.github.io",
+      cacheEverything: true,
+      cacheTtlByStatus: { "200-299": 30, "404": 10, "500-599": 0 },
+    },
   });
+}
+
+function isAssetRequest(request) {
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
+  if (isNavigationRequest(request)) return false;
+  const destination = request.headers.get("Sec-Fetch-Dest") || "";
+  if (destination && destination !== "empty") return true;
+  return /\.(?:avif|bin|bmp|css|csv|data|gif|glb|gltf|ico|jpe?g|js|json|m4a|map|mem|mp3|mp4|mtl|obj|ogg|otf|pck|png|svg|tga|ttf|txt|unityweb|wasm|wav|webm|webmanifest|webp|woff2?|xml)$/i
+    .test(new URL(request.url).pathname);
+}
+
+function isNavigationRequest(request) {
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
+  const destination = request.headers.get("Sec-Fetch-Dest") || "";
+  return destination === "document" || destination === "iframe" ||
+    request.headers.get("Accept")?.includes("text/html");
+}
+
+async function cachedAssetResponse(request) {
+  const headers = new Headers(request.headers);
+  headers.delete("Authorization");
+  headers.delete("Cookie");
+  const upstreamRequest = new Request(request, { headers });
+  const upstream = await fetch(upstreamRequest, {
+    cf: {
+      resolveOverride: "andrenijman.github.io",
+      cacheEverything: true,
+      cacheTtlByStatus: { "200-299": 3600, "404": 60, "500-599": 0 },
+    },
+  });
+  const response = new Response(upstream.body, upstream);
+  const cacheable = upstream.ok || upstream.status === 304;
+  response.headers.delete("Set-Cookie");
+  response.headers.set("Cache-Control", cacheable
+    ? "public, max-age=300, stale-while-revalidate=86400"
+    : "no-store");
+  response.headers.set("X-Games-Guard", cacheable ? "asset" : "asset-error");
+  return response;
 }
 
 async function contentVersion(request, url) {
   let path = url.searchParams.get("path") || "/";
   if (!path.startsWith("/") || path.startsWith("//") || path.startsWith("/_guard/")) path = "/";
-  const upstream = await fetchFreshUpstream(request, path);
+  const upstream = await fetchDocumentUpstream(request, path);
   const version = upstream.headers.get("ETag") || upstream.headers.get("Last-Modified") || "";
   return Response.json({ version }, {
     headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
@@ -344,9 +414,15 @@ async function gameSaves(request, env, url, identity) {
 }
 
 async function identify(request, env, game) {
-  const cookies = parseCookies(request.headers.get("Cookie") || "");
+  const cookieHeader = request.headers.get("Cookie") || "";
+  const cookies = parseCookies(cookieHeader);
   const responseCookies = [];
-  let deviceId = await verifyDeviceCookie(cookies[DEVICE_COOKIE], env.COOKIE_SECRET);
+  let deviceId = null;
+  for (const value of cookieValues(cookieHeader, DEVICE_COOKIE).reverse()) {
+    deviceId = await verifyDeviceCookie(value, env.COOKIE_SECRET);
+    if (deviceId) break;
+  }
+  const hadDeviceCookie = Boolean(deviceId);
   if (deviceId) {
     const alias = await env.DB.prepare("SELECT device_id FROM device_aliases WHERE alias_id = ?")
       .bind(deviceId).first();
@@ -371,7 +447,7 @@ async function identify(request, env, game) {
   }
 
   const metadata = deviceMetadata(request);
-  await env.DB.prepare(`
+  const device = await env.DB.prepare(`
     INSERT INTO devices (
       id, account_id, label, user_agent, browser, browser_version, os, os_version,
       model, arch, ip_prefix, country, city, region, asn_org, last_game
@@ -394,15 +470,11 @@ async function identify(request, env, game) {
       asn_org = excluded.asn_org,
       last_game = excluded.last_game,
       last_seen_at = CURRENT_TIMESTAMP
+    RETURNING banned_at, ban_reason, label, label_source, name_asked_at, profile_at, model
   `).bind(deviceId, account?.id || null, defaultDeviceLabel(metadata, deviceId), metadata.userAgent,
     metadata.browser, metadata.browserVersion, metadata.os, metadata.osVersion, metadata.model,
     metadata.arch, metadata.ipPrefix, metadata.country, metadata.city, metadata.region,
-    metadata.asnOrg, game).run();
-
-  const device = await env.DB.prepare(`
-    SELECT banned_at, ban_reason, label, label_source, name_asked_at, profile_at, model
-    FROM devices WHERE id = ?
-  `).bind(deviceId).first();
+    metadata.asnOrg, game).first();
   const reason = device?.banned_at
     ? device.ban_reason || "This device has been blocked."
     : account?.banned_at
@@ -412,6 +484,7 @@ async function identify(request, env, game) {
     account,
     device,
     deviceId,
+    hadDeviceCookie,
     blocked: Boolean(reason),
     reason,
     cookies: responseCookies,
@@ -433,16 +506,24 @@ async function skipAccount(request, env, url) {
   const form = await request.formData();
   const returnTo = safeReturn(form.get("return"));
   if (hasDeviceName(identity.device)) return withCookies(Response.redirect(returnTo, 303), identity.cookies);
+  if (!identity.hadDeviceCookie) {
+    return deviceNameForm(returnTo, "This browser blocked the required device cookie. Allow first-party cookies or open this page in a normal browser tab, then try again.", 400, identity.cookies);
+  }
   const name = cleanText(form.get("name"), 80);
   if (name.length < 2) return deviceNameForm(returnTo, "Enter at least 2 characters.", 400, identity.cookies);
-  await saveDeviceName(env, identity.deviceId, name);
-  return withCookies(Response.redirect(returnTo, 303), identity.cookies);
+  if (!(await saveDeviceName(env, identity.deviceId, name))) {
+    return deviceNameForm(returnTo, "That device name could not be saved. Reload this page and try again.", 409, identity.cookies);
+  }
+  return withCookies(noStoreRedirect(returnTo), await namedDeviceCookies(identity, env));
 }
 
 async function deviceName(request, env, url) {
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const identity = await identify(request, env, url.hostname);
   if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
+  if (!identity.hadDeviceCookie) {
+    return withCookies(Response.json({ error: "first-party device cookie required" }, { status: 428 }), identity.cookies);
+  }
   if (hasDeviceName(identity.device)) return withCookies(Response.json({
     error: "device name is already saved", name: identity.device.label,
   }, { status: 409 }), identity.cookies);
@@ -455,7 +536,7 @@ async function deviceName(request, env, url) {
   if (!(await saveDeviceName(env, identity.deviceId, name))) {
     return withCookies(Response.json({ error: "device name is already saved" }, { status: 409 }), identity.cookies);
   }
-  return withCookies(Response.json({ saved: true, name }), identity.cookies);
+  return withCookies(Response.json({ saved: true, name }), await namedDeviceCookies(identity, env));
 }
 
 async function saveDeviceName(env, deviceId, name) {
@@ -465,6 +546,14 @@ async function saveDeviceName(env, deviceId, name) {
     WHERE id = ? AND (label_source = 'auto' OR length(trim(label)) < 2)
   `).bind(name, deviceId).run();
   return Boolean(result.meta.changes);
+}
+
+async function namedDeviceCookies(identity, env) {
+  return [
+    ...identity.cookies,
+    hostCookie(DEVICE_COOKIE, "", 0),
+    await deviceCookie(identity.deviceId, env.COOKIE_SECRET),
+  ];
 }
 
 async function deviceProfile(request, env, identity) {
@@ -772,6 +861,11 @@ function parseCookies(header) {
   return Object.fromEntries(header.split(";").map((part) => part.trim().split(/=(.*)/s)).filter(([key]) => key));
 }
 
+function cookieValues(header, name) {
+  return header.split(";").map((part) => part.trim().split(/=(.*)/s))
+    .filter(([key]) => key === name).map(([, value]) => value);
+}
+
 async function deviceCookie(id, secret) {
   if (!secret) throw new Error("COOKIE_SECRET is not configured");
   const signature = await hmac(id, secret);
@@ -792,6 +886,10 @@ function cookie(name, value, maxAge) {
   return `${name}=${value}; Domain=${COOKIE_DOMAIN}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Lax`;
 }
 
+function hostCookie(name, value, maxAge) {
+  return `${name}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Lax`;
+}
+
 function sessionCookie(value, maxAge) {
   return cookie(SESSION_COOKIE, value, maxAge);
 }
@@ -801,6 +899,13 @@ function withCookies(response, cookies = []) {
   const mutable = new Response(response.body, response);
   for (const value of cookies) mutable.headers.append("Set-Cookie", value);
   return mutable;
+}
+
+function noStoreRedirect(url, status = 303) {
+  const redirect = Response.redirect(url, status);
+  const response = new Response(redirect.body, redirect);
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }
 
 function randomToken(bytes = 32) {
@@ -868,8 +973,7 @@ function blockedResponse(reason, cookies = []) {
 }
 
 function deviceNameRequired(request, url, cookies = []) {
-  const isNavigation = (request.method === "GET" || request.method === "HEAD") &&
-    request.headers.get("Accept")?.includes("text/html");
+  const isNavigation = isNavigationRequest(request);
   const nameUrl = new URL("https://games.andrenijman.com/_guard/name");
   nameUrl.searchParams.set("return", isNavigation ? safeReturn(url.toString()) : `https://${url.hostname}/`);
   if (isNavigation) return withCookies(Response.redirect(nameUrl, 302), cookies);
@@ -899,11 +1003,16 @@ async function deviceNamePage(request, env, url) {
   if (hasDeviceName(identity.device)) return withCookies(Response.redirect(returnTo, 303), identity.cookies);
   if (request.method === "GET") return deviceNameForm(returnTo, "", 200, identity.cookies);
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  if (!identity.hadDeviceCookie) {
+    return deviceNameForm(returnTo, "This browser blocked the required device cookie. Allow first-party cookies or open this page in a normal browser tab, then try again.", 400, identity.cookies);
+  }
   const form = await request.formData();
   const name = cleanText(form.get("name"), 80);
   if (name.length < 2) return deviceNameForm(returnTo, "Enter at least 2 characters.", 400, identity.cookies);
-  await saveDeviceName(env, identity.deviceId, name);
-  return withCookies(Response.redirect(returnTo, 303), identity.cookies);
+  if (!(await saveDeviceName(env, identity.deviceId, name))) {
+    return deviceNameForm(returnTo, "That device name could not be saved. Reload this page and try again.", 409, identity.cookies);
+  }
+  return withCookies(noStoreRedirect(returnTo), await namedDeviceCookies(identity, env));
 }
 
 function deviceNameForm(returnTo, error = "", status = 200, cookies = []) {
@@ -912,7 +1021,7 @@ function deviceNameForm(returnTo, error = "", status = 200, cookies = []) {
     <p class="account-purpose">Choose a name you will recognise, such as “Andre’s laptop” or “Kitchen iPad”. It is saved to this browser and stays when you sign in or log out.</p>
     <p class="notice">You cannot rename this device yourself later. An administrator can correct its name if needed.</p>
     ${error ? `<p class="error" role="alert">${escapeHtml(error)}</p>` : ""}
-    <form method="post" action="/_guard/name?return=${encodeURIComponent(returnTo)}">
+    <form method="post" target="_top" action="/_guard/name?return=${encodeURIComponent(returnTo)}">
       <label>Device name<input name="name" autocomplete="nickname" required minlength="2" maxlength="80" autofocus placeholder="e.g. Andre's laptop"></label>
       <button type="submit">Save and continue</button>
     </form>
@@ -1207,72 +1316,84 @@ function gameFramePage(url, title, deviceName) {
 }
 
 const CLIENT_JS = `(function () {
-  var request = new XMLHttpRequest();
-  var allowed = false;
-  try {
-    request.open('GET', '/_guard/status', false);
-    request.send();
-    var result = JSON.parse(request.responseText);
-    allowed = request.status === 200 && result.allowed === true;
-    window.__gamesGuardStatus = result;
-  } catch (error) {}
-  if (!allowed) {
+  function deny(result) {
     var nameRequired = result && result.nameRequired;
     var accessUrl = nameRequired && result.nameUrl ? result.nameUrl : 'https://games.andrenijman.com/_guard/login?return=' + encodeURIComponent(location.href);
     var accessLabel = nameRequired ? 'Name this device' : 'Sign in';
-    document.documentElement.innerHTML = '<head><title>Access required</title></head><body style="font:16px monospace;padding:2rem;background:#10110f;color:#eee">Online access check failed or access is blocked. <a style="color:#d1b24b" href="' + accessUrl + '">' + accessLabel + '</a></body>';
+    document.documentElement.innerHTML = '<head><title>Access required</title></head><body style="font:16px monospace;padding:2rem;background:#10110f;color:#eee">Online access check failed or access is blocked. <a target="_top" style="color:#d1b24b" href="' + accessUrl + '">' + accessLabel + '</a></body>';
     window.stop();
-    throw new Error('Games access denied');
   }
 
-  if (result && result.needsProfile) {
-    try {
-      var canvas = document.createElement('canvas');
-      var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      var renderer = '';
-      if (gl) {
-        var debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-        renderer = String(debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER) || '');
-      }
-      fetch('/_guard/device-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          gpu: renderer,
-          screen: screen.width + 'x' + screen.height + '@' + (Math.round((window.devicePixelRatio || 1) * 100) / 100),
-          cores: navigator.hardwareConcurrency || 0,
-          memory: navigator.deviceMemory || 0,
-          touch: navigator.maxTouchPoints || 0,
-          timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone) || '',
-          languages: (navigator.languages || [navigator.language || '']).slice(0, 3).join(',')
-        })
+  function activate(result) {
+    window.__gamesGuardStatus = result;
+    if (!result || result.allowed !== true) {
+      deny(result);
+      return;
+    }
+
+    if (result.needsProfile) {
+      try {
+        var canvas = document.createElement('canvas');
+        var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        var renderer = '';
+        if (gl) {
+          var debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          renderer = String(debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER) || '');
+        }
+        fetch('/_guard/device-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            gpu: renderer,
+            screen: screen.width + 'x' + screen.height + '@' + (Math.round((window.devicePixelRatio || 1) * 100) / 100),
+            cores: navigator.hardwareConcurrency || 0,
+            memory: navigator.deviceMemory || 0,
+            touch: navigator.maxTouchPoints || 0,
+            timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone) || '',
+            languages: (navigator.languages || [navigator.language || '']).slice(0, 3).join(',')
+          })
+        }).catch(function () {});
+      } catch (error) {}
+    }
+
+    if ('serviceWorker' in navigator) {
+      var hadController = Boolean(navigator.serviceWorker.controller);
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        return Promise.all(registrations.map(function (registration) { return registration.unregister(); }));
+      }).then(function () {
+        if (hadController && !sessionStorage.getItem('games-sw-retired')) {
+          sessionStorage.setItem('games-sw-retired', '1');
+          location.reload();
+        }
       }).catch(function () {});
+    }
+
+    var versionMeta = document.querySelector('meta[name="games-content-version"]');
+    var currentVersion = versionMeta ? versionMeta.content : '';
+    function checkForUpdate() {
+      if (document.hidden || !currentVersion) return;
+      fetch('/_guard/version?path=' + encodeURIComponent(location.pathname + location.search), { cache: 'no-store' })
+        .then(function (response) { return response.ok ? response.json() : null; })
+        .then(function (data) {
+          if (data && data.version && data.version !== currentVersion) location.reload();
+        }).catch(function () {});
+    }
+    setInterval(checkForUpdate, 60000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) checkForUpdate(); });
+  }
+
+  var statusMeta = document.querySelector('meta[name="games-guard-status"]');
+  if (statusMeta) {
+    try {
+      activate(JSON.parse(statusMeta.content));
+      return;
     } catch (error) {}
   }
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function (registrations) {
-      registrations.forEach(function (registration) { registration.unregister(); });
-    }).catch(function () {});
-  }
-  if ('caches' in window) {
-    caches.keys().then(function (keys) {
-      return Promise.all(keys.map(function (key) { return caches.delete(key); }));
-    }).catch(function () {});
-  }
-
-  var currentVersion = document.querySelector('meta[name="games-content-version"]')?.content || '';
-  function checkForUpdate() {
-    if (document.hidden || !currentVersion) return;
-    fetch('/_guard/version?path=' + encodeURIComponent(location.pathname + location.search), { cache: 'no-store' })
-      .then(function (response) { return response.ok ? response.json() : null; })
-      .then(function (data) {
-        if (data && data.version && data.version !== currentVersion) location.reload();
-      }).catch(function () {});
-  }
-  setInterval(checkForUpdate, 60000);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkForUpdate(); });
+  fetch('/_guard/status', { cache: 'no-store', credentials: 'same-origin' })
+    .then(function (response) { return response.json(); })
+    .then(activate)
+    .catch(function () { deny(null); });
 }());`;
 
 const RETIRED_SERVICE_WORKER = `self.addEventListener('install', function () { self.skipWaiting(); }); self.addEventListener('activate', function (event) { event.waitUntil(Promise.all([caches.keys().then(function (keys) { return Promise.all(keys.map(function (key) { return caches.delete(key); })); }), self.registration.unregister(), self.clients.claim()])); }); self.addEventListener('fetch', function (event) { event.respondWith(fetch(event.request)); });`;
