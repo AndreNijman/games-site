@@ -6,7 +6,6 @@ const PBKDF2_ITERATIONS = 100000;
 const ACCEPT_CH = "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version, Sec-CH-UA-Full-Version-List, Sec-CH-UA-Arch, Sec-CH-UA-Bitness";
 const HOSTS = new Set([
   "games.andrenijman.com",
-  "wavelength.andrenijman.com",
   "topout.andrenijman.com",
   "defenders.andrenijman.com",
   "overpop.andrenijman.com",
@@ -18,7 +17,6 @@ const HOSTS = new Set([
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
 const GAME_TITLES = {
-  "wavelength.andrenijman.com": "Wavelength",
   "topout.andrenijman.com": "TOPOUT",
   "defenders.andrenijman.com": "Garden Defenders 2",
   "overpop.andrenijman.com": "OVERPOP",
