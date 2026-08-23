@@ -14,6 +14,7 @@ const HOSTS = new Set([
   "tung.andrenijman.com",
   "isaac.andrenijman.com",
   "bop.andrenijman.com",
+  "slingwreck.andrenijman.com",
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
 const GAME_TITLES = {
@@ -25,6 +26,7 @@ const GAME_TITLES = {
   "tung.andrenijman.com": "Tung Tung Tung Sahorror",
   "isaac.andrenijman.com": "ISUCK",
   "bop.andrenijman.com": "BOP",
+  "slingwreck.andrenijman.com": "SLINGWRECK",
 };
 
 export default {
