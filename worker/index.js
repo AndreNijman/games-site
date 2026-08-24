@@ -9,6 +9,10 @@ const ACCEPT_CH = "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Versi
 // fetch it; serving them a full page while humans get the gate would be
 // cloaking. Every game subdomain stays gated.
 const HUB_HOST = "games.andrenijman.com";
+// The admin view holds every returned row in memory to group and search it, so
+// the query is windowed rather than unbounded. Raise this if the device table
+// ever outgrows it; the page reports honestly when the window is full.
+const ADMIN_ROW_WINDOW = 25000;
 const HOSTS = new Set([
   "games.andrenijman.com",
   "topout.andrenijman.com",
@@ -744,12 +748,29 @@ async function handleAdmin(request, env, url) {
     return Response.redirect(redirect, 303);
   }
 
-  const devices = await env.DB.prepare(`
-    SELECT devices.*, accounts.username, accounts.banned_at AS account_banned_at
-    FROM devices LEFT JOIN accounts ON accounts.id = devices.account_id
-    ORDER BY devices.last_seen_at DESC LIMIT 1000
-  `).all();
-  return adminPage(groupDevices(devices.results || []), adminEmail, url);
+  // Grouping, search and paging all happen in memory, so the row window is
+  // bounded to protect the isolate. The headline counts come from SQL instead,
+  // so they stay truthful even when the window is not big enough to hold
+  // every device.
+  const [devices, totals] = await Promise.all([
+    env.DB.prepare(`
+      SELECT devices.*, accounts.username, accounts.banned_at AS account_banned_at
+      FROM devices LEFT JOIN accounts ON accounts.id = devices.account_id
+      ORDER BY devices.last_seen_at DESC LIMIT ${ADMIN_ROW_WINDOW}
+    `).all(),
+    env.DB.prepare(`
+      SELECT COUNT(*) AS devices,
+             SUM(CASE WHEN label_source != 'auto' THEN 1 ELSE 0 END) AS named
+      FROM devices
+    `).first(),
+  ]);
+  const rows = devices.results || [];
+  return adminPage(groupDevices(rows), adminEmail, url, {
+    totalDevices: Number(totals?.devices || 0),
+    totalNamed: Number(totals?.named || 0),
+    loaded: rows.length,
+    truncated: rows.length >= ADMIN_ROW_WINDOW,
+  });
 }
 
 // One row per browser profile is unreadable once a person owns four of them.
@@ -1075,7 +1096,7 @@ function authPage(title, returnTo, error = "", status = 200, registering = false
     </main>`, status);
 }
 
-function adminPage(groups, email, url) {
+function adminPage(groups, email, url, stats = {}) {
   const allowedViews = new Set(["all", "accounts", "unclaimed", "blocked"]);
   const requestedView = String(url.searchParams.get("view") || "all");
   const view = allowedViews.has(requestedView) ? requestedView : "all";
@@ -1086,9 +1107,11 @@ function adminPage(groups, email, url) {
 
   const accountGroups = groups.filter((group) => group.accountId);
   const unclaimed = groups.find((group) => !group.accountId);
-  const deviceCount = groups.reduce((total, group) => total + group.devices.length, 0);
-  const namedCount = groups.reduce((total, group) =>
+  const loadedCount = groups.reduce((total, group) => total + group.devices.length, 0);
+  const loadedNamed = groups.reduce((total, group) =>
     total + group.devices.filter((device) => device.label_source !== "auto").length, 0);
+  const deviceCount = stats.totalDevices ?? loadedCount;
+  const namedCount = stats.totalNamed ?? loadedNamed;
   const blockedCount = groups.filter((group) => group.blocked).length;
 
   let visible = groups.filter((group) => {
@@ -1151,6 +1174,7 @@ function adminPage(groups, email, url) {
       ${query ? `<a href="${escapeHtml(adminHref(view))}">Clear</a>` : ""}
     </form>
     <nav class="admin-tabs" aria-label="Device filters">${tabs}</nav>
+    ${stats.truncated ? `<p class="result-line">Showing the ${loadedCount} most recently seen of ${deviceCount} devices. Search to reach older records.</p>` : ""}
     <details class="admin-help"><summary>How identification works</summary><p>Player and admin names are authoritative; measured hardware and network details are only hints. A device ban applies to one signed browser profile, not to a household or network.</p></details>
     ${query ? `<p class="result-line">${visible.length} matching ${visible.length === 1 ? "group" : "groups"} for “${escapeHtml(query)}”</p>` : ""}
     <div class="people">${sections || `<p class="empty-state">No accounts or devices match this view.</p>`}</div>
