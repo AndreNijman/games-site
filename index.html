@@ -306,9 +306,12 @@
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--mut);
-      opacity: 0.65;
+      opacity: 0;
       margin: 0 0 10px;
+      transition: opacity 0.2s;
     }
+    .is-live .ad-label { opacity: 0.65; }
+    @media (prefers-reduced-motion: reduce) { .ad-label { transition: none; } }
     .ad-inline { padding: clamp(20px, 4vw, 34px) 0 0; }
     .ad-inline .ad-host { min-height: 90px; }
     .ad-sticky {
@@ -329,8 +332,23 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 60px;
+      min-height: 96px;
       padding: 5px 42px;
+    }
+    /* wide screens only: the 300x600 sits in the dead gutter beside the
+       1080px content column, centred in that space and never overlapping. */
+    .ad-rail { display: none; }
+    @media (min-width: 1760px) and (min-height: 720px) {
+      .ad-rail {
+        display: block;
+        position: fixed;
+        top: 50%;
+        right: calc((100vw - 1680px) / 4);
+        transform: translateY(-50%);
+        width: 300px;
+        z-index: 30;
+      }
+      .ad-rail .ad-host { min-height: 600px; }
     }
     .ad-close {
       position: absolute;
@@ -354,10 +372,8 @@
       transition: color 0.18s, border-color 0.18s;
     }
     .ad-close:hover { color: var(--ink); border-color: var(--line); }
-    body.has-sticky-ad { padding-bottom: 72px; }
     @media (max-width: 560px) {
-      .ad-sticky-inner { min-height: 52px; padding: 4px 38px; }
-      body.has-sticky-ad { padding-bottom: 62px; }
+      .ad-sticky-inner { min-height: 58px; padding: 4px 38px; }
     }
 
     /* footer */
@@ -556,6 +572,11 @@
     </div>
   </footer>
 
+  <aside class="ad-rail" id="ad-rail" aria-label="Advertisement" hidden>
+    <p class="ad-label">Advertisement</p>
+    <div class="ad-host" id="ad-rail-host"></div>
+  </aside>
+
   <div class="ad-sticky" id="ad-sticky" hidden>
     <div class="ad-sticky-inner">
       <button class="ad-close" id="ad-sticky-close" type="button" aria-label="Close advertisement">&times;</button>
@@ -570,9 +591,11 @@
       var CLIENT = 'ca-pub-9868351013932229';
       var SLOTS = {
         leaderboard: '',
-        sticky: ''
+        sticky: '',
+        rail: ''
       };
       var STICKY_DISMISSED = 'games-sticky-ad-closed';
+      var RAIL_QUERY = '(min-width: 1760px) and (min-height: 720px)';
 
       function settle(ins, onFilled, onEmpty) {
         var done = false;
@@ -594,54 +617,82 @@
         }, 5000);
       }
 
-      function mount(host, slot, format, onFilled, onEmpty) {
-        if (!host || !slot) return;
+      function drop(node) {
+        if (node && node.parentNode) node.parentNode.removeChild(node);
+      }
+
+      // The container must be laid out before the tag is pushed: AdSense reads
+      // offsetWidth, and a display:none parent yields availableWidth=0.
+      function mount(container, slot, options, onFilled, onEmpty) {
+        if (!container || !slot) return;
+        var host = container.querySelector('.ad-host');
+        if (!host) return;
+        container.hidden = false;
+
         var ins = document.createElement('ins');
         ins.className = 'adsbygoogle';
-        ins.style.display = 'block';
         ins.setAttribute('data-ad-client', CLIENT);
         ins.setAttribute('data-ad-slot', slot);
-        ins.setAttribute('data-ad-format', format);
-        ins.setAttribute('data-full-width-responsive', 'true');
+        if (options.width) {
+          ins.style.display = 'inline-block';
+          ins.style.width = options.width + 'px';
+          ins.style.height = options.height + 'px';
+        } else {
+          ins.style.display = 'block';
+          ins.setAttribute('data-ad-format', options.format);
+          ins.setAttribute('data-full-width-responsive', 'true');
+        }
         host.appendChild(ins);
-        settle(ins, onFilled, onEmpty);
+
+        settle(ins, function () {
+          container.classList.add('is-live');
+          onFilled();
+        }, function () {
+          drop(container);
+          onEmpty();
+        });
+
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
         } catch (error) {
+          drop(container);
           onEmpty();
         }
       }
 
-      var leaderboard = document.getElementById('ad-leaderboard');
-      mount(
-        document.getElementById('ad-leaderboard-host'),
-        SLOTS.leaderboard,
-        'horizontal',
-        function () { leaderboard.hidden = false; },
-        function () { if (leaderboard && leaderboard.parentNode) leaderboard.parentNode.removeChild(leaderboard); }
-      );
+      function noop() {}
+
+      mount(document.getElementById('ad-leaderboard'), SLOTS.leaderboard,
+        { format: 'horizontal' }, noop, noop);
 
       var sticky = document.getElementById('ad-sticky');
       var dismissed = false;
       try { dismissed = sessionStorage.getItem(STICKY_DISMISSED) === '1'; } catch (error) {}
       if (dismissed) {
-        if (sticky && sticky.parentNode) sticky.parentNode.removeChild(sticky);
+        drop(sticky);
       } else {
         document.getElementById('ad-sticky-close').addEventListener('click', function () {
-          sticky.parentNode.removeChild(sticky);
-          document.body.classList.remove('has-sticky-ad');
+          drop(sticky);
+          document.body.style.paddingBottom = '';
           try { sessionStorage.setItem(STICKY_DISMISSED, '1'); } catch (error) {}
         });
-        mount(
-          document.getElementById('ad-sticky-host'),
-          SLOTS.sticky,
-          'horizontal',
-          function () {
-            sticky.hidden = false;
-            document.body.classList.add('has-sticky-ad');
-          },
-          function () { if (sticky && sticky.parentNode) sticky.parentNode.removeChild(sticky); }
-        );
+        // The served creative decides its own height, so the spacer that keeps
+        // the bar off the footer is measured rather than assumed.
+        mount(sticky, SLOTS.sticky, { format: 'horizontal' }, function () {
+          var pad = function () { document.body.style.paddingBottom = sticky.offsetHeight + 'px'; };
+          pad();
+          if (window.ResizeObserver) new ResizeObserver(pad).observe(sticky);
+          else window.addEventListener('resize', pad);
+        }, function () {
+          document.body.style.paddingBottom = '';
+        });
+      }
+
+      var rail = document.getElementById('ad-rail');
+      if (window.matchMedia && window.matchMedia(RAIL_QUERY).matches) {
+        mount(rail, SLOTS.rail, { width: 300, height: 600 }, noop, noop);
+      } else {
+        drop(rail);
       }
     }());
   </script>
