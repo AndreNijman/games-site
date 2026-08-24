@@ -13,6 +13,9 @@ const HUB_HOST = "games.andrenijman.com";
 // the query is windowed rather than unbounded. Raise this if the device table
 // ever outgrows it; the page reports honestly when the window is full.
 const ADMIN_ROW_WINDOW = 25000;
+// Visits before this date were reconstructed from device first/last seen times
+// by worker/migrations/2026-08-24-visit-backfill.sql and undercount.
+const VISITS_MEASURED_FROM = "24 August 2026";
 const HOSTS = new Set([
   "games.andrenijman.com",
   "topout.andrenijman.com",
@@ -1284,7 +1287,7 @@ function visitPanel(visits) {
   return `<section class="visits" aria-label="Site visits">
     <div class="visit-cards">${cards}</div>
     ${busiest}
-    <p class="visit-note">Real visits only: page views served to non-crawler browsers, counted in Perth days. Game views count once, not twice for the frame. Recording started 24 August 2026.</p>
+    <p class="visit-note">Real visits only: pages served to non-crawler browsers, counted in Perth days, with the game frame counted once rather than twice. Live recording began ${VISITS_MEASURED_FROM}. Earlier days are reconstructed from each device's first and last seen times, which is why their views and unique visitors match: only two events per device survived, so those days are a floor and the true figures were higher.</p>
   </section>`;
 }
 
