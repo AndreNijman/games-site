@@ -4,6 +4,11 @@ const COOKIE_DOMAIN = ".andrenijman.com";
 const SESSION_DAYS = 30;
 const PBKDF2_ITERATIONS = 100000;
 const ACCEPT_CH = "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version, Sec-CH-UA-Full-Version-List, Sec-CH-UA-Arch, Sec-CH-UA-Bitness";
+// The hub index is the only public document on the network. It must stay
+// reachable without the device gate so search engines and ad reviewers can
+// fetch it; serving them a full page while humans get the gate would be
+// cloaking. Every game subdomain stays gated.
+const HUB_HOST = "games.andrenijman.com";
 const HOSTS = new Set([
   "games.andrenijman.com",
   "topout.andrenijman.com",
@@ -73,7 +78,9 @@ async function handleRequest(request, env) {
 
   const identity = await identify(request, env, url.hostname);
   if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
-  if (!hasDeviceName(identity.device)) return deviceNameRequired(request, url, identity.cookies);
+  if (!hasDeviceName(identity.device) && url.hostname !== HUB_HOST) {
+    return deviceNameRequired(request, url, identity.cookies);
+  }
 
   if (GAME_TITLES[url.hostname] && request.method === "GET" &&
       isNavigationRequest(request) && !url.searchParams.has("_games_frame")) {
@@ -89,13 +96,14 @@ async function handleRequest(request, env) {
   response.headers.set("Accept-CH", ACCEPT_CH);
   const contentVersion = upstream.headers.get("ETag") || upstream.headers.get("Last-Modified") || "";
   const isHtml = response.headers.get("Content-Type")?.includes("text/html");
+  const named = hasDeviceName(identity.device);
   const guardStatus = JSON.stringify({
     allowed: true,
     signedIn: Boolean(identity.account),
     username: identity.account?.username || null,
-    deviceName: identity.device.label,
+    deviceName: named ? identity.device.label : null,
     needsName: false,
-    needsProfile: needsProfile(identity.device),
+    needsProfile: named && needsProfile(identity.device),
   });
   const guarded = isHtml
     ? new HTMLRewriter().on("head", {
@@ -137,7 +145,21 @@ async function handleGuardRoute(request, env, url) {
     return blockedResponse(identity.reason, identity.cookies);
   }
   if (!hasDeviceName(identity.device)) {
-    if (url.pathname === "/_guard/status") return unnamedStatus(url, identity, identity.cookies);
+    // An unnamed browser may read the public hub, so the hub's own status call
+    // reports browsing access rather than the name demand a game would send.
+    if (url.pathname === "/_guard/status") {
+      if (url.hostname !== HUB_HOST) return unnamedStatus(url, identity, identity.cookies);
+      const response = Response.json({
+        allowed: true,
+        signedIn: false,
+        username: null,
+        deviceName: null,
+        needsName: false,
+        needsProfile: false,
+      });
+      response.headers.set("Cache-Control", "no-store");
+      return withCookies(response, identity.cookies);
+    }
     return deviceNameRequired(request, url, identity.cookies);
   }
 
@@ -1240,6 +1262,9 @@ function privacyPage() {
     <p>It also records what your browser reports about itself: browser and operating-system family and version, processor architecture, device model on Android, screen size and pixel ratio, processor core count, rough memory size, touch support, time zone, and languages, plus the graphics adapter name your browser exposes to web pages.</p>
     <p>From the network connection it records a partial IP network, country, city, region, and the network operator name. Signed-in players may also store supported game progress and named world saves in their account.</p>
     <p>None of this is a hardware serial number or a permanent identifier: it describes the browser and its device class so the site owner can tell one player apart from another and block abuse. It is not sold or shared. Ask the site owner to inspect or delete your record.</p>
+    <h2>Advertising</h2>
+    <p>The hub index page at games.andrenijman.com shows advertising supplied by Google AdSense. The games themselves carry no advertising. Google and its partners may set or read cookies on the hub page and use them, together with your IP address, to serve and measure ads. Google may use advertising cookies to serve ads based on your prior visits to this or other websites.</p>
+    <p>You can opt out of personalised advertising in <a href="https://adssettings.google.com">Google Ads settings</a>, and review how Google uses data from sites that use its services at <a href="https://policies.google.com/technologies/partner-sites">policies.google.com/technologies/partner-sites</a>. Visitors in the European Economic Area, the United Kingdom and Switzerland are asked for consent before any personalised advertising cookie is set.</p>
     <a class="alternate" href="/_guard/login">Return to the games</a></main>`);
 }
 
