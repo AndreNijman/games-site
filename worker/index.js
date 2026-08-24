@@ -39,9 +39,9 @@ const GAME_TITLES = {
 };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     try {
-      return await handleRequest(request, env);
+      return await handleRequest(request, env, ctx);
     } catch (error) {
       console.error(error);
       const url = new URL(request.url);
@@ -62,7 +62,7 @@ export default {
   },
 };
 
-async function handleRequest(request, env) {
+async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
   if (!HOSTS.has(url.hostname)) return new Response("Unknown host", { status: 404 });
 
@@ -84,6 +84,14 @@ async function handleRequest(request, env) {
   if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
   if (!hasDeviceName(identity.device) && url.hostname !== HUB_HOST) {
     return deviceNameRequired(request, url, identity.cookies);
+  }
+
+  // Counted here so a visit means a page actually served: gate redirects above
+  // never reach this line, and the inner game iframe is skipped so a single
+  // game view is not counted twice.
+  if (request.method === "GET" && isNavigationRequest(request) &&
+      !url.searchParams.has("_games_frame")) {
+    recordVisit(env, ctx, url.hostname, identity.deviceId, request.headers.get("User-Agent") || "");
   }
 
   if (GAME_TITLES[url.hostname] && request.method === "GET" &&
@@ -527,6 +535,79 @@ function needsProfile(device) {
   return Boolean(device) && !device.profile_at;
 }
 
+// Crawlers, previewers and monitors are not visits. This only has to be good
+// enough to keep the counters honest, not to be a security control.
+const BOT_AGENT = /bot|crawl|spider|slurp|bingpreview|headless|phantom|puppeteer|playwright|curl|wget|python-requests|libwww|java\/|go-http|okhttp|axios|facebookexternalhit|embedly|quora link|whatsapp|telegram|slackbot|discordbot|twitterbot|linkedinbot|pinterest|redditbot|applebot|petalbot|ahrefs|semrush|mj12|dotbot|screaming frog|lighthouse|gtmetrix|pingdom|uptime|monitor|preview/i;
+
+function isBotAgent(userAgent) {
+  return !userAgent || BOT_AGENT.test(userAgent);
+}
+
+// Perth is UTC+8 with no daylight saving, so a fixed offset gives the operator
+// their own calendar day rather than a UTC one that rolls over mid-morning.
+function perthDay(now = new Date()) {
+  return new Date(now.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+// Counters are aggregated per day per host, and unique visitors come from one
+// row per device per day, so nothing grows with traffic except a fixed few
+// rows a day. Writes never block the response.
+function recordVisit(env, ctx, host, deviceId, userAgent) {
+  if (isBotAgent(userAgent) || !deviceId) return;
+  const day = perthDay();
+  const work = env.DB.batch([
+    env.DB.prepare(`
+      INSERT INTO visit_days (day, host, views) VALUES (?, ?, 1)
+      ON CONFLICT(day, host) DO UPDATE SET views = views + 1
+    `).bind(day, host),
+    env.DB.prepare("INSERT OR IGNORE INTO visit_device_days (day, host, device_id) VALUES (?, ?, ?)")
+      .bind(day, host, deviceId),
+  ]).catch((error) => console.error("visit not recorded", error));
+  if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(work);
+}
+
+// Views and unique devices for today, the last 7 days and the last 30 days,
+// counted in Perth days to match the dashboard's clock.
+async function visitStats(env) {
+  const today = perthDay();
+  const dayBefore = (days) => perthDay(new Date(Date.now() - days * 86400000));
+  const window7 = dayBefore(6);
+  const window30 = dayBefore(29);
+  const [views, uniques, hosts] = await Promise.all([
+    env.DB.prepare(`
+      SELECT
+        SUM(CASE WHEN day = ?1 THEN views ELSE 0 END) AS today,
+        SUM(CASE WHEN day >= ?2 THEN views ELSE 0 END) AS week,
+        SUM(CASE WHEN day >= ?3 THEN views ELSE 0 END) AS month
+      FROM visit_days
+    `).bind(today, window7, window30).first(),
+    env.DB.prepare(`
+      SELECT
+        COUNT(DISTINCT CASE WHEN day = ?1 THEN device_id END) AS today,
+        COUNT(DISTINCT CASE WHEN day >= ?2 THEN device_id END) AS week,
+        COUNT(DISTINCT CASE WHEN day >= ?3 THEN device_id END) AS month
+      FROM visit_device_days
+    `).bind(today, window7, window30).first(),
+    env.DB.prepare(`
+      SELECT host, SUM(views) AS views FROM visit_days
+      WHERE day >= ?1 GROUP BY host ORDER BY views DESC LIMIT 12
+    `).bind(window30).all(),
+  ]);
+  return {
+    views: {
+      today: Number(views?.today || 0),
+      week: Number(views?.week || 0),
+      month: Number(views?.month || 0),
+    },
+    uniques: {
+      today: Number(uniques?.today || 0),
+      week: Number(uniques?.week || 0),
+      month: Number(uniques?.month || 0),
+    },
+    hosts: (hosts?.results || []).map((row) => ({ host: row.host, views: Number(row.views || 0) })),
+  };
+}
+
 async function skipAccount(request, env, url) {
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const identity = await identify(request, env, url.hostname);
@@ -752,7 +833,7 @@ async function handleAdmin(request, env, url) {
   // bounded to protect the isolate. The headline counts come from SQL instead,
   // so they stay truthful even when the window is not big enough to hold
   // every device.
-  const [devices, totals] = await Promise.all([
+  const [devices, totals, visits] = await Promise.all([
     env.DB.prepare(`
       SELECT devices.*, accounts.username, accounts.banned_at AS account_banned_at
       FROM devices LEFT JOIN accounts ON accounts.id = devices.account_id
@@ -763,6 +844,7 @@ async function handleAdmin(request, env, url) {
              SUM(CASE WHEN label_source != 'auto' THEN 1 ELSE 0 END) AS named
       FROM devices
     `).first(),
+    visitStats(env),
   ]);
   const rows = devices.results || [];
   return adminPage(groupDevices(rows), adminEmail, url, {
@@ -770,6 +852,7 @@ async function handleAdmin(request, env, url) {
     totalNamed: Number(totals?.named || 0),
     loaded: rows.length,
     truncated: rows.length >= ADMIN_ROW_WINDOW,
+    visits,
   });
 }
 
@@ -1173,12 +1256,36 @@ function adminPage(groups, email, url, stats = {}) {
       <button type="submit">Search</button>
       ${query ? `<a href="${escapeHtml(adminHref(view))}">Clear</a>` : ""}
     </form>
+    ${visitPanel(stats.visits)}
     <nav class="admin-tabs" aria-label="Device filters">${tabs}</nav>
     ${stats.truncated ? `<p class="result-line">Showing the ${loadedCount} most recently seen of ${deviceCount} devices. Search to reach older records.</p>` : ""}
     <details class="admin-help"><summary>How identification works</summary><p>Player and admin names are authoritative; measured hardware and network details are only hints. A device ban applies to one signed browser profile, not to a household or network.</p></details>
     ${query ? `<p class="result-line">${visible.length} matching ${visible.length === 1 ? "group" : "groups"} for “${escapeHtml(query)}”</p>` : ""}
     <div class="people">${sections || `<p class="empty-state">No accounts or devices match this view.</p>`}</div>
   </main>`);
+}
+
+function visitPanel(visits) {
+  if (!visits) return "";
+  const cards = [
+    ["Today so far", visits.views.today, visits.uniques.today],
+    ["Last 7 days", visits.views.week, visits.uniques.week],
+    ["Last 30 days", visits.views.month, visits.uniques.month],
+  ].map(([label, views, uniques]) => `<div class="visit-card">
+      <span class="visit-label">${label}</span>
+      <strong class="visit-views">${views.toLocaleString("en-AU")}</strong>
+      <span class="visit-sub">page views</span>
+      <span class="visit-uniques">${uniques.toLocaleString("en-AU")} unique ${uniques === 1 ? "visitor" : "visitors"}</span>
+    </div>`).join("");
+  const busiest = visits.hosts.length
+    ? `<div class="visit-hosts"><span class="visit-label">By site, last 30 days</span><ul>${visits.hosts.map((row) =>
+        `<li><span>${escapeHtml(row.host.replace(".andrenijman.com", ""))}</span><span>${row.views.toLocaleString("en-AU")}</span></li>`).join("")}</ul></div>`
+    : "";
+  return `<section class="visits" aria-label="Site visits">
+    <div class="visit-cards">${cards}</div>
+    ${busiest}
+    <p class="visit-note">Real visits only: page views served to non-crawler browsers, counted in Perth days. Game views count once, not twice for the frame. Recording started 24 August 2026.</p>
+  </section>`;
 }
 
 function personSection(group, options) {
@@ -1453,6 +1560,18 @@ const CSS = `
 :root{--bg:#10110f;--surface:#181a17;--text:#ebe9df;--muted:#9b9d94;--line:#35382f;--accent:#d1b24b;--danger:#c76155;--s1:4px;--s2:8px;--s3:16px;--s4:24px;--s5:32px;--s6:48px;font-family:Arial,sans-serif;color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}a{color:var(--accent)}h1{font:400 clamp(2.2rem,6vw,4.5rem)/.95 Georgia,serif;letter-spacing:-.04em;margin:var(--s2) 0 var(--s4)}p{line-height:1.6;color:var(--muted)}.kicker,th,small,button,label{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.kicker{font-size:.72rem;letter-spacing:.14em;color:var(--accent)}.account-purpose{margin:0 0 var(--s5)}.auth{width:min(100% - 40px,480px);margin:8vh auto}.auth form{display:grid;gap:var(--s3)}label{display:grid;gap:var(--s2);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase}input{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--text);font:inherit}button{min-height:44px;padding:10px 16px;border:1px solid var(--line);border-radius:4px;background:var(--accent);color:var(--bg);cursor:pointer}button:hover{filter:brightness(1.08)}.alternate{display:inline-block;margin-top:var(--s4)}.choice{display:flex;align-items:center;gap:var(--s3);margin:var(--s4) 0;color:var(--muted);font:12px ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase}.choice:before,.choice:after{content:"";height:1px;background:var(--line);flex:1}.skip-button{display:flex;min-height:56px;align-items:center;justify-content:center;padding:10px 16px;border-radius:4px;background:var(--text);color:var(--bg);font:1rem ui-monospace,SFMono-Regular,Consolas,monospace;text-decoration:none}.skip-button:hover{filter:brightness(1.08)}.fine{font-size:.78rem;margin-top:var(--s4)}.error,.notice{padding:var(--s3);border-left:3px solid var(--danger);background:var(--surface);color:var(--text)}.privacy{max-width:640px}.admin{width:min(100% - 40px,1500px);margin:var(--s6) auto}.admin header{display:flex;justify-content:space-between;align-items:start;gap:var(--s4)}.admin h1{margin-bottom:var(--s3)}.summary-line{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;letter-spacing:.04em}.person{margin-top:var(--s6);border-top:1px solid var(--line);padding-top:var(--s3)}.person>header{align-items:baseline;flex-wrap:wrap;gap:var(--s3)}.person h2{font:400 1.5rem/1.1 Georgia,serif;margin:0}.person h2.anon{color:var(--muted)}.person .summary{flex:1;margin:0;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.72rem;letter-spacing:.03em}.person>header form{display:flex;gap:var(--s2)}.person>header input{width:auto;min-width:150px}.person>header button{min-height:36px;padding:6px 10px;white-space:nowrap}.person .table{margin-top:var(--s3)}.blocked-person h2{color:var(--danger)}.badge{display:inline-block;padding:2px 7px;border:1px solid var(--accent);border-radius:999px;color:var(--accent);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;vertical-align:middle}.badge.auto{border-color:var(--line);color:var(--muted)}.muted{color:var(--muted)}.table{overflow:auto;border-top:1px solid var(--line);margin-top:var(--s5)}table{width:100%;border-collapse:collapse;min-width:1050px}th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:.7rem;letter-spacing:.1em;color:var(--muted)}td{font-size:.88rem}small{display:block;color:var(--muted);font-size:.68rem;margin-top:var(--s1)}td form{display:grid;gap:var(--s2)}.actions{display:flex;gap:var(--s2)}.actions button{min-height:36px;padding:6px 10px}.danger{background:transparent;color:var(--danger);border-color:var(--danger)}tr.blocked-row{background:#281b18}@media(max-width:600px){.admin header{display:block}.auth{margin-top:var(--s5)}.actions{flex-wrap:wrap}}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.admin{width:min(100% - 32px,1440px);margin:32px auto}.admin-title{align-items:start}.admin-title h1{font-size:clamp(2rem,4vw,3.5rem);margin:4px 0 8px}.admin-title>p{margin:4px 0;font:11px ui-monospace,SFMono-Regular,Consolas,monospace}.summary-line{margin:0}.admin-search{display:grid;grid-template-columns:minmax(220px,620px) max-content max-content;gap:8px;align-items:center;margin:24px 0 12px}.admin-search input{min-height:44px;padding:8px 12px}.admin-search button{min-height:44px;padding:8px 16px}.admin-search a{padding:8px;color:var(--muted);font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.admin-tabs{display:flex;gap:0;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:none}.admin-tabs::-webkit-scrollbar{display:none}.admin-tabs a{display:flex;align-items:center;gap:7px;min-height:44px;padding:0 14px;border-bottom:2px solid transparent;color:var(--muted);font:11px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.06em;text-decoration:none;text-transform:uppercase;white-space:nowrap}.admin-tabs a:hover,.admin-tabs a:focus-visible{color:var(--text)}.admin-tabs a[aria-current="page"]{color:var(--accent);border-bottom-color:var(--accent)}.admin-tabs span{color:inherit;opacity:.7}.admin-help{margin:8px 0 0;color:var(--muted);font-size:.78rem}.admin-help summary{width:max-content;min-height:44px;padding:13px 0;cursor:pointer;font:11px ui-monospace,SFMono-Regular,Consolas,monospace}.admin-help p{max-width:900px;margin:0 0 12px;font-size:.78rem}.result-line,.empty-state{margin:16px 0;font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.people{margin-top:8px;border-top:1px solid var(--line)}.person{margin:0;padding:0;border:0;border-bottom:1px solid var(--line)}.person-summary{display:grid;grid-template-columns:8px minmax(170px,1fr) 84px 130px 12px;gap:12px;align-items:center;min-height:48px;padding:7px 12px;cursor:pointer;list-style:none}.person-summary::-webkit-details-marker{display:none}.person-summary:hover{background:var(--surface)}.person-summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}.status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}.blocked-person .status-dot{background:var(--danger)}.person-name{min-width:0;font:15px/1.2 Georgia,serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.blocked-label{display:inline;margin-left:7px;color:var(--danger);font:9px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase}.person-name small{display:inline;margin:0 0 0 9px;font:10px ui-monospace,SFMono-Regular,Consolas,monospace}.person-count,.person-seen{color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace;text-align:right;white-space:nowrap}.disclosure{width:7px;height:7px;border-right:1px solid var(--muted);border-bottom:1px solid var(--muted);transform:rotate(45deg) translate(-2px,-2px);transition:transform 140ms ease-out}.person[open]>.person-summary .disclosure{transform:rotate(225deg) translate(-1px,-1px)}.person-body{padding:0 12px 12px;background:rgba(255,255,255,.012)}.person .table{margin:0;border-top:1px solid var(--line)}.person table{min-width:940px}.person th,.person td{padding:8px 10px}.person th{font-size:.62rem}.person td{font-size:.78rem}.person td:first-child{width:24%}.person td:nth-child(2){width:27%}.person td:nth-child(3){width:21%}.person td:nth-child(4){width:16%}.person td:last-child{width:12%}.person small{font-size:.62rem;margin-top:2px}.badge{padding:1px 5px;font-size:.52rem}.ban-reason{color:var(--danger)}.manage{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.manage>summary{width:max-content;min-height:44px;padding:14px 0;color:var(--muted);font-size:.68rem;cursor:pointer}.manage[open]>summary{color:var(--accent)}.manage form{min-width:190px;padding:8px 0}.manage label{gap:4px;font-size:.62rem}.manage input{min-height:44px;padding:7px 9px;font-size:.78rem}.actions{margin-top:6px}.actions button,.account-manage button{min-height:44px;padding:8px 10px;font-size:.68rem}.account-manage{margin-left:auto;padding:8px 0}.account-manage form{display:grid;grid-template-columns:minmax(180px,300px) auto;align-items:end;gap:8px}.pager{display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:10px 0 0;color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace}.pager a{color:var(--accent)}.blocked-row{box-shadow:inset 2px 0 var(--danger)}@media(prefers-reduced-motion:reduce){.disclosure{transition:none}}@media(max-width:700px){.admin{width:min(100% - 24px,1440px);margin:20px auto}.admin-title{display:block}.admin-title>p{margin-top:8px}.admin-search{grid-template-columns:1fr auto}.admin-search a{grid-column:1/-1;padding:0}.person-summary{grid-template-columns:8px minmax(0,1fr) 68px 12px;gap:8px;padding:7px 8px}.person-seen{display:none}.person-name small{display:block;margin:2px 0 0;overflow:hidden;text-overflow:ellipsis}.person-body{padding:0 8px 8px}.person .table{overflow:visible}.person table,.person tbody,.person tr,.person td{display:block;min-width:0}.person thead{display:none}.person tr{padding:8px 0;border-bottom:1px solid var(--line)}.person td{width:auto!important;padding:3px 4px;border:0}.person td:before{display:block;margin-bottom:2px;color:var(--muted);font:9px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase}.person td:nth-child(1):before{content:"Device"}.person td:nth-child(2):before{content:"Identity"}.person td:nth-child(3):before{content:"Network"}.person td:nth-child(4):before{content:"Activity"}.person td:nth-child(5):before{content:"Controls"}.account-manage form{grid-template-columns:1fr}.pager{justify-content:space-between}}
 .device-manage form+form{border-top:1px solid var(--line)}
+.visits{margin:20px 0 4px;padding:16px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.visit-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line)}
+.visit-card{display:grid;gap:2px;padding:14px 16px;background:var(--bg)}
+.visit-label{color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.1em;text-transform:uppercase}
+.visit-views{font:400 2rem/1 Georgia,serif;color:var(--text);letter-spacing:-.02em}
+.visit-sub{color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace}
+.visit-uniques{margin-top:4px;color:var(--accent);font:11px ui-monospace,SFMono-Regular,Consolas,monospace}
+.visit-hosts{margin-top:16px}
+.visit-hosts ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 24px;margin:8px 0 0;padding:0;list-style:none}
+.visit-hosts li{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--line);font:11px ui-monospace,SFMono-Regular,Consolas,monospace}
+.visit-hosts li span:last-child{color:var(--accent)}
+.visit-note{margin:14px 0 0;color:var(--muted);font-size:.7rem;line-height:1.5}
 .account-controls{display:grid;grid-template-columns:minmax(180px,1fr) minmax(260px,1.5fr) minmax(180px,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .account-controls form{display:grid;grid-template-columns:1fr;align-content:start;gap:8px;padding:12px 16px 12px 0}
 .account-controls form+form{padding-left:16px;border-left:1px solid var(--line)}
