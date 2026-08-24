@@ -299,6 +299,67 @@
     .meta { font-size: 12px; color: var(--mut); line-height: 1.6; }
     .play { font-size: 12.5px; color: var(--accent); white-space: nowrap; }
 
+    /* advertising */
+    [hidden] { display: none !important; }
+    .ad-label {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--mut);
+      opacity: 0.65;
+      margin: 0 0 10px;
+    }
+    .ad-inline { padding: clamp(20px, 4vw, 34px) 0 0; }
+    .ad-inline .ad-host { min-height: 90px; }
+    .ad-sticky {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 40;
+      background: rgba(20, 17, 16, 0.94);
+      border-top: 1px solid var(--line);
+      box-shadow: 0 -12px 30px -24px rgba(0, 0, 0, 0.9);
+    }
+    @supports (backdrop-filter: blur(8px)) {
+      .ad-sticky { background: rgba(20, 17, 16, 0.82); backdrop-filter: blur(8px); }
+    }
+    .ad-sticky-inner {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 60px;
+      padding: 5px 42px;
+    }
+    .ad-close {
+      position: absolute;
+      top: 50%;
+      right: 6px;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      font-family: var(--mono);
+      font-size: 15px;
+      line-height: 1;
+      color: var(--mut);
+      background: none;
+      border: 1px solid var(--hair);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: color 0.18s, border-color 0.18s;
+    }
+    .ad-close:hover { color: var(--ink); border-color: var(--line); }
+    body.has-sticky-ad { padding-bottom: 72px; }
+    @media (max-width: 560px) {
+      .ad-sticky-inner { min-height: 52px; padding: 4px 38px; }
+      body.has-sticky-ad { padding-bottom: 62px; }
+    }
+
     /* footer */
     .site-footer { margin-top: auto; border-top: 1px solid var(--hair); }
     .foot {
@@ -344,6 +405,13 @@
         <p class="lede">No engine, no asset packs: every sprite is drawn in code and every sound is synthesised. Every game is free, ad-free, and needs no download. Click one and play.</p>
       </div>
     </section>
+
+    <aside class="ad-inline" id="ad-leaderboard" aria-label="Advertisement" hidden>
+      <div class="wrap">
+        <p class="ad-label">Advertisement</p>
+        <div class="ad-host" id="ad-leaderboard-host"></div>
+      </div>
+    </aside>
 
     <section class="games" aria-label="Games">
       <div class="wrap">
@@ -487,6 +555,96 @@
       </div>
     </div>
   </footer>
+
+  <div class="ad-sticky" id="ad-sticky" hidden>
+    <div class="ad-sticky-inner">
+      <button class="ad-close" id="ad-sticky-close" type="button" aria-label="Close advertisement">&times;</button>
+      <div class="ad-host" id="ad-sticky-host"></div>
+    </div>
+  </div>
+
+  <script>
+    // Ad units stay dormant until both slot IDs are filled in. Create two
+    // Display units in AdSense, then paste their data-ad-slot numbers here.
+    (function () {
+      var CLIENT = 'ca-pub-9868351013932229';
+      var SLOTS = {
+        leaderboard: '',
+        sticky: ''
+      };
+      var STICKY_DISMISSED = 'games-sticky-ad-closed';
+
+      function settle(ins, onFilled, onEmpty) {
+        var done = false;
+        function read() {
+          if (done) return false;
+          var status = ins.getAttribute('data-ad-status');
+          if (status !== 'filled' && status !== 'unfilled') return false;
+          done = true;
+          if (status === 'filled') onFilled(); else onEmpty();
+          return true;
+        }
+        if (read()) return;
+        var observer = new MutationObserver(function () {
+          if (read()) observer.disconnect();
+        });
+        observer.observe(ins, { attributes: true, attributeFilter: ['data-ad-status'] });
+        setTimeout(function () {
+          if (!done) { done = true; observer.disconnect(); onEmpty(); }
+        }, 5000);
+      }
+
+      function mount(host, slot, format, onFilled, onEmpty) {
+        if (!host || !slot) return;
+        var ins = document.createElement('ins');
+        ins.className = 'adsbygoogle';
+        ins.style.display = 'block';
+        ins.setAttribute('data-ad-client', CLIENT);
+        ins.setAttribute('data-ad-slot', slot);
+        ins.setAttribute('data-ad-format', format);
+        ins.setAttribute('data-full-width-responsive', 'true');
+        host.appendChild(ins);
+        settle(ins, onFilled, onEmpty);
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (error) {
+          onEmpty();
+        }
+      }
+
+      var leaderboard = document.getElementById('ad-leaderboard');
+      mount(
+        document.getElementById('ad-leaderboard-host'),
+        SLOTS.leaderboard,
+        'horizontal',
+        function () { leaderboard.hidden = false; },
+        function () { if (leaderboard && leaderboard.parentNode) leaderboard.parentNode.removeChild(leaderboard); }
+      );
+
+      var sticky = document.getElementById('ad-sticky');
+      var dismissed = false;
+      try { dismissed = sessionStorage.getItem(STICKY_DISMISSED) === '1'; } catch (error) {}
+      if (dismissed) {
+        if (sticky && sticky.parentNode) sticky.parentNode.removeChild(sticky);
+      } else {
+        document.getElementById('ad-sticky-close').addEventListener('click', function () {
+          sticky.parentNode.removeChild(sticky);
+          document.body.classList.remove('has-sticky-ad');
+          try { sessionStorage.setItem(STICKY_DISMISSED, '1'); } catch (error) {}
+        });
+        mount(
+          document.getElementById('ad-sticky-host'),
+          SLOTS.sticky,
+          'horizontal',
+          function () {
+            sticky.hidden = false;
+            document.body.classList.add('has-sticky-ad');
+          },
+          function () { if (sticky && sticky.parentNode) sticky.parentNode.removeChild(sticky); }
+        );
+      }
+    }());
+  </script>
 
   <script>
     (function () {
