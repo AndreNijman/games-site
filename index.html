@@ -617,8 +617,11 @@
         }, 5000);
       }
 
+      // Hide rather than remove: the AdSense runtime keeps references to every
+      // ins it has processed, and detaching them mid-flight throws a TagError.
+      // hidden collapses the box just as completely as removal does.
       function drop(node) {
-        if (node && node.parentNode) node.parentNode.removeChild(node);
+        if (node) node.hidden = true;
       }
 
       // The container must be laid out before the tag is pushed: AdSense reads
