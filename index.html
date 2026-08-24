@@ -311,6 +311,20 @@
       transition: opacity 0.2s;
     }
     .is-live .ad-label { opacity: 0.65; }
+    /* Collapse an unfilled unit without ever giving AdSense a zero-width box
+       to re-measure, which is what display:none does and what throws
+       TagError. Width survives; height, spacing and visibility do not. */
+    .ad-collapsed,
+    .ad-collapsed .ad-host {
+      height: 0 !important;
+      min-height: 0 !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      margin: 0 !important;
+      overflow: hidden !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
     @media (prefers-reduced-motion: reduce) { .ad-label { transition: none; } }
     .ad-inline { padding: clamp(20px, 4vw, 34px) 0 0; }
     .ad-inline .ad-host { min-height: 90px; }
@@ -617,11 +631,11 @@
         }, 5000);
       }
 
-      // Hide rather than remove: the AdSense runtime keeps references to every
-      // ins it has processed, and detaching them mid-flight throws a TagError.
-      // hidden collapses the box just as completely as removal does.
+      // Never detach or display:none a unit the AdSense runtime has touched.
+      // It keeps references and re-measures on resize, and a missing or
+      // zero-width box throws TagError. Collapsing keeps width measurable.
       function drop(node) {
-        if (node) node.hidden = true;
+        if (node) node.classList.add('ad-collapsed');
       }
 
       // The container must be laid out before the tag is pushed: AdSense reads
