@@ -9,6 +9,7 @@ const ACCEPT_CH = "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Versi
 // fetch it; serving them a full page while humans get the gate would be
 // cloaking. Every game subdomain stays gated.
 const HUB_HOST = "games.andrenijman.com";
+const MC_HOST = "mc.andrenijman.com";
 // The admin view holds every returned row in memory to group and search it, so
 // the query is windowed rather than unbounded. Raise this if the device table
 // ever outgrows it; the page reports honestly when the window is full.
@@ -27,6 +28,7 @@ const HOSTS = new Set([
   "isaac.andrenijman.com",
   "bop.andrenijman.com",
   "slingwreck.andrenijman.com",
+  MC_HOST,
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
 const GAME_TITLES = {
@@ -39,6 +41,7 @@ const GAME_TITLES = {
   "isaac.andrenijman.com": "ISUCK",
   "bop.andrenijman.com": "BOP",
   "slingwreck.andrenijman.com": "SLINGWRECK",
+  [MC_HOST]: "ONE WORLD",
 };
 
 export default {
@@ -87,6 +90,9 @@ async function handleRequest(request, env, ctx) {
   if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
   if (!hasDeviceName(identity.device) && url.hostname !== HUB_HOST) {
     return deviceNameRequired(request, url, identity.cookies);
+  }
+  if (url.hostname === MC_HOST && !identity.account) {
+    return accountRequired(request, url, identity.cookies);
   }
 
   // Counted here so a visit means a page actually served: gate redirects above
@@ -186,6 +192,7 @@ async function handleGuardRoute(request, env, url) {
   if (url.pathname === "/_guard/logout") return logout(request, env);
   if (url.pathname === "/_guard/login") return login(request, env, url, identity);
   if (url.pathname === "/_guard/register") return register(request, env, url, identity);
+  if (url.pathname === "/_guard/mc-ticket") return minecraftJoinTicket(request, env, url, identity);
   if (url.pathname === "/_guard/profile") return gameProfile(request, env, url, identity);
   if (url.pathname === "/_guard/saves" || url.pathname === "/_guard/save") return gameSaves(request, env, url, identity);
   if (url.pathname === "/_guard/status") {
@@ -201,6 +208,51 @@ async function handleGuardRoute(request, env, url) {
     return withCookies(response, identity.cookies);
   }
   return new Response("Not found", { status: 404 });
+}
+
+async function minecraftJoinTicket(request, env, url, identity) {
+  if (url.hostname !== MC_HOST || request.method !== "POST") {
+    return new Response("Not found", { status: 404 });
+  }
+  if (!identity.account) {
+    return withCookies(Response.json({
+      error: "account required",
+      loginUrl: accountLoginUrl(url).toString(),
+    }, { status: 401, headers: { "Cache-Control": "no-store" } }), identity.cookies);
+  }
+  const username = String(identity.account.username || "");
+  if (!/^[A-Za-z0-9_]{3,16}$/.test(username)) {
+    return withCookies(Response.json({
+      error: "Minecraft usernames must be 3-16 letters, numbers, or underscores. Ask Andre to rename this games.andrenijman.com account.",
+      code: "MC_USERNAME_INVALID",
+    }, { status: 422, headers: { "Cache-Control": "no-store" } }), identity.cookies);
+  }
+  if (!env.MC_JOIN_SECRET || String(env.MC_JOIN_SECRET).length < 32) {
+    console.error("MC_JOIN_SECRET is missing or too short");
+    return Response.json({ error: "The shared world is not configured yet." }, {
+      status: 503,
+      headers: { "Cache-Control": "no-store", "Retry-After": "30" },
+    });
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    username,
+    iat: now,
+    exp: now + 60,
+    nonce: randomToken(18),
+    aud: "games-mc-relay",
+  };
+  const encodedPayload = bytesToBase64(new TextEncoder().encode(JSON.stringify(payload)));
+  const signature = await hmac(encodedPayload, env.MC_JOIN_SECRET);
+  return withCookies(Response.json({
+    ticket: `${encodedPayload}.${signature}`,
+    username,
+    expiresAt: new Date(payload.exp * 1000).toISOString(),
+    server: "127.0.0.1:25565",
+    proxy: "https://mc-relay.andrenijman.com",
+    version: "1.20.1",
+  }, { headers: { "Cache-Control": "no-store" } }), identity.cookies);
 }
 
 function documentUpstreamRequest(request, path) {
@@ -1113,6 +1165,22 @@ function deviceNameRequired(request, url, cookies = []) {
   }, { status: 428 }), cookies);
 }
 
+function accountLoginUrl(url) {
+  const loginUrl = new URL("https://games.andrenijman.com/_guard/login");
+  loginUrl.searchParams.set("return", `https://${url.hostname}/`);
+  return loginUrl;
+}
+
+function accountRequired(request, url, cookies = []) {
+  const loginUrl = accountLoginUrl(url);
+  if (isNavigationRequest(request)) return withCookies(Response.redirect(loginUrl, 302), cookies);
+  return withCookies(Response.json({
+    error: "account required",
+    accountRequired: true,
+    loginUrl: loginUrl.toString(),
+  }, { status: 401, headers: { "Cache-Control": "no-store" } }), cookies);
+}
+
 function unnamedStatus(url, identity, cookies = []) {
   const nameUrl = new URL("https://games.andrenijman.com/_guard/name");
   nameUrl.searchParams.set("return", `https://${url.hostname}/`);
@@ -1164,11 +1232,17 @@ function authPage(title, returnTo, error = "", status = 200, registering = false
   const action = registering ? "register" : "login";
   const alternate = registering ? "login" : "register";
   const alternateLabel = registering ? "Already registered? Sign in" : "Need an account? Register";
+  let minecraftRequired = false;
+  try {
+    minecraftRequired = new URL(returnTo).hostname === MC_HOST;
+  } catch {}
   return shell(title, `
     <main class="auth">
-      <p class="kicker">OPTIONAL ACCOUNT</p><h1>${title}</h1>
+      <p class="kicker">${minecraftRequired ? "ACCOUNT REQUIRED FOR ONE WORLD" : "OPTIONAL ACCOUNT"}</p><h1>${title}</h1>
       <p class="device-context">Device: <strong>${escapeHtml(deviceName)}</strong></p>
-      <p class="account-purpose">Accounts sync supported game progress between devices. You can still play without an account.</p>
+      <p class="account-purpose">${minecraftRequired
+        ? "Your account username is your in-world name. ONE WORLD requires a signed-in games.andrenijman.com account; use 3-16 letters, numbers, or underscores for compatibility."
+        : "Accounts sync supported game progress between devices. You can still play without an account."}</p>
       ${error ? `<p class="error" role="alert">${escapeHtml(error)}</p>` : ""}
       <form method="post" action="/_guard/${action}?return=${encodeURIComponent(returnTo)}">
         <label>Username<input name="username" autocomplete="username" required minlength="3" maxlength="32"></label>
@@ -1395,6 +1469,7 @@ function privacyPage() {
     <p>The site requires a name for this browser device before it can be used. It records that name, an optional account, a random signed browser identifier, and the games you visit with first and last visit times. The name stays when you sign in or log out and can only be corrected by an administrator.</p>
     <p>It also records what your browser reports about itself: browser and operating-system family and version, processor architecture, device model on Android, screen size and pixel ratio, processor core count, rough memory size, touch support, time zone, and languages, plus the graphics adapter name your browser exposes to web pages.</p>
     <p>From the network connection it records a partial IP network, country, city, region, and the network operator name. Signed-in players may also store supported game progress and named world saves in their account.</p>
+    <p>ONE WORLD uses your account username as your in-world name. When you join its shared world, the site creates a short-lived signed ticket containing that username and sends it to the private game relay. The shared world stores normal game data such as your inventory, location, builds, and chat in its persistent world files.</p>
     <p>None of this is a hardware serial number or a permanent identifier: it describes the browser and its device class so the site owner can tell one player apart from another and block abuse. It is not sold or shared. Ask the site owner to inspect or delete your record.</p>
     <h2>Advertising</h2>
     <p>The hub index page at games.andrenijman.com shows advertising supplied by Google AdSense. The games themselves carry no advertising. Google and its partners may set or read cookies on the hub page and use them, together with your IP address, to serve and measure ads. Google may use advertising cookies to serve ads based on your prior visits to this or other websites.</p>
@@ -1425,6 +1500,7 @@ function gameFramePage(url, title, deviceName) {
   gameUrl.searchParams.set("_games_frame", "1");
   const safeTitle = escapeHtml(title);
   const safeDeviceName = escapeHtml(deviceName);
+  const credit = url.hostname === MC_HOST ? "open-source client curated by Andre Nijman" : "game made by Andre Nijman";
   return new Response(`<!doctype html>
 <html lang="en">
 <head>
@@ -1453,7 +1529,7 @@ function gameFramePage(url, title, deviceName) {
 <body>
   <main class="game-shell">
     <header class="game-chrome">
-      <a href="https://andrenijman.com" aria-label="Visit Andre Nijman's portfolio">game made by Andre Nijman</a>
+      <a href="https://andrenijman.com" aria-label="Visit Andre Nijman's portfolio">${credit}</a>
       <span class="device-name" title="Device: ${safeDeviceName}">device: ${safeDeviceName}</span>
       <a href="https://games.andrenijman.com" aria-label="Back to all games">games.andrenijman.com &uarr;</a>
     </header>
