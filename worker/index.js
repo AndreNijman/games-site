@@ -4,11 +4,6 @@ const COOKIE_DOMAIN = ".andrenijman.com";
 const SESSION_DAYS = 30;
 const PBKDF2_ITERATIONS = 100000;
 const ACCEPT_CH = "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version, Sec-CH-UA-Full-Version-List, Sec-CH-UA-Arch, Sec-CH-UA-Bitness";
-// The hub index is the only public document on the network. It must stay
-// reachable without the device gate so search engines and ad reviewers can
-// fetch it; serving them a full page while humans get the gate would be
-// cloaking. Every game subdomain stays gated.
-const HUB_HOST = "games.andrenijman.com";
 const MC_HOST = "mc.andrenijman.com";
 const MC_PAGES_ORIGIN = "https://andrenijman.github.io";
 const MC_PAGES_BASE = "/one-world";
@@ -94,9 +89,6 @@ async function handleRequest(request, env, ctx) {
 
   const identity = await identify(request, env, url.hostname);
   if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
-  if (!hasDeviceName(identity.device) && url.hostname !== HUB_HOST) {
-    return deviceNameRequired(request, url, identity.cookies);
-  }
   if (url.hostname === MC_HOST && !identity.account) {
     return accountRequired(request, url, identity.cookies);
   }
@@ -115,7 +107,7 @@ async function handleRequest(request, env, ctx) {
   // request nests another chrome bar inside the last one, forever.
   if (GAME_TITLES[url.hostname] && request.method === "GET" &&
       isTopLevelNavigation(request) && !url.searchParams.has("_games_frame")) {
-    return withCookies(gameFramePage(url, GAME_TITLES[url.hostname], identity.device.label), identity.cookies);
+    return withCookies(gameFramePage(url, GAME_TITLES[url.hostname]), identity.cookies);
   }
 
 
@@ -129,14 +121,11 @@ async function handleRequest(request, env, ctx) {
   response.headers.set("Accept-CH", ACCEPT_CH);
   const contentVersion = upstream.headers.get("ETag") || upstream.headers.get("Last-Modified") || "";
   const isHtml = response.headers.get("Content-Type")?.includes("text/html");
-  const named = hasDeviceName(identity.device);
   const guardStatus = JSON.stringify({
     allowed: true,
     signedIn: Boolean(identity.account),
     username: identity.account?.username || null,
-    deviceName: named ? identity.device.label : null,
-    needsName: false,
-    needsProfile: named && needsProfile(identity.device),
+    needsProfile: needsProfile(identity.device),
   });
   const guarded = isHtml
     ? new HTMLRewriter().on("head", {
@@ -162,11 +151,6 @@ async function handleGuardRoute(request, env, url) {
     });
   }
   if (url.pathname === "/_guard/version") return contentVersion(request, url);
-  if (url.pathname === "/_guard/name") return deviceNamePage(request, env, url);
-  // Kept for old cached pages. Both routes enforce the same write-once name as
-  // the current mandatory screen.
-  if (url.pathname === "/_guard/skip") return skipAccount(request, env, url);
-  if (url.pathname === "/_guard/device-name") return deviceName(request, env, url);
 
   const identity = await identify(request, env, url.hostname);
   if (identity.blocked) {
@@ -177,29 +161,12 @@ async function handleGuardRoute(request, env, url) {
     }
     return blockedResponse(identity.reason, identity.cookies);
   }
-  if (!hasDeviceName(identity.device)) {
-    // An unnamed browser may read the public hub, so the hub's own status call
-    // reports browsing access rather than the name demand a game would send.
-    if (url.pathname === "/_guard/status") {
-      if (url.hostname !== HUB_HOST) return unnamedStatus(url, identity, identity.cookies);
-      const response = Response.json({
-        allowed: true,
-        signedIn: false,
-        username: null,
-        deviceName: null,
-        needsName: false,
-        needsProfile: false,
-      });
-      response.headers.set("Cache-Control", "no-store");
-      return withCookies(response, identity.cookies);
-    }
-    return deviceNameRequired(request, url, identity.cookies);
-  }
-
   if (url.pathname === "/_guard/tung-lobbies") return tungLobbies(request, env, url, identity);
   if (url.pathname === "/_guard/tung-ws") return tungSocket(request, env, url, identity);
   if (url.pathname === "/_guard/bop-lobbies") return bopLobbies(request, url, identity);
-  if (url.pathname.startsWith("/_guard/admin")) return handleAdmin(request, env, url);
+  if (url.pathname.startsWith("/_guard/admin")) {
+    return withCookies(await handleAdmin(request, env, url), identity.cookies);
+  }
   if (url.pathname === "/_guard/device-profile") return deviceProfile(request, env, identity);
   if (url.pathname === "/_guard/logout") return logout(request, env);
   if (url.pathname === "/_guard/login") return login(request, env, url, identity);
@@ -212,8 +179,6 @@ async function handleGuardRoute(request, env, url) {
       allowed: true,
       signedIn: Boolean(identity.account),
       username: identity.account?.username || null,
-      deviceName: identity.device.label,
-      needsName: false,
       needsProfile: needsProfile(identity.device),
     });
     response.headers.set("Cache-Control", "no-store");
@@ -563,7 +528,6 @@ async function identify(request, env, game) {
     deviceId = await verifyDeviceCookie(value, env.COOKIE_SECRET);
     if (deviceId) break;
   }
-  const hadDeviceCookie = Boolean(deviceId);
   if (deviceId) {
     const alias = await env.DB.prepare("SELECT device_id FROM device_aliases WHERE alias_id = ?")
       .bind(deviceId).first();
@@ -611,7 +575,7 @@ async function identify(request, env, game) {
       asn_org = excluded.asn_org,
       last_game = excluded.last_game,
       last_seen_at = CURRENT_TIMESTAMP
-    RETURNING banned_at, ban_reason, label, label_source, name_asked_at, profile_at, model
+    RETURNING banned_at, ban_reason, label, label_source, profile_at, model
   `).bind(deviceId, account?.id || null, defaultDeviceLabel(metadata, deviceId), metadata.userAgent,
     metadata.browser, metadata.browserVersion, metadata.os, metadata.osVersion, metadata.model,
     metadata.arch, metadata.ipPrefix, metadata.country, metadata.city, metadata.region,
@@ -625,15 +589,10 @@ async function identify(request, env, game) {
     account,
     device,
     deviceId,
-    hadDeviceCookie,
     blocked: Boolean(reason),
     reason,
     cookies: responseCookies,
   };
-}
-
-function hasDeviceName(device) {
-  return Boolean(device && device.label_source !== "auto" && cleanText(device.label, 80).length >= 2);
 }
 
 function needsProfile(device) {
@@ -713,63 +672,6 @@ async function visitStats(env) {
   };
 }
 
-async function skipAccount(request, env, url) {
-  if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  const identity = await identify(request, env, url.hostname);
-  if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
-  const form = await request.formData();
-  const returnTo = safeReturn(form.get("return"));
-  if (hasDeviceName(identity.device)) return withCookies(Response.redirect(returnTo, 303), identity.cookies);
-  if (!identity.hadDeviceCookie) {
-    return deviceNameForm(returnTo, "This browser blocked the required device cookie. Allow first-party cookies or open this page in a normal browser tab, then try again.", 400, identity.cookies);
-  }
-  const name = cleanText(form.get("name"), 80);
-  if (name.length < 2) return deviceNameForm(returnTo, "Enter at least 2 characters.", 400, identity.cookies);
-  if (!(await saveDeviceName(env, identity.deviceId, name))) {
-    return deviceNameForm(returnTo, "That device name could not be saved. Reload this page and try again.", 409, identity.cookies);
-  }
-  return withCookies(noStoreRedirect(returnTo), await namedDeviceCookies(identity, env));
-}
-
-async function deviceName(request, env, url) {
-  if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  const identity = await identify(request, env, url.hostname);
-  if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
-  if (!identity.hadDeviceCookie) {
-    return withCookies(Response.json({ error: "first-party device cookie required" }, { status: 428 }), identity.cookies);
-  }
-  if (hasDeviceName(identity.device)) return withCookies(Response.json({
-    error: "device name is already saved", name: identity.device.label,
-  }, { status: 409 }), identity.cookies);
-  const text = await request.text();
-  if (text.length > 512) return Response.json({ error: "name too long" }, { status: 413 });
-  let body;
-  try { body = JSON.parse(text || "{}"); } catch { return Response.json({ error: "invalid request" }, { status: 400 }); }
-  const name = cleanText(body.name, 80);
-  if (name.length < 2) return withCookies(Response.json({ error: "device name must be at least 2 characters" }, { status: 400 }), identity.cookies);
-  if (!(await saveDeviceName(env, identity.deviceId, name))) {
-    return withCookies(Response.json({ error: "device name is already saved" }, { status: 409 }), identity.cookies);
-  }
-  return withCookies(Response.json({ saved: true, name }), await namedDeviceCookies(identity, env));
-}
-
-async function saveDeviceName(env, deviceId, name) {
-  const result = await env.DB.prepare(`
-    UPDATE devices SET label = ?, label_source = 'self', named_at = CURRENT_TIMESTAMP,
-      name_asked_at = CURRENT_TIMESTAMP
-    WHERE id = ? AND (label_source = 'auto' OR length(trim(label)) < 2)
-  `).bind(name, deviceId).run();
-  return Boolean(result.meta.changes);
-}
-
-async function namedDeviceCookies(identity, env) {
-  return [
-    ...identity.cookies,
-    hostCookie(DEVICE_COOKIE, "", 0),
-    await deviceCookie(identity.deviceId, env.COOKIE_SECRET),
-  ];
-}
-
 async function deviceProfile(request, env, identity) {
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const text = await request.text();
@@ -806,7 +708,9 @@ function boundedInt(value, min, max) {
 
 async function login(request, env, url, identity) {
   const returnTo = safeReturn(url.searchParams.get("return"));
-  if (request.method === "GET") return authPage("Sign in", returnTo, "", 200, false, identity.device.label);
+  if (request.method === "GET") {
+    return withCookies(authPage("Sign in", returnTo), identity.cookies);
+  }
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const form = await request.formData();
@@ -816,7 +720,7 @@ async function login(request, env, url, identity) {
     "SELECT id, username, password_hash, password_salt, banned_at, ban_reason FROM accounts WHERE username = ?"
   ).bind(username).first();
   if (!account || !(await verifyPassword(password, account.password_salt, account.password_hash))) {
-    return authPage("Sign in", returnTo, "Incorrect username or password.", 401, false, identity.device.label);
+    return withCookies(authPage("Sign in", returnTo, "Incorrect username or password.", 401), identity.cookies);
   }
   if (account.banned_at) return blockedResponse(account.ban_reason || "This account has been blocked.");
 
@@ -830,17 +734,19 @@ async function login(request, env, url, identity) {
 
 async function register(request, env, url, identity) {
   const returnTo = safeReturn(url.searchParams.get("return"));
-  if (request.method === "GET") return authPage("Create account", returnTo, "", 200, true, identity.device.label);
+  if (request.method === "GET") {
+    return withCookies(authPage("Create account", returnTo, "", 200, true), identity.cookies);
+  }
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const form = await request.formData();
   const username = String(form.get("username") || "").trim();
   const password = String(form.get("password") || "");
   if (!/^[A-Za-z0-9_-]{3,32}$/.test(username)) {
-    return authPage("Create account", returnTo, "Use 3-32 letters, numbers, underscores, or hyphens.", 400, true, identity.device.label);
+    return withCookies(authPage("Create account", returnTo, "Use 3-32 letters, numbers, underscores, or hyphens.", 400, true), identity.cookies);
   }
   if (password.length < 12 || password.length > 128) {
-    return authPage("Create account", returnTo, "Password must be 12-128 characters.", 400, true, identity.device.label);
+    return withCookies(authPage("Create account", returnTo, "Password must be 12-128 characters.", 400, true), identity.cookies);
   }
   const salt = randomToken(16);
   const hash = await hashPassword(password, salt);
@@ -850,7 +756,7 @@ async function register(request, env, url, identity) {
       "INSERT INTO accounts (username, password_hash, password_salt) VALUES (?, ?, ?)"
     ).bind(username, hash, salt).run();
   } catch {
-    return authPage("Create account", returnTo, "That username is already in use.", 409, true, identity.device.label);
+    return withCookies(authPage("Create account", returnTo, "That username is already in use.", 409, true), identity.cookies);
   }
 
   const token = randomToken();
@@ -891,9 +797,9 @@ async function handleAdmin(request, env, url) {
         .bind(reason, id).run();
     } else if (action === "unban-device") {
       await env.DB.prepare("UPDATE devices SET banned_at = NULL, ban_reason = NULL WHERE id = ?").bind(id).run();
-    } else if (action === "rename-device" || action === "label-device") {
-      const label = cleanText(action === "rename-device" ? form.get("device_name") : reason, 80);
-      if (label.length < 2) return new Response("Device name must be at least 2 characters", { status: 400 });
+    } else if (action === "label-device") {
+      const label = cleanText(form.get("device_label"), 80);
+      if (label.length < 2) return new Response("Device label must be at least 2 characters", { status: 400 });
       await env.DB.prepare("UPDATE devices SET label = ?, label_source = 'admin' WHERE id = ?")
         .bind(label, id).run();
     } else if (action === "rename-account") {
@@ -946,7 +852,7 @@ async function handleAdmin(request, env, url) {
     `).all(),
     env.DB.prepare(`
       SELECT COUNT(*) AS devices,
-             SUM(CASE WHEN label_source != 'auto' THEN 1 ELSE 0 END) AS named
+             SUM(CASE WHEN label_source != 'auto' THEN 1 ELSE 0 END) AS custom_labelled
       FROM devices
     `).first(),
     visitStats(env),
@@ -954,7 +860,7 @@ async function handleAdmin(request, env, url) {
   const rows = devices.results || [];
   return adminPage(groupDevices(rows), adminEmail, url, {
     totalDevices: Number(totals?.devices || 0),
-    totalNamed: Number(totals?.named || 0),
+    totalLabelled: Number(totals?.custom_labelled || 0),
     loaded: rows.length,
     truncated: rows.length >= ADMIN_ROW_WINDOW,
     visits,
@@ -1119,10 +1025,6 @@ function cookie(name, value, maxAge) {
   return `${name}=${value}; Domain=${COOKIE_DOMAIN}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Lax`;
 }
 
-function hostCookie(name, value, maxAge) {
-  return `${name}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Lax`;
-}
-
 function sessionCookie(value, maxAge) {
   return cookie(SESSION_COOKIE, value, maxAge);
 }
@@ -1132,13 +1034,6 @@ function withCookies(response, cookies = []) {
   const mutable = new Response(response.body, response);
   for (const value of cookies) mutable.headers.append("Set-Cookie", value);
   return mutable;
-}
-
-function noStoreRedirect(url, status = 303) {
-  const redirect = Response.redirect(url, status);
-  const response = new Response(redirect.body, redirect);
-  response.headers.set("Cache-Control", "no-store");
-  return response;
 }
 
 function randomToken(bytes = 32) {
@@ -1205,16 +1100,6 @@ function blockedResponse(reason, cookies = []) {
   return withCookies(response, cookies);
 }
 
-function deviceNameRequired(request, url, cookies = []) {
-  const isNavigation = isNavigationRequest(request);
-  const nameUrl = new URL("https://games.andrenijman.com/_guard/name");
-  nameUrl.searchParams.set("return", isNavigation ? safeReturn(url.toString()) : `https://${url.hostname}/`);
-  if (isNavigation) return withCookies(Response.redirect(nameUrl, 302), cookies);
-  return withCookies(Response.json({
-    error: "device name required", nameRequired: true, nameUrl: nameUrl.toString(),
-  }, { status: 428 }), cookies);
-}
-
 function accountLoginUrl(url) {
   const loginUrl = new URL("https://games.andrenijman.com/_guard/login");
   loginUrl.searchParams.set("return", `https://${url.hostname}/`);
@@ -1231,54 +1116,7 @@ function accountRequired(request, url, cookies = []) {
   }, { status: 401, headers: { "Cache-Control": "no-store" } }), cookies);
 }
 
-function unnamedStatus(url, identity, cookies = []) {
-  const nameUrl = new URL("https://games.andrenijman.com/_guard/name");
-  nameUrl.searchParams.set("return", `https://${url.hostname}/`);
-  const response = Response.json({
-    allowed: false,
-    signedIn: Boolean(identity.account),
-    username: identity.account?.username || null,
-    deviceName: null,
-    needsName: true, needsProfile: false, nameRequired: true, nameUrl: nameUrl.toString(),
-  }, { status: 428 });
-  response.headers.set("Cache-Control", "no-store");
-  return withCookies(response, cookies);
-}
-
-async function deviceNamePage(request, env, url) {
-  const returnTo = safeReturn(url.searchParams.get("return"));
-  const identity = await identify(request, env, url.hostname);
-  if (identity.blocked) return blockedResponse(identity.reason, identity.cookies);
-  if (hasDeviceName(identity.device)) return withCookies(Response.redirect(returnTo, 303), identity.cookies);
-  if (request.method === "GET") return deviceNameForm(returnTo, "", 200, identity.cookies);
-  if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  if (!identity.hadDeviceCookie) {
-    return deviceNameForm(returnTo, "This browser blocked the required device cookie. Allow first-party cookies or open this page in a normal browser tab, then try again.", 400, identity.cookies);
-  }
-  const form = await request.formData();
-  const name = cleanText(form.get("name"), 80);
-  if (name.length < 2) return deviceNameForm(returnTo, "Enter at least 2 characters.", 400, identity.cookies);
-  if (!(await saveDeviceName(env, identity.deviceId, name))) {
-    return deviceNameForm(returnTo, "That device name could not be saved. Reload this page and try again.", 409, identity.cookies);
-  }
-  return withCookies(noStoreRedirect(returnTo), await namedDeviceCookies(identity, env));
-}
-
-function deviceNameForm(returnTo, error = "", status = 200, cookies = []) {
-  return withCookies(shell("Name this device", `<main class="auth">
-    <p class="kicker">REQUIRED DEVICE IDENTITY</p><h1>Name this device</h1>
-    <p class="account-purpose">Choose a name you will recognise, such as “Andre’s laptop” or “Kitchen iPad”. It is saved to this browser and stays when you sign in or log out.</p>
-    <p class="notice">You cannot rename this device yourself later. An administrator can correct its name if needed.</p>
-    ${error ? `<p class="error" role="alert">${escapeHtml(error)}</p>` : ""}
-    <form method="post" target="_top" action="/_guard/name?return=${encodeURIComponent(returnTo)}">
-      <label>Device name<input name="name" autocomplete="nickname" required minlength="2" maxlength="80" autofocus placeholder="e.g. Andre's laptop"></label>
-      <button type="submit">Save and continue</button>
-    </form>
-    <p class="fine"><a href="/_guard/privacy">What information is saved?</a></p>
-  </main>`, status), cookies);
-}
-
-function authPage(title, returnTo, error = "", status = 200, registering = false, deviceName = "") {
+function authPage(title, returnTo, error = "", status = 200, registering = false) {
   const action = registering ? "register" : "login";
   const alternate = registering ? "login" : "register";
   const alternateLabel = registering ? "Already registered? Sign in" : "Need an account? Register";
@@ -1289,7 +1127,6 @@ function authPage(title, returnTo, error = "", status = 200, registering = false
   return shell(title, `
     <main class="auth">
       <p class="kicker">${minecraftRequired ? "ACCOUNT REQUIRED FOR ONE WORLD" : "OPTIONAL ACCOUNT"}</p><h1>${title}</h1>
-      <p class="device-context">Device: <strong>${escapeHtml(deviceName)}</strong></p>
       <p class="account-purpose">${minecraftRequired
         ? "Your account username is your in-world name. ONE WORLD requires a signed-in games.andrenijman.com account; use 3-16 letters, numbers, or underscores for compatibility."
         : "Accounts sync supported game progress between devices. You can still play without an account."}</p>
@@ -1318,10 +1155,10 @@ function adminPage(groups, email, url, stats = {}) {
   const accountGroups = groups.filter((group) => group.accountId);
   const unclaimed = groups.find((group) => !group.accountId);
   const loadedCount = groups.reduce((total, group) => total + group.devices.length, 0);
-  const loadedNamed = groups.reduce((total, group) =>
+  const loadedLabelled = groups.reduce((total, group) =>
     total + group.devices.filter((device) => device.label_source !== "auto").length, 0);
   const deviceCount = stats.totalDevices ?? loadedCount;
-  const namedCount = stats.totalNamed ?? loadedNamed;
+  const labelledCount = stats.totalLabelled ?? loadedLabelled;
   const blockedCount = groups.filter((group) => group.blocked).length;
 
   let visible = groups.filter((group) => {
@@ -1348,7 +1185,7 @@ function adminPage(groups, email, url, stats = {}) {
   const onlyResult = visible.length === 1 && Boolean(queryLower || view !== "all");
   const sections = visible.map((group) => {
     const total = group.devices.length;
-    const confirmedNames = [...new Set(group.devices
+    const customLabels = [...new Set(group.devices
       .filter((device) => device.label_source !== "auto" && device.label)
       .map((device) => device.label))];
     const pages = group.accountId ? 1 : Math.max(1, Math.ceil(total / pageSize));
@@ -1361,7 +1198,7 @@ function adminPage(groups, email, url, stats = {}) {
       pages,
       pageSize,
       open: onlyResult || (!group.accountId && view === "unclaimed"),
-      confirmedNames,
+      customLabels,
       query,
       view,
     });
@@ -1375,18 +1212,18 @@ function adminPage(groups, email, url, stats = {}) {
   ].map(([value, label, count]) => `<a href="${escapeHtml(adminHref(value, query))}"${view === value ? ` aria-current="page"` : ""}>${label}<span>${count}</span></a>`).join("");
 
   return shell("Device access", `<main class="admin">
-    <header class="admin-title"><div><p class="kicker">ACCESS CONTROL</p><h1>Who is playing</h1><p class="summary-line">${accountGroups.length} accounts · ${deviceCount} devices · ${namedCount} named</p></div><p>${escapeHtml(email)}</p></header>
+    <header class="admin-title"><div><p class="kicker">ACCESS CONTROL</p><h1>Who is playing</h1><p class="summary-line">${accountGroups.length} accounts · ${deviceCount} devices · ${labelledCount} custom-labelled</p></div><p>${escapeHtml(email)}</p></header>
     <form class="admin-search" method="get" action="/_guard/admin">
       <input type="hidden" name="view" value="${escapeHtml(view)}">
       <label class="sr-only" for="admin-q">Search accounts and devices</label>
-      <input id="admin-q" type="search" name="q" value="${escapeHtml(query)}" maxlength="80" placeholder="Search name, account, model, network or ID">
+      <input id="admin-q" type="search" name="q" value="${escapeHtml(query)}" maxlength="80" placeholder="Search label, account, model, network or ID">
       <button type="submit">Search</button>
       ${query ? `<a href="${escapeHtml(adminHref(view))}">Clear</a>` : ""}
     </form>
     ${visitPanel(stats.visits)}
     <nav class="admin-tabs" aria-label="Device filters">${tabs}</nav>
     ${stats.truncated ? `<p class="result-line">Showing the ${loadedCount} most recently seen of ${deviceCount} devices. Search to reach older records.</p>` : ""}
-    <details class="admin-help"><summary>How identification works</summary><p>Player and admin names are authoritative; measured hardware and network details are only hints. A device ban applies to one signed browser profile, not to a household or network.</p></details>
+    <details class="admin-help"><summary>How identification works</summary><p>Account names and admin labels are authoritative; measured hardware and network details are only hints. Visitors are never asked to name a device. A device ban applies to one signed browser profile, not to a household or network.</p></details>
     ${query ? `<p class="result-line">${visible.length} matching ${visible.length === 1 ? "group" : "groups"} for “${escapeHtml(query)}”</p>` : ""}
     <div class="people">${sections || `<p class="empty-state">No accounts or devices match this view.</p>`}</div>
   </main>`);
@@ -1418,8 +1255,8 @@ function visitPanel(visits) {
 function personSection(group, options) {
   const isAccount = Boolean(group.accountId);
   const title = isAccount ? group.username || `Account ${group.accountId}` : "Unclaimed devices";
-  const names = options.confirmedNames;
-  const named = names.length ? names.slice(0, 2).join(", ") : "No confirmed names";
+  const labels = options.customLabels;
+  const labelled = labels.length ? labels.slice(0, 2).join(", ") : "Automatic labels only";
   const accountControl = isAccount ? `<details class="manage account-manage"><summary>Account controls</summary>
     <div class="account-controls">
       <form method="post"><input type="hidden" name="account_id" value="${escapeHtml(group.accountId)}"><label>Account name<input name="account_name" value="${escapeHtml(group.username || "")}" autocomplete="off" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_-]{3,32}"></label><button name="action" value="rename-account">Save account name</button></form>
@@ -1438,7 +1275,7 @@ function personSection(group, options) {
   return `<details class="person${group.blocked ? " blocked-person" : ""}"${options.open ? " open" : ""}>
     <summary class="person-summary">
       <span class="status-dot" aria-hidden="true"></span>
-      <span class="person-name">${escapeHtml(title)}${group.blocked ? `<span class="blocked-label">blocked</span>` : ""}<small>${escapeHtml(named)}</small></span>
+      <span class="person-name">${escapeHtml(title)}${group.blocked ? `<span class="blocked-label">blocked</span>` : ""}<small>${escapeHtml(labelled)}</small></span>
       <span class="person-count">${options.total} device${options.total === 1 ? "" : "s"}</span>
       <span class="person-seen">${escapeHtml(formatAdminTime(group.lastSeen))}</span>
       <span class="disclosure" aria-hidden="true"></span>
@@ -1477,9 +1314,9 @@ function formatAdminTime(value) {
 
 function deviceRow(device) {
   const badge = device.label_source === "self"
-    ? `<span class="badge">self-named</span>`
+    ? `<span class="badge">legacy label</span>`
     : device.label_source === "admin"
-      ? `<span class="badge">your label</span>`
+      ? `<span class="badge">admin label</span>`
       : `<span class="badge auto">auto</span>`;
   const hardware = [
     device.model || "",
@@ -1504,7 +1341,7 @@ function deviceRow(device) {
     <td>${cell(identity, "Not reported yet")}</td>
     <td>${cell(network, "Unknown")}</td>
     <td>${escapeHtml(String(device.last_game || "").replace(".andrenijman.com", "")) || "&mdash;"}<small>${escapeHtml(formatAdminTime(device.last_seen_at))}</small><small>Since ${escapeHtml(formatAdminTime(device.first_seen_at))}</small></td>
-    <td><details class="manage device-manage"><summary>Manage</summary><form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><label>Device name<input name="device_name" value="${escapeHtml(device.label || "")}" required minlength="2" maxlength="80"></label><button name="action" value="rename-device">Save device name</button></form><form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><label>Ban reason<input name="reason" maxlength="200" placeholder="Optional reason"></label><button class="danger" name="action" value="${device.banned_at ? "unban-device" : "ban-device"}">${device.banned_at ? "Unban" : "Ban"}</button></form></details></td>
+    <td><details class="manage device-manage"><summary>Manage</summary><form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><label>Admin label<input name="device_label" value="${escapeHtml(device.label || "")}" required minlength="2" maxlength="80"></label><button name="action" value="label-device">Save label</button></form><form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><label>Ban reason<input name="reason" maxlength="200" placeholder="Optional reason"></label><button class="danger" name="action" value="${device.banned_at ? "unban-device" : "ban-device"}">${device.banned_at ? "Unban" : "Ban"}</button></form></details></td>
   </tr>`;
 }
 
@@ -1516,7 +1353,7 @@ function cell(parts, empty) {
 
 function privacyPage() {
   return shell("Privacy", `<main class="auth privacy"><p class="kicker">PRIVACY</p><h1>Site data</h1>
-    <p>The site requires a name for this browser device before it can be used. It records that name, an optional account, a random signed browser identifier, and the games you visit with first and last visit times. The name stays when you sign in or log out and can only be corrected by an administrator.</p>
+    <p>You can use the site without naming your device or creating an account. The site records an automatically generated internal device label, an optional account, a random signed browser identifier, and the games you visit with first and last visit times. Older records may retain a device label supplied before device naming was removed.</p>
     <p>It also records what your browser reports about itself: browser and operating-system family and version, processor architecture, device model on Android, screen size and pixel ratio, processor core count, rough memory size, touch support, time zone, and languages, plus the graphics adapter name your browser exposes to web pages.</p>
     <p>From the network connection it records a partial IP network, country, city, region, and the network operator name. Signed-in players may also store supported game progress and named world saves in their account.</p>
     <p>ONE WORLD uses your account username as your in-world name. When you join its shared world, the site creates a short-lived signed ticket containing that username and sends it to the private game relay. The shared world stores normal game data such as your inventory, location, builds, and chat in its persistent world files.</p>
@@ -1545,11 +1382,10 @@ function shell(title, content, status = 200) {
   });
 }
 
-function gameFramePage(url, title, deviceName) {
+function gameFramePage(url, title) {
   const gameUrl = new URL(url);
   gameUrl.searchParams.set("_games_frame", "1");
   const safeTitle = escapeHtml(title);
-  const safeDeviceName = escapeHtml(deviceName);
   const credit = url.hostname === MC_HOST ? "open-source client curated by Andre Nijman" : "game made by Andre Nijman";
   return new Response(`<!doctype html>
 <html lang="en">
@@ -1563,11 +1399,10 @@ function gameFramePage(url, title, deviceName) {
     *{box-sizing:border-box}
     html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--paper);color:var(--ink)}
     .game-shell{height:100dvh;min-height:100%;display:grid;grid-template-rows:36px minmax(0,1fr) 30px;padding:8px}
-    .game-chrome{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto) minmax(0,1fr);align-items:center;gap:16px;padding:0 4px;color:var(--muted);font-size:11px;letter-spacing:.04em;white-space:nowrap}
+    .game-chrome{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:16px;padding:0 4px;color:var(--muted);font-size:11px;letter-spacing:.04em;white-space:nowrap}
     .game-chrome a{display:flex;align-items:center;height:100%;color:inherit;text-decoration:none;transition:color 140ms ease-out}
     .game-chrome a:first-child{justify-self:start;min-width:0;overflow:hidden;text-overflow:ellipsis}
     .game-chrome a:last-child{justify-self:end;min-width:0;overflow:hidden;text-overflow:ellipsis}
-    .device-name{justify-self:center;max-width:min(36vw,420px);overflow:hidden;color:var(--ink);text-overflow:ellipsis}
     .game-chrome a:hover,.game-chrome a:focus-visible{color:var(--accent)}
     .game-chrome a:focus-visible{outline:1px solid var(--accent);outline-offset:-2px}
     .game-window{min-width:0;min-height:0;border:1px solid var(--line);background:#080907;box-shadow:0 18px 48px rgba(0,0,0,.32);overflow:hidden}
@@ -1580,7 +1415,6 @@ function gameFramePage(url, title, deviceName) {
   <main class="game-shell">
     <header class="game-chrome">
       <a href="https://andrenijman.com" aria-label="Visit Andre Nijman's portfolio">${credit}</a>
-      <span class="device-name" title="Device: ${safeDeviceName}">device: ${safeDeviceName}</span>
       <a href="https://games.andrenijman.com" aria-label="Back to all games">games.andrenijman.com &uarr;</a>
     </header>
     <div class="game-window">
@@ -1603,18 +1437,16 @@ function gameFramePage(url, title, deviceName) {
 }
 
 const CLIENT_JS = `(function () {
-  function deny(result) {
-    var nameRequired = result && result.nameRequired;
-    var accessUrl = nameRequired && result.nameUrl ? result.nameUrl : 'https://games.andrenijman.com/_guard/login?return=' + encodeURIComponent(location.href);
-    var accessLabel = nameRequired ? 'Name this device' : 'Sign in';
-    document.documentElement.innerHTML = '<head><title>Access required</title></head><body style="font:16px monospace;padding:2rem;background:#10110f;color:#eee">Online access check failed or access is blocked. <a target="_top" style="color:#d1b24b" href="' + accessUrl + '">' + accessLabel + '</a></body>';
+  function deny() {
+    var accessUrl = 'https://games.andrenijman.com/_guard/login?return=' + encodeURIComponent(location.href);
+    document.documentElement.innerHTML = '<head><title>Access required</title></head><body style="font:16px monospace;padding:2rem;background:#10110f;color:#eee">Online access check failed or access is blocked. <a target="_top" style="color:#d1b24b" href="' + accessUrl + '">Sign in</a></body>';
     window.stop();
   }
 
   function activate(result) {
     window.__gamesGuardStatus = result;
     if (!result || result.allowed !== true) {
-      deny(result);
+      deny();
       return;
     }
 
