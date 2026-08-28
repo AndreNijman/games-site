@@ -1,6 +1,6 @@
 # Games access guard
 
-This Worker puts browser-device access checks in front of every game subdomain. Every browser must choose a device name before it can use the hub, games, account pages, or game APIs. Accounts remain optional and can sync supported game progress and named world saves across devices. It records a random signed browser ID, optional account, the required device name, browser/OS family and version, processor architecture, device model where the browser reports one, graphics adapter name, screen size and pixel ratio, core count, rough memory, touch support, time zone, languages, masked IP network, country/city/region, network operator name, last game, and first/last seen timestamps.
+This Worker puts browser-device access checks in front of every game subdomain. Every browser must choose a device name before it can use the hub, games, account pages, or game APIs. Accounts remain optional except for ONE WORLD, where the account username is the authenticated in-world name. Accounts can also sync supported game progress and named world saves across devices. It records a random signed browser ID, optional account, the required device name, browser/OS family and version, processor architecture, device model where the browser reports one, graphics adapter name, screen size and pixel ratio, core count, rough memory, touch support, time zone, languages, masked IP network, country/city/region, network operator name, last game, and first/last seen timestamps.
 
 Labels have a `label_source`: `auto` is the generated placeholder used before onboarding, `self` is the required write-once name the player typed, and `admin` is a corrected name an administrator typed. Old `auto` devices are forced through the same naming screen on their next request. Logging in or out never clears the signed device cookie or its name. Players cannot rename a saved device themselves; only an administrator can correct it.
 
@@ -14,9 +14,10 @@ Identification is a device *class*, not a device identity. Browsers expose no co
 4. Apply the schema: `npx wrangler d1 execute games-guard --remote --file worker/schema.sql`.
 5. Create the cookie signing secret: `openssl rand -base64 48 | npx wrangler secret put COOKIE_SECRET`.
 6. Set the administrator emails: `npx wrangler secret put ADMIN_EMAILS` (comma- or space-separated; the older single-value `ADMIN_EMAIL` is still honoured). Emails live in a secret because this repository is public.
-7. In Cloudflare Zero Trust, protect `games.andrenijman.com/_guard/admin*` with an Access policy allowing exactly those emails. The Worker verifies the resulting `CF-Access-Authenticated-User-Email` header as a second check, so both lists must be updated together — Access decides who reaches the Worker, and `ADMIN_EMAILS` decides who the Worker accepts.
-8. Proxy every configured game DNS record through Cloudflare. Keep each existing CNAME target; the Worker route uses that target as its origin.
-9. Run `npm run deploy`.
+7. Create the ONE WORLD ticket secret with `openssl rand -base64 48 | npx wrangler secret put MC_JOIN_SECRET`, and install that same value in the Orange Pi relay environment. Never commit it.
+8. In Cloudflare Zero Trust, protect `games.andrenijman.com/_guard/admin*` with an Access policy allowing exactly those emails. The Worker verifies the resulting `CF-Access-Authenticated-User-Email` header as a second check, so both lists must be updated together — Access decides who reaches the Worker, and `ADMIN_EMAILS` decides who the Worker accepts.
+9. Proxy every configured game DNS record through Cloudflare. Keep each existing CNAME target; the Worker route uses that target as its origin.
+10. Run `npm run deploy`.
 
 Do not deploy before the Access policy exists. Otherwise the admin route returns 403, but it should still be protected at Cloudflare's edge.
 
@@ -32,7 +33,7 @@ The client unregisters old service workers and automatically reloads once if one
 - Two independent admin surfaces exist. The device console is gated on **email** (Cloudflare Access policy plus `ADMIN_EMAILS`). Tung lobby admin is gated on **game account username** via `TUNG_ADMINS` in `worker/index.js`, and the same username list is duplicated in the Tung client and the Tung relay. Granting one does not grant the other.
 - Health check: `https://games.andrenijman.com/_guard/health`
 - Player disclosure: `https://games.andrenijman.com/_guard/privacy`
-- A required device name is enough to use the site without an account. A named guest can sign into or create an account later without changing the saved device identity.
+- A required device name is enough to use the site without an account, except ONE WORLD. A named guest can sign into or create an account later without changing the saved device identity.
 - Device labels and ban reasons are editable in the dashboard.
 - Administrators can rename accounts and reset passwords. Existing passwords and hashes are never shown; a reset stores a new salted hash and deletes every active session for that account.
 - Account bans delete active sessions and block every device that signs into that account.
