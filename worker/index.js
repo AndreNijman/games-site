@@ -27,6 +27,8 @@ const HOSTS = new Set([
   "slingwreck.andrenijman.com",
   "fishing.andrenijman.com",
   "bigtower.andrenijman.com",
+  "slope.andrenijman.com",
+  "motox3m.andrenijman.com",
   MC_HOST,
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
@@ -42,6 +44,8 @@ const GAME_TITLES = {
   "slingwreck.andrenijman.com": "SLINGWRECK",
   "fishing.andrenijman.com": "Tiny Fishing",
   "bigtower.andrenijman.com": "Big Tower Tiny Square",
+  "slope.andrenijman.com": "Slope",
+  "motox3m.andrenijman.com": "Moto X3M",
   [MC_HOST]: "ONE WORLD",
 };
 
@@ -273,6 +277,18 @@ function upstreamTarget(source, path) {
   if (source.hostname === "bigtower.andrenijman.com") {
     const upstream = new URL("https://games.andrenijman.com");
     upstream.pathname = `/bigtower${target.pathname === "/" ? "/index.html" : target.pathname}`;
+    upstream.search = target.search;
+    return upstream;
+  }
+  if (source.hostname === "slope.andrenijman.com") {
+    const upstream = new URL("https://games.andrenijman.com");
+    upstream.pathname = `/slope${target.pathname === "/" ? "/index.html" : target.pathname}`;
+    upstream.search = target.search;
+    return upstream;
+  }
+  if (source.hostname === "motox3m.andrenijman.com") {
+    const upstream = new URL("https://games.andrenijman.com");
+    upstream.pathname = `/motox3m${target.pathname === "/" ? "/index.html" : target.pathname}`;
     upstream.search = target.search;
     return upstream;
   }
