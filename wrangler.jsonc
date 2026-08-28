@@ -16,6 +16,7 @@
     { "pattern": "bop.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "slingwreck.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "fishing.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "bigtower.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "mc.andrenijman.com/*", "zone_name": "andrenijman.com" }
   ],
   "d1_databases": [
