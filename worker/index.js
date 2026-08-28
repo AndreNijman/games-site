@@ -30,6 +30,7 @@ const HOSTS = new Set([
   "isaac.andrenijman.com",
   "bop.andrenijman.com",
   "slingwreck.andrenijman.com",
+  "fishing.andrenijman.com",
   MC_HOST,
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
@@ -43,6 +44,7 @@ const GAME_TITLES = {
   "isaac.andrenijman.com": "ISUCK",
   "bop.andrenijman.com": "BOP",
   "slingwreck.andrenijman.com": "SLINGWRECK",
+  "fishing.andrenijman.com": "Tiny Fishing",
   [MC_HOST]: "ONE WORLD",
 };
 
@@ -112,6 +114,12 @@ async function handleRequest(request, env, ctx) {
   if (GAME_TITLES[url.hostname] && request.method === "GET" &&
       isTopLevelNavigation(request) && !url.searchParams.has("_games_frame")) {
     return withCookies(gameFramePage(url, GAME_TITLES[url.hostname], identity.device.label), identity.cookies);
+  }
+
+  if (url.hostname === "fishing.andrenijman.com") {
+    const html = `<!DOCTYPE html><html lang="en"><head><title>Tiny Fishing</title><style>body,html{margin:0;padding:0;width:100%;height:100%;overflow:hidden;}</style></head><body><iframe src="https://html5.gamedistribution.com/5ee4b0222a474e44880b6c6d9f96754d/" style="width:100%;height:100%;border:none;"></iframe></body></html>`;
+    const response = new Response(html, { headers: { "Content-Type": "text/html" } });
+    return withCookies(response, identity.cookies);
   }
 
   const upstream = await fetchDocumentUpstream(request);
