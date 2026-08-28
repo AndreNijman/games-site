@@ -10,6 +10,8 @@ const ACCEPT_CH = "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Versi
 // cloaking. Every game subdomain stays gated.
 const HUB_HOST = "games.andrenijman.com";
 const MC_HOST = "mc.andrenijman.com";
+const MC_PAGES_ORIGIN = "https://andrenijman.github.io";
+const MC_PAGES_BASE = "/one-world";
 // The admin view holds every returned row in memory to group and search it, so
 // the query is windowed rather than unbounded. Raise this if the device table
 // ever outgrows it; the page reports honestly when the window is full.
@@ -257,7 +259,7 @@ async function minecraftJoinTicket(request, env, url, identity) {
 
 function documentUpstreamRequest(request, path) {
   const source = new URL(request.url);
-  const target = path ? new URL(path, `https://${source.hostname}`) : new URL(source);
+  const target = upstreamTarget(source, path);
   const headers = new Headers(request.headers);
   headers.delete("Authorization");
   headers.delete("Cookie");
@@ -273,13 +275,25 @@ function documentUpstreamRequest(request, path) {
 }
 
 function fetchDocumentUpstream(request, path) {
-  return fetch(documentUpstreamRequest(request, path), {
-    cf: {
-      resolveOverride: "andrenijman.github.io",
-      cacheEverything: true,
-      cacheTtlByStatus: { "200-299": 30, "404": 10, "500-599": 0 },
-    },
-  });
+  const hostname = new URL(request.url).hostname;
+  return fetch(documentUpstreamRequest(request, path), pagesFetchOptions(hostname, {
+    "200-299": 30, "404": 10, "500-599": 0,
+  }));
+}
+
+function upstreamTarget(source, path) {
+  const target = path ? new URL(path, `https://${source.hostname}`) : new URL(source);
+  if (source.hostname !== MC_HOST) return target;
+  const upstream = new URL(MC_PAGES_ORIGIN);
+  upstream.pathname = `${MC_PAGES_BASE}${target.pathname}`;
+  upstream.search = target.search;
+  return upstream;
+}
+
+function pagesFetchOptions(hostname, cacheTtlByStatus) {
+  const cf = { cacheEverything: true, cacheTtlByStatus };
+  if (hostname !== MC_HOST) cf.resolveOverride = "andrenijman.github.io";
+  return { cf };
 }
 
 function isAssetRequest(request) {
@@ -299,17 +313,18 @@ function isNavigationRequest(request) {
 }
 
 async function cachedAssetResponse(request) {
+  const source = new URL(request.url);
   const headers = new Headers(request.headers);
   headers.delete("Authorization");
   headers.delete("Cookie");
-  const upstreamRequest = new Request(request, { headers });
-  const upstream = await fetch(upstreamRequest, {
-    cf: {
-      resolveOverride: "andrenijman.github.io",
-      cacheEverything: true,
-      cacheTtlByStatus: { "200-299": 3600, "404": 60, "500-599": 0 },
-    },
+  const upstreamRequest = new Request(upstreamTarget(source), {
+    method: request.method,
+    headers,
+    redirect: "follow",
   });
+  const upstream = await fetch(upstreamRequest, pagesFetchOptions(source.hostname, {
+    "200-299": 3600, "404": 60, "500-599": 0,
+  }));
   const response = new Response(upstream.body, upstream);
   const cacheable = upstream.ok || upstream.status === 304;
   response.headers.delete("Set-Cookie");
