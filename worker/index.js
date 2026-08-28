@@ -100,13 +100,17 @@ async function handleRequest(request, env, ctx) {
   // Counted here so a visit means a page actually served: gate redirects above
   // never reach this line, and the inner game iframe is skipped so a single
   // game view is not counted twice.
-  if (request.method === "GET" && isNavigationRequest(request) &&
+  if (request.method === "GET" && isTopLevelNavigation(request) &&
       !url.searchParams.has("_games_frame")) {
     recordVisit(env, ctx, url.hostname, identity.deviceId, request.headers.get("User-Agent") || "");
   }
 
+  // Only ever wrap a top-level document. The _games_frame marker alone is not
+  // enough: the game navigates itself (service-worker force update, Reset App)
+  // in ways that drop the query string, and wrapping the resulting iframe
+  // request nests another chrome bar inside the last one, forever.
   if (GAME_TITLES[url.hostname] && request.method === "GET" &&
-      isNavigationRequest(request) && !url.searchParams.has("_games_frame")) {
+      isTopLevelNavigation(request) && !url.searchParams.has("_games_frame")) {
     return withCookies(gameFramePage(url, GAME_TITLES[url.hostname], identity.device.label), identity.cookies);
   }
 
@@ -310,6 +314,17 @@ function isNavigationRequest(request) {
   const destination = request.headers.get("Sec-Fetch-Dest") || "";
   return destination === "document" || destination === "iframe" ||
     request.headers.get("Accept")?.includes("text/html");
+}
+
+// A navigation of the tab itself, excluding anything already inside a frame.
+// Used for the chrome wrapper and visit counting so a nested frame can neither
+// be wrapped again nor counted twice. Browsers always send Sec-Fetch-Dest; only
+// when it is absent do we fall back to the looser Accept check.
+function isTopLevelNavigation(request) {
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
+  const destination = request.headers.get("Sec-Fetch-Dest");
+  if (destination) return destination === "document";
+  return Boolean(request.headers.get("Accept")?.includes("text/html"));
 }
 
 async function cachedAssetResponse(request) {
