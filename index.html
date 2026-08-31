@@ -375,6 +375,12 @@
       min-height: 96px;
       padding: 5px 42px;
     }
+    /* AdSense reads offsetWidth synchronously inside push(), and a flex item
+       with no width shrink-to-fits an ins that is itself width:auto. That
+       circular sizing measures 0 and the slot is skipped with "No slot size
+       for availableWidth=0". min-width:0 overrides the auto min-size that
+       would otherwise reintroduce content-based sizing. */
+    .ad-sticky-inner .ad-host { flex: 1 1 auto; width: 100%; min-width: 0; }
     /* wide screens only: the 300x600 sits in the dead gutter beside the
        1080px content column, centred in that space and never overlapping. */
     .ad-rail { display: none; }
