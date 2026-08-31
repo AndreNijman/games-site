@@ -5,6 +5,8 @@ const SESSION_DAYS = 30;
 const PBKDF2_ITERATIONS = 100000;
 const ACCEPT_CH = "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version, Sec-CH-UA-Full-Version-List, Sec-CH-UA-Arch, Sec-CH-UA-Bitness";
 const MC_HOST = "mc.andrenijman.com";
+const HUB_HOST = "games.andrenijman.com";
+const HUB_ORIGIN = `https://${HUB_HOST}`;
 const MC_PAGES_ORIGIN = "https://andrenijman.github.io";
 const MC_PAGES_BASE = "/one-world";
 // The admin view holds every returned row in memory to group and search it, so
@@ -32,22 +34,119 @@ const HOSTS = new Set([
   MC_HOST,
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
-const GAME_TITLES = {
-  "topout.andrenijman.com": "TOPOUT",
-  "defenders.andrenijman.com": "Garden Defenders 2",
-  "overpop.andrenijman.com": "OVERPOP",
-  "wildbound.andrenijman.com": "Wildbound.io",
-  "tree.andrenijman.com": "tree",
-  "tung.andrenijman.com": "Tung Tung Tung Sahorror",
-  "isaac.andrenijman.com": "ISUCK",
-  "bop.andrenijman.com": "BOP",
-  "slingwreck.andrenijman.com": "SLINGWRECK",
-  "fishing.andrenijman.com": "Tiny Fishing",
-  "bigtower.andrenijman.com": "Big Tower Tiny Square",
-  "slope.andrenijman.com": "Slope",
-  "motox3m.andrenijman.com": "Moto X3M",
-  [MC_HOST]: "ONE WORLD",
+// Single source of truth for what each game is. Descriptions and genres are
+// lifted from the hub's own structured data so the two cannot drift, and the
+// hub had no entry at all for Slope or Moto X3M until this table existed.
+//
+// `origin` drives attribution, not decoration. The hub states outright that the
+// hosted games are not Andre's work, so their pages must not credit him as the
+// author and must not claim authorship in structured data.
+const GAMES = {
+  "topout.andrenijman.com": {
+    name: "TOPOUT",
+    description: "A free competitive block-stacking game with modern mechanics, online versus multiplayer, CPU battles, replays and a global leaderboard.",
+    genre: ["Puzzle", "Action"],
+    image: "topout.png",
+    origin: "original",
+  },
+  "defenders.andrenijman.com": {
+    name: "Garden Defenders 2",
+    description: "A free, original fan-made lane-defense tower defense game: five worlds, 40 levels, boss fights, endless mode, installable as a PWA.",
+    genre: ["Tower defense", "Strategy"],
+    image: "defenders.png",
+    origin: "original",
+  },
+  "overpop.andrenijman.com": {
+    name: "OVERPOP",
+    description: "A free, original round-based tower defense game: 25 woodland-critter towers with three-branch upgrade trees, 100 rounds, 16 maps, levelling heroes, paragons and eleven game modes. Installable as a PWA and playable offline.",
+    genre: ["Tower defense", "Strategy"],
+    image: "overpop.png",
+    origin: "original",
+  },
+  "wildbound.andrenijman.com": {
+    name: "Wildbound.io",
+    description: "A free multiplayer survival game with gathering, age upgrades, base building, rotating seasons, bosses, CPU rivals and 60 tameable companion species.",
+    genre: ["Survival", "Action", "Multiplayer"],
+    image: "wildbound.png",
+    origin: "original",
+  },
+  "tree.andrenijman.com": {
+    name: "tree",
+    description: "A full-progression procedural browser sandbox with mining, crafting, building, towns, fishing, invasions, events, and bosses through the Moon Lord.",
+    genre: ["Sandbox", "Adventure", "Action"],
+    image: "tree.png",
+    origin: "original",
+  },
+  "tung.andrenijman.com": {
+    name: "Tung Tung Tung Sahorror",
+    description: "A free first-person raycaster horror game in a single HTML file. Gather six offerings in the dark and carry them home before the call to Subuh, while a drumming creature hunts by sight, sound and your own panic. Originally by tim.",
+    genre: ["Horror", "Survival"],
+    image: "tung.png",
+    origin: "original",
+    // The hub carries this credit visibly on the card and it is the only
+    // original-section game that does, so the game's own page must carry it too.
+    credit: "originally by tim",
+  },
+  "isaac.andrenijman.com": {
+    name: "ISUCK",
+    description: "A free, from-scratch browser roguelike with seeded floors, 732 collectibles, 34 playable characters, alternate paths, 208 enemies and 80 bosses.",
+    genre: ["Roguelike", "Action", "Shooter"],
+    image: "isuck.png",
+    origin: "original",
+  },
+  "bop.andrenijman.com": {
+    name: "BOP",
+    description: "A free browser physics brawler: draft one of three wild abilities every round, squish opponents off floating terrain, online multiplayer for eight, couch play and bots.",
+    genre: ["Action", "Fighting", "Multiplayer"],
+    image: "bop.png",
+    origin: "original",
+  },
+  "slingwreck.andrenijman.com": {
+    name: "SLINGWRECK",
+    description: "A free browser slingshot demolition game: fling nine kinds of critter at pig fortresses across a 52-level campaign, with a hand-written rigid-body physics engine and a fortress workshop for building your own.",
+    genre: ["Action", "Puzzle", "Physics"],
+    image: "slingwreck.png",
+    origin: "original",
+  },
+  "fishing.andrenijman.com": {
+    name: "Tiny Fishing",
+    description: "A free browser fishing game: click and drag to catch fish, earn cash, and upgrade your gear.",
+    genre: ["Casual", "Simulation"],
+    image: "tinyfishing_hero.jpg",
+    origin: "hosted",
+  },
+  "bigtower.andrenijman.com": {
+    name: "Big Tower Tiny Square",
+    description: "A precision platformer where you play as a tiny square ascending a massive tower.",
+    genre: ["Action", "Platformer"],
+    image: "bigtower_hero.jpg",
+    origin: "hosted",
+  },
+  "slope.andrenijman.com": {
+    name: "Slope",
+    description: "A 3D endless runner: steer a rolling ball down a neon slope that gets faster the longer you survive.",
+    genre: ["Endless runner", "Action"],
+    image: "slope_hero.webp",
+    origin: "hosted",
+  },
+  "motox3m.andrenijman.com": {
+    name: "Moto X3M",
+    description: "A physics-based dirt bike racing game: ride stunt-filled obstacle courses against the clock.",
+    genre: ["Racing", "Physics"],
+    image: "motox3m_hero.jpg",
+    origin: "hosted",
+  },
+  [MC_HOST]: {
+    name: "ONE WORLD",
+    description: "A persistent shared anarchy survival world where every signed-in player joins the same map using their games.andrenijman.com username, with a private local-world option and consent-based teleport requests.",
+    genre: ["Sandbox", "Survival", "Multiplayer"],
+    image: "mc.png",
+    origin: "curated",
+  },
 };
+
+const GAME_TITLES = Object.fromEntries(
+  Object.entries(GAMES).map(([host, game]) => [host, game.name]));
 
 export default {
   async fetch(request, env, ctx) {
@@ -89,6 +188,11 @@ async function handleRequest(request, env, ctx) {
 
   if (url.pathname.startsWith("/_guard/")) return handleGuardRoute(request, env, url);
 
+  // Ahead of the asset path: robots.txt and sitemap.xml both match the asset
+  // extension test and would otherwise be proxied straight to upstream.
+  const crawlerFile = crawlerFileResponse(url);
+  if (crawlerFile) return crawlerFile;
+
   if (isAssetRequest(request)) return cachedAssetResponse(request);
 
   const identity = await identify(request, env, url.hostname);
@@ -111,7 +215,7 @@ async function handleRequest(request, env, ctx) {
   // request nests another chrome bar inside the last one, forever.
   if (GAME_TITLES[url.hostname] && request.method === "GET" &&
       isTopLevelNavigation(request) && !url.searchParams.has("_games_frame")) {
-    return withCookies(gameFramePage(url, GAME_TITLES[url.hostname]), identity.cookies);
+    return withCookies(gameFramePage(url, GAMES[url.hostname]), identity.cookies);
   }
 
 
@@ -131,10 +235,18 @@ async function handleRequest(request, env, ctx) {
     username: identity.account?.username || null,
     needsProfile: needsProfile(identity.device),
   });
+  // The inner document of a framed game is the same game at a query-string
+  // variant of its own URL. Left alone it competes with the clean URL for the
+  // same content and wins nothing, so it is pointed at the canonical page and
+  // kept out of the index. `follow` so the game's own internal links still
+  // carry weight.
+  const framedGame = GAMES[url.hostname] && url.searchParams.has("_games_frame")
+    ? `<meta name="robots" content="noindex,follow"><link rel="canonical" href="https://${escapeHtml(url.hostname)}/">`
+    : "";
   const guarded = isHtml
     ? new HTMLRewriter().on("head", {
       element(element) {
-        element.prepend(`<meta name="games-content-version" content="${escapeHtml(contentVersion)}"><meta name="games-guard-status" content="${escapeHtml(guardStatus)}"><script defer src="/_guard/client.js"></script>`, { html: true });
+        element.prepend(`${framedGame}<meta name="games-content-version" content="${escapeHtml(contentVersion)}"><meta name="games-guard-status" content="${escapeHtml(guardStatus)}"><script defer src="/_guard/client.js"></script>`, { html: true });
       },
     }).transform(response)
     : response;
@@ -1572,24 +1684,195 @@ function shell(title, content, status = 200) {
   });
 }
 
-function gameFramePage(url, title) {
+// These six hosts ship no robots.txt of their own, so Cloudflare answers with
+// its managed default: no rules, and no sitemap pointer either. The other nine
+// serve real files from their own repositories and are deliberately NOT handled
+// here — shadowing them would silently override a file edited elsewhere, and
+// topout's `Disallow: /server/` would be the first casualty.
+const GENERATED_CRAWLER_FILES = new Set([
+  "wildbound.andrenijman.com",
+  "tung.andrenijman.com",
+  "fishing.andrenijman.com",
+  "slope.andrenijman.com",
+  "motox3m.andrenijman.com",
+  MC_HOST,
+]);
+
+function crawlerFileResponse(url) {
+  if (url.hostname === HUB_HOST && url.pathname === "/llms.txt") return llmsTxt();
+  if (!GENERATED_CRAWLER_FILES.has(url.hostname)) return null;
+  if (url.pathname === "/robots.txt") return robotsTxt(url.hostname);
+  if (url.pathname === "/sitemap.xml") return sitemapXml(url.hostname);
+  return null;
+}
+
+function crawlerText(body, type) {
+  return new Response(body, {
+    headers: {
+      "Content-Type": `${type}; charset=utf-8`,
+      "Cache-Control": "public, max-age=3600",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+// search=yes and ai-input=yes are the two signals that matter for being found
+// and being cited: ai-input is what governs retrieval and grounding for
+// generative answers. ai-train is a separate rights question that affects
+// neither, so it is deliberately left unspecified, which under the content
+// signals spec grants and restricts nothing.
+function robotsTxt(host) {
+  return crawlerText(`User-agent: *
+Content-Signal: search=yes, ai-input=yes
+Allow: /
+
+Sitemap: https://${host}/sitemap.xml
+`, "text/plain");
+}
+
+// No lastmod: an invented date is worse than none, and the game repositories do
+// not report one through this path.
+function sitemapXml(host) {
+  return crawlerText(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://${host}/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>
+`, "application/xml");
+}
+
+// An assistant reading this should be able to answer "what is on this site and
+// who made it" without executing the games. The origin split is stated because
+// it is the fact most likely to be got wrong: four of these are hosted, not
+// written here, and summarising them as Andre's work would be inaccurate.
+function llmsTxt() {
+  const section = (origin) => Object.entries(GAMES)
+    .filter(([, game]) => game.origin === origin)
+    .map(([host, game]) => `- [${game.name}](https://${host}/): ${game.description} Genres: ${game.genre.join(", ")}.`)
+    .join("\n");
+  return crawlerText(`# Games by Andre Nijman
+
+> Free browser games at ${HUB_ORIGIN}. Every game runs in the browser with
+> nothing to download and no payment. Each game lives on its own subdomain.
+
+## Original games made by Andre Nijman
+
+${section("original")}
+
+## Curated open-source client
+
+${section("curated")}
+
+## Hosted games, NOT made by Andre Nijman
+
+These are hosted on the site for convenience. Andre Nijman is not the author and
+should not be credited as such.
+
+${section("hosted")}
+
+## Notes
+
+- Author of the original games: Andre Nijman, ${"https://andrenijman.com/"}
+- All games are free and require no account, except ONE WORLD, which uses a
+  site account as the in-world player name.
+- Canonical hub page: ${HUB_ORIGIN}/
+`, "text/plain");
+}
+
+// Embeds JSON-LD safely: the only sequence that can break out of a script
+// element is "</", so escaping "<" is sufficient and keeps the JSON valid.
+function jsonLd(data) {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+// Attribution follows GAMES.origin. The hub says the hosted games are not
+// Andre's work, so those pages credit the hub as host only and their structured
+// data carries no author. Claiming otherwise would be false on four live pages.
+function gameCredit(game) {
+  if (game.origin === "curated") return "open-source client curated by Andre Nijman";
+  if (game.origin === "hosted") return "hosted by Andre Nijman, not made by him";
+  return game.credit ? `game made by Andre Nijman, ${game.credit}` : "game made by Andre Nijman";
+}
+
+function gameStructuredData(url, game) {
+  const origin = `https://${url.hostname}/`;
+  const entity = {
+    "@type": "VideoGame",
+    name: game.name,
+    url: origin,
+    description: game.description,
+    genre: game.genre,
+    gamePlatform: "Web browser",
+    applicationCategory: "Game",
+    operatingSystem: "Any browser",
+    isAccessibleForFree: true,
+    image: `${HUB_ORIGIN}/${game.image}`,
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD", availability: "https://schema.org/InStock" },
+  };
+  if (game.origin !== "hosted") {
+    entity.author = { "@type": "Person", name: "Andre Nijman", url: "https://andrenijman.com/" };
+  }
+  if (game.credit) entity.creditText = game.credit;
+  return [entity, {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Games", item: `${HUB_ORIGIN}/` },
+      { "@type": "ListItem", position: 2, name: game.name, item: origin },
+    ],
+  }].map((node) => Object.assign({ "@context": "https://schema.org" }, node));
+}
+
+// Three other games, chosen deterministically from this game's position so the
+// links are stable per host rather than reshuffling on every request.
+function relatedGames(hostname) {
+  const hosts = Object.keys(GAMES).filter((host) => host !== hostname);
+  const start = Object.keys(GAMES).indexOf(hostname);
+  return hosts.slice(start % hosts.length).concat(hosts).slice(0, 3)
+    .map((host) => ({ host, name: GAMES[host].name }));
+}
+
+function gameFramePage(url, game) {
   const gameUrl = new URL(url);
   gameUrl.searchParams.set("_games_frame", "1");
-  const safeTitle = escapeHtml(title);
-  const credit = url.hostname === MC_HOST ? "open-source client curated by Andre Nijman" : "game made by Andre Nijman";
+  const safeTitle = escapeHtml(game.name);
+  const canonical = `https://${url.hostname}/`;
+  const genreLine = game.genre.join(" · ");
+  // Kept under ~160 characters so search results show it whole.
+  const summary = game.description.length > 158
+    ? `${game.description.slice(0, 155).replace(/[\s,;:]+\S*$/, "")}…`
+    : game.description;
+  const pageTitle = `${game.name} — free browser ${game.genre[0] ? game.genre[0].toLowerCase() : "game"} game`;
+  const image = `${HUB_ORIGIN}/${game.image}`;
   return new Response(`<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#141110">
-  <title>${safeTitle} | Andre Nijman</title>
+  <title>${escapeHtml(pageTitle)} | Andre Nijman</title>
+  <meta name="description" content="${escapeHtml(summary)}">
+  <link rel="canonical" href="${escapeHtml(canonical)}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Games by Andre Nijman">
+  <meta property="og:title" content="${escapeHtml(pageTitle)}">
+  <meta property="og:description" content="${escapeHtml(summary)}">
+  <meta property="og:url" content="${escapeHtml(canonical)}">
+  <meta property="og:image" content="${escapeHtml(image)}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(pageTitle)}">
+  <meta name="twitter:description" content="${escapeHtml(summary)}">
+  <meta name="twitter:image" content="${escapeHtml(image)}">
+  <script type="application/ld+json">${gameStructuredData(url, game).map(jsonLd).join("</script>\n  <script type=\"application/ld+json\">")}</script>
   <style>
     :root{color-scheme:dark;--paper:#141110;--panel:#201c18;--ink:#f0ece3;--muted:#9c9282;--accent:#55a37c;--line:rgba(240,236,227,.2);font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace}
     *{box-sizing:border-box}
-    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--paper);color:var(--ink)}
-    .game-shell{height:100dvh;min-height:100%;display:grid;grid-template-rows:36px minmax(0,1fr) 30px;padding:8px}
-    .game-chrome{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:16px;padding:0 4px;color:var(--muted);font-size:11px;letter-spacing:.04em;white-space:nowrap}
+    html{scroll-behavior:smooth}
+    html,body{width:100%;margin:0;background:var(--paper);color:var(--ink);overscroll-behavior-y:contain}
+    .game-shell{height:100dvh;display:grid;grid-template-rows:36px minmax(0,1fr) 30px;padding:8px}
+    .game-chrome{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:16px;padding:0 4px;color:var(--muted);font-size:11px;letter-spacing:.04em;white-space:nowrap}
     .game-chrome a{display:flex;align-items:center;height:100%;color:inherit;text-decoration:none;transition:color 140ms ease-out}
     .game-chrome a:first-child{justify-self:start;min-width:0;overflow:hidden;text-overflow:ellipsis}
     .game-chrome a:last-child{justify-self:end;min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -1597,27 +1880,47 @@ function gameFramePage(url, title) {
     .game-chrome a:focus-visible{outline:1px solid var(--accent);outline-offset:-2px}
     .game-window{min-width:0;min-height:0;border:1px solid var(--line);background:#080907;box-shadow:0 18px 48px rgba(0,0,0,.32);overflow:hidden}
     .game-window iframe{display:block;width:100%;height:100%;border:0;background:#080907}
-    .game-title{display:flex;align-items:end;justify-content:center;padding-top:6px;color:var(--ink);font:500 15px/1 Georgia,"Times New Roman",serif;letter-spacing:.01em}
-    @media(max-width:640px){.game-shell{grid-template-rows:32px minmax(0,1fr) 26px;padding:4px}.game-chrome{font-size:9px;padding:0 2px}.game-title{font-size:13px;padding-top:5px}}
+    .game-title{display:flex;align-items:end;justify-content:center;padding-top:6px;margin:0;color:var(--ink);font:500 15px/1 Georgia,"Times New Roman",serif;letter-spacing:.01em}
+    .game-about{max-width:720px;margin:0 auto;padding:56px 20px 72px;border-top:1px solid var(--line)}
+    .game-about h2{margin:0 0 4px;font:500 22px/1.2 Georgia,"Times New Roman",serif}
+    .game-about .genre{margin:0 0 20px;color:var(--accent);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+    .game-about p{margin:0 0 20px;color:var(--ink);font-size:14px;line-height:1.65}
+    .game-about .credit{color:var(--muted);font-size:12px}
+    .game-about h3{margin:32px 0 10px;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+    .game-about ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:10px}
+    .game-about li a{display:inline-block;padding:7px 12px;border:1px solid var(--line);color:var(--ink);font-size:12px;text-decoration:none}
+    .game-about li a:hover,.game-about li a:focus-visible{border-color:var(--accent);color:var(--accent)}
+    @media(max-width:640px){.game-shell{grid-template-rows:32px minmax(0,1fr) 26px;padding:4px}.game-chrome{font-size:9px;padding:0 2px}.game-title{font-size:13px;padding-top:5px}.game-about{padding:40px 16px 56px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   </style>
 </head>
 <body>
   <main class="game-shell">
     <header class="game-chrome">
-      <a href="https://andrenijman.com" aria-label="Visit Andre Nijman's portfolio">${credit}</a>
-      <a href="https://games.andrenijman.com" aria-label="Back to all games">games.andrenijman.com &uarr;</a>
+      <a href="https://andrenijman.com" aria-label="Visit Andre Nijman's portfolio">${escapeHtml(gameCredit(game))}</a>
+      <a href="#about">about ${safeTitle} &darr;</a>
+      <a href="${HUB_ORIGIN}" aria-label="Back to all games">games.andrenijman.com &uarr;</a>
     </header>
     <div class="game-window">
       <iframe src="${escapeHtml(gameUrl.toString())}" title="${safeTitle}" allow="autoplay; fullscreen; gamepad; clipboard-read; clipboard-write" allowfullscreen></iframe>
     </div>
-    <footer class="game-title">${safeTitle}</footer>
+    <h1 class="game-title">${safeTitle}</h1>
   </main>
+  <section class="game-about" id="about">
+    <h2>About ${safeTitle}</h2>
+    <p class="genre">${escapeHtml(genreLine)}</p>
+    <p>${escapeHtml(game.description)}</p>
+    <p class="credit">Free to play in the browser, nothing to download. ${escapeHtml(gameCredit(game).replace(/^./, (c) => c.toUpperCase()))}.</p>
+    <h3>More games</h3>
+    <ul>${relatedGames(url.hostname).map((other) =>
+      `<li><a href="https://${other.host}/">${escapeHtml(other.name)}</a></li>`).join("")}</ul>
+  </section>
 </body>
 </html>`, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "private, no-store, no-cache, must-revalidate, max-age=0",
-      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; base-uri 'none'; frame-ancestors 'self'",
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; img-src https://games.andrenijman.com; base-uri 'none'; frame-ancestors 'self'",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "X-Content-Type-Options": "nosniff",
       "Accept-CH": ACCEPT_CH,
