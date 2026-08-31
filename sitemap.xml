@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Cross-host submission: every hostname below is on andrenijman.com and each one
-  also declares its own sitemap in its own robots.txt. Listing them here as well
-  gives crawlers a single entry point to all fourteen games instead of relying on
-  them following links from the hub, which is how Baiduspider reached OVERPOP
-  while the rest went undiscovered.
+  Cross-host submission. Every hostname below is a subdomain of andrenijman.com
+  under the same ownership, which is what makes listing them in one sitemap
+  valid; Search Console additionally requires each host to be verified there.
+  Listing them here gives crawlers a single entry point to all fourteen games
+  rather than relying on them following links from the hub, which is how
+  Baiduspider reached OVERPOP while the rest went undiscovered.
+
+  All fifteen hosts declare their own sitemap in their own robots.txt: eight
+  serve that file from their own repository, and the Worker generates it for the
+  seven that had none.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>

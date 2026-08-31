@@ -1726,6 +1726,13 @@ const GENERATED_CRAWLER_FILES = new Set([
   "slope.andrenijman.com",
   "motox3m.andrenijman.com",
   MC_HOST,
+  // bigtower is the one exception to leaving upstream files alone. Its own
+  // robots.txt was audited and contains exactly "User-agent: *" and "Allow: /"
+  // — the same rules generated here — while declaring no sitemap, and its
+  // /sitemap.xml returns 404, so it had neither. Nothing is lost by generating
+  // both. If rules are ever added to that repository's robots.txt, remove this
+  // entry or they will be silently shadowed.
+  "bigtower.andrenijman.com",
 ]);
 
 function crawlerFileResponse(url) {
@@ -2030,7 +2037,12 @@ function gameFramePage(url, game) {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "private, no-store, no-cache, must-revalidate, max-age=0",
-      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; img-src https://games.andrenijman.com; base-uri 'none'; frame-ancestors 'self'",
+      // script-src is stated rather than inherited from default-src to make the
+      // intent unambiguous: this page carries no executable script. The JSON-LD
+      // blocks are data, not script — a script element whose type is not a
+      // JavaScript MIME type is never prepared for execution, so it is not
+      // subject to script-src. Worth confirming once in devtools.
+      "Content-Security-Policy": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; img-src https://games.andrenijman.com; base-uri 'none'; frame-ancestors 'self'",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "X-Content-Type-Options": "nosniff",
       "Accept-CH": ACCEPT_CH,
