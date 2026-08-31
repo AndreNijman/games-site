@@ -623,10 +623,96 @@ function needsProfile(device) {
 
 // Crawlers, previewers and monitors are not visits. This only has to be good
 // enough to keep the counters honest, not to be a security control.
+//
+// Kept as the fallback below CRAWLERS so that widening the classifier can only
+// ever exclude more traffic from the counters, never less. Its broad `monitor`
+// and `preview` tokens are deliberately left alone for that reason.
 const BOT_AGENT = /bot|crawl|spider|slurp|bingpreview|headless|phantom|puppeteer|playwright|curl|wget|python-requests|libwww|java\/|go-http|okhttp|axios|facebookexternalhit|embedly|quora link|whatsapp|telegram|slackbot|discordbot|twitterbot|linkedinbot|pinterest|redditbot|applebot|petalbot|ahrefs|semrush|mj12|dotbot|screaming frog|lighthouse|gtmetrix|pingdom|uptime|monitor|preview/i;
 
+// Named agents, so a console row says "Baiduspider" instead of leaving an
+// operator to read a raw string and guess. First match wins, so the generic
+// tool patterns sit at the end and a named crawler is never labelled "curl".
+//
+// `asn` is the operator's own network, set only where that network is the sole
+// legitimate source. A mismatch there means the user agent is lying. It is
+// deliberately absent for Baiduspider, which reaches this site from China
+// Unicom ranges rather than anything Baidu-named.
+const CRAWLERS = [
+  { re: /googlebot/i, name: "Googlebot", kind: "search", asn: /google/i },
+  { re: /google-inspectiontool|googleother|apis-google|feedfetcher-google|google-read-aloud/i,
+    name: "Google tools", kind: "search", asn: /google/i },
+  { re: /bingbot|bingpreview|adidxbot/i, name: "Bingbot", kind: "search", asn: /microsoft/i },
+  { re: /applebot/i, name: "Applebot", kind: "search", asn: /apple/i },
+  { re: /yandex(bot|images)/i, name: "YandexBot", kind: "search", asn: /yandex/i },
+  { re: /baiduspider/i, name: "Baiduspider", kind: "search" },
+  { re: /duckduckbot|duckassistbot/i, name: "DuckDuckBot", kind: "search" },
+  { re: /petalbot/i, name: "PetalBot", kind: "search" },
+  { re: /seznambot/i, name: "SeznamBot", kind: "search" },
+  { re: /sogou/i, name: "Sogou", kind: "search" },
+  { re: /slurp/i, name: "Yahoo Slurp", kind: "search" },
+
+  { re: /mediapartners-google/i, name: "AdSense", kind: "ads", asn: /google/i },
+  { re: /adsbot-google/i, name: "AdsBot-Google", kind: "ads", asn: /google/i },
+
+  { re: /claude-user|claudebot|anthropic/i, name: "Anthropic", kind: "ai" },
+  { re: /gptbot|oai-searchbot|chatgpt-user/i, name: "OpenAI", kind: "ai" },
+  { re: /perplexity/i, name: "Perplexity", kind: "ai" },
+  { re: /bytespider/i, name: "Bytespider", kind: "ai" },
+  { re: /amazonbot/i, name: "Amazonbot", kind: "ai" },
+  { re: /ccbot/i, name: "CCBot", kind: "ai" },
+  { re: /meta-externalagent|facebookexternalhit/i, name: "Meta", kind: "ai" },
+
+  { re: /ahrefs/i, name: "AhrefsBot", kind: "seo" },
+  { re: /semrush/i, name: "SemrushBot", kind: "seo" },
+  { re: /mj12/i, name: "MJ12bot", kind: "seo" },
+  { re: /dotbot/i, name: "DotBot", kind: "seo" },
+  { re: /screaming frog/i, name: "Screaming Frog", kind: "seo" },
+  { re: /domaincrawler|dataprovider/i, name: "Domain crawler", kind: "seo" },
+
+  { re: /censys/i, name: "Censys", kind: "scanner" },
+  { re: /paloaltonetworks|expanse/i, name: "Palo Alto scan", kind: "scanner" },
+  { re: /zgrab|masscan|nuclei|sqlmap|nmap/i, name: "Scanner", kind: "scanner" },
+  { re: /internet-?measurement|driftnet/i, name: "Measurement", kind: "scanner" },
+
+  { re: /whatsapp|telegram|slackbot|discordbot|twitterbot|linkedinbot|pinterest|redditbot|embedly|quora link/i,
+    name: "Link preview", kind: "social" },
+
+  { re: /chrome privacy preserving prefetch proxy/i, name: "Prefetch proxy", kind: "monitor" },
+  { re: /lighthouse|gtmetrix|pingdom|statuscake|betteruptime|uptimerobot/i, name: "Monitor", kind: "monitor" },
+
+  { re: /headless|puppeteer|playwright|phantom/i, name: "Headless browser", kind: "tool" },
+  { re: /^curl\//i, name: "curl", kind: "tool" },
+  { re: /^wget/i, name: "wget", kind: "tool" },
+  { re: /^node$|node-fetch|undici/i, name: "node", kind: "tool" },
+  { re: /python-requests|python-httpx|httpx|aiohttp|urllib|scrapy|libwww/i, name: "Python", kind: "tool" },
+  { re: /java\/|okhttp|go-http|axios|dalvik|guzzle|postman|insomnia/i, name: "HTTP client", kind: "tool" },
+];
+
+function classifyAgent(userAgent) {
+  const ua = String(userAgent || "");
+  if (!ua) return { bot: true, name: "No user agent", kind: "other" };
+  for (const entry of CRAWLERS) {
+    if (entry.re.test(ua)) return { bot: true, name: entry.name, kind: entry.kind, asn: entry.asn };
+  }
+  if (BOT_AGENT.test(ua)) return { bot: true, name: "Bot", kind: "other" };
+  return { bot: false, name: "", kind: "" };
+}
+
 function isBotAgent(userAgent) {
-  return !userAgent || BOT_AGENT.test(userAgent);
+  return classifyAgent(userAgent).bot;
+}
+
+// A user agent is a claim, not evidence. Where an operator crawls only from its
+// own network, arriving from anywhere else means the claim is unsupported —
+// this catches a request calling itself Googlebot while coming from a rented
+// VPS or a consumer ISP. Deliberately "unverified" rather than "spoofed": the
+// observable fact is the network mismatch, and the commonest cause here is the
+// operator testing with a changed user agent rather than anyone lying.
+// An unrecorded network proves nothing, so it never counts as a mismatch.
+function agentUnverified(device) {
+  const { asn } = classifyAgent(device.user_agent);
+  if (!asn || !device.asn_org) return false;
+  return !asn.test(String(device.asn_org));
 }
 
 // Perth is UTC+8 with no daylight saving, so a fixed offset gives the operator
@@ -1184,7 +1270,7 @@ function authPage(title, returnTo, error = "", status = 200, registering = false
 }
 
 function adminPage(groups, email, url, stats = {}) {
-  const allowedViews = new Set(["all", "accounts", "unclaimed", "blocked"]);
+  const allowedViews = new Set(["all", "accounts", "unclaimed", "blocked", "crawlers"]);
   const requestedView = String(url.searchParams.get("view") || "all");
   const view = allowedViews.has(requestedView) ? requestedView : "all";
   const query = cleanText(url.searchParams.get("q"), 80);
@@ -1200,16 +1286,27 @@ function adminPage(groups, email, url, stats = {}) {
   const deviceCount = stats.totalDevices ?? loadedCount;
   const labelledCount = stats.totalLabelled ?? loadedLabelled;
   const blockedCount = groups.filter((group) => group.blocked).length;
+  // Counted over the loaded window, like the unclaimed tab, not over the whole
+  // table. Automated traffic is the bulk of what fills this console, so it gets
+  // a tab rather than making the operator search for it.
+  const isCrawler = (device) => classifyAgent(device.user_agent).bot;
+  const crawlerCount = groups.reduce((total, group) => total + group.devices.filter(isCrawler).length, 0);
 
   let visible = groups.filter((group) => {
     if (view === "accounts") return Boolean(group.accountId);
     if (view === "unclaimed") return !group.accountId;
     if (view === "blocked") return group.blocked;
+    if (view === "crawlers") return group.devices.some(isCrawler);
     return true;
   }).map((group) => {
     if (view === "blocked" && !group.accountId) {
       const blockedDevices = group.devices.filter((device) => device.banned_at);
       return { ...group, devices: blockedDevices, matchCount: blockedDevices.length };
+    }
+    if (view === "crawlers") {
+      const crawlers = group.devices.filter((device) =>
+        isCrawler(device) && (!queryLower || deviceMatches(device, queryLower)));
+      return { ...group, devices: crawlers, matchCount: crawlers.length };
     }
     if (!queryLower) return { ...group, matchCount: group.devices.length };
     const groupMatch = [group.username, group.accountId, group.key]
@@ -1237,7 +1334,7 @@ function adminPage(groups, email, url, stats = {}) {
       page,
       pages,
       pageSize,
-      open: onlyResult || (!group.accountId && view === "unclaimed"),
+      open: onlyResult || (!group.accountId && (view === "unclaimed" || view === "crawlers")),
       customLabels,
       query,
       view,
@@ -1249,6 +1346,7 @@ function adminPage(groups, email, url, stats = {}) {
     ["accounts", "Accounts", accountGroups.length],
     ["unclaimed", "Unclaimed", unclaimed?.devices.length || 0],
     ["blocked", "Blocked", blockedCount],
+    ["crawlers", "Crawlers", crawlerCount],
   ].map(([value, label, count]) => `<a href="${escapeHtml(adminHref(value, query))}"${view === value ? ` aria-current="page"` : ""}>${label}<span>${count}</span></a>`).join("");
 
   return shell("Device access", `<main class="admin">
@@ -1328,10 +1426,14 @@ function personSection(group, options) {
 }
 
 function deviceMatches(device, query) {
+  const agent = classifyAgent(device.user_agent);
   return [device.id, device.label, device.model, device.gpu, device.screen, device.os,
     device.os_version, device.browser, device.browser_version, device.arch, device.asn_org,
     device.city, device.region, device.country, device.ip_prefix, device.last_game,
-    device.user_agent, device.first_referrer, device.referrer]
+    device.user_agent, device.first_referrer, device.referrer,
+    // So "googlebot", "adsense" or "scanner" find rows whose raw agent string
+    // spells none of those, and "unverified" finds the network mismatches.
+    agent.name, agent.kind, agentUnverified(device) ? "unverified" : ""]
     .some((value) => String(value || "").toLowerCase().includes(query));
 }
 
@@ -1359,10 +1461,14 @@ function deviceRow(device) {
     : device.label_source === "admin"
       ? `<span class="badge">admin label</span>`
       : `<span class="badge auto">auto</span>`;
-  // Derived from the same regex the visit counter uses, so the console and the
-  // counters never disagree about what a crawler is. Storing it would go stale
-  // the moment BOT_AGENT changes.
-  const crawler = isBotAgent(device.user_agent) ? `<span class="badge crawler">crawler</span>` : "";
+  // Derived from the same classifier the visit counter uses, so the console and
+  // the counters never disagree about what a crawler is. Storing it would go
+  // stale the moment CRAWLERS changes.
+  const agentKind = classifyAgent(device.user_agent);
+  const crawler = agentKind.bot
+    ? `<span class="badge crawler" title="${escapeHtml(agentKind.kind)}">${escapeHtml(agentKind.name)}</span>${
+      agentUnverified(device) ? `<span class="badge spoof" title="Says ${escapeHtml(agentKind.name)} but arrived from ${escapeHtml(device.asn_org)}, not that operator's network">unverified</span>` : ""}`
+    : "";
   const hardware = [
     device.model || "",
     device.gpu || "",
@@ -1585,7 +1691,7 @@ const RETIRED_SERVICE_WORKER = `self.addEventListener('install', function () { s
 
 const CSS = `
 :root{--bg:#10110f;--surface:#181a17;--text:#ebe9df;--muted:#9b9d94;--line:#35382f;--accent:#d1b24b;--danger:#c76155;--info:#8fb4d9;--s1:4px;--s2:8px;--s3:16px;--s4:24px;--s5:32px;--s6:48px;font-family:Arial,sans-serif;color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}a{color:var(--accent)}h1{font:400 clamp(2.2rem,6vw,4.5rem)/.95 Georgia,serif;letter-spacing:-.04em;margin:var(--s2) 0 var(--s4)}p{line-height:1.6;color:var(--muted)}.kicker,th,small,button,label{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.kicker{font-size:.72rem;letter-spacing:.14em;color:var(--accent)}.account-purpose{margin:0 0 var(--s5)}.auth{width:min(100% - 40px,480px);margin:8vh auto}.auth form{display:grid;gap:var(--s3)}label{display:grid;gap:var(--s2);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase}input{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--text);font:inherit}button{min-height:44px;padding:10px 16px;border:1px solid var(--line);border-radius:4px;background:var(--accent);color:var(--bg);cursor:pointer}button:hover{filter:brightness(1.08)}.alternate{display:inline-block;margin-top:var(--s4)}.choice{display:flex;align-items:center;gap:var(--s3);margin:var(--s4) 0;color:var(--muted);font:12px ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase}.choice:before,.choice:after{content:"";height:1px;background:var(--line);flex:1}.skip-button{display:flex;min-height:56px;align-items:center;justify-content:center;padding:10px 16px;border-radius:4px;background:var(--text);color:var(--bg);font:1rem ui-monospace,SFMono-Regular,Consolas,monospace;text-decoration:none}.skip-button:hover{filter:brightness(1.08)}.fine{font-size:.78rem;margin-top:var(--s4)}.error,.notice{padding:var(--s3);border-left:3px solid var(--danger);background:var(--surface);color:var(--text)}.privacy{max-width:640px}.admin{width:min(100% - 40px,1500px);margin:var(--s6) auto}.admin header{display:flex;justify-content:space-between;align-items:start;gap:var(--s4)}.admin h1{margin-bottom:var(--s3)}.summary-line{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;letter-spacing:.04em}.person{margin-top:var(--s6);border-top:1px solid var(--line);padding-top:var(--s3)}.person>header{align-items:baseline;flex-wrap:wrap;gap:var(--s3)}.person h2{font:400 1.5rem/1.1 Georgia,serif;margin:0}.person h2.anon{color:var(--muted)}.person .summary{flex:1;margin:0;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.72rem;letter-spacing:.03em}.person>header form{display:flex;gap:var(--s2)}.person>header input{width:auto;min-width:150px}.person>header button{min-height:36px;padding:6px 10px;white-space:nowrap}.person .table{margin-top:var(--s3)}.blocked-person h2{color:var(--danger)}.badge{display:inline-block;padding:2px 7px;border:1px solid var(--accent);border-radius:999px;color:var(--accent);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;vertical-align:middle}.badge.auto{border-color:var(--line);color:var(--muted)}.muted{color:var(--muted)}.table{overflow:auto;border-top:1px solid var(--line);margin-top:var(--s5)}table{width:100%;border-collapse:collapse;min-width:1050px}th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:.7rem;letter-spacing:.1em;color:var(--muted)}td{font-size:.88rem}small{display:block;color:var(--muted);font-size:.68rem;margin-top:var(--s1)}td form{display:grid;gap:var(--s2)}.actions{display:flex;gap:var(--s2)}.actions button{min-height:36px;padding:6px 10px}.danger{background:transparent;color:var(--danger);border-color:var(--danger)}tr.blocked-row{background:#281b18}@media(max-width:600px){.admin header{display:block}.auth{margin-top:var(--s5)}.actions{flex-wrap:wrap}}
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.admin{width:min(100% - 32px,1440px);margin:32px auto}.admin-title{align-items:start}.admin-title h1{font-size:clamp(2rem,4vw,3.5rem);margin:4px 0 8px}.admin-title>p{margin:4px 0;font:11px ui-monospace,SFMono-Regular,Consolas,monospace}.summary-line{margin:0}.admin-search{display:grid;grid-template-columns:minmax(220px,620px) max-content max-content;gap:8px;align-items:center;margin:24px 0 12px}.admin-search input{min-height:44px;padding:8px 12px}.admin-search button{min-height:44px;padding:8px 16px}.admin-search a{padding:8px;color:var(--muted);font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.admin-tabs{display:flex;gap:0;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:none}.admin-tabs::-webkit-scrollbar{display:none}.admin-tabs a{display:flex;align-items:center;gap:7px;min-height:44px;padding:0 14px;border-bottom:2px solid transparent;color:var(--muted);font:11px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.06em;text-decoration:none;text-transform:uppercase;white-space:nowrap}.admin-tabs a:hover,.admin-tabs a:focus-visible{color:var(--text)}.admin-tabs a[aria-current="page"]{color:var(--accent);border-bottom-color:var(--accent)}.admin-tabs span{color:inherit;opacity:.7}.admin-help{margin:8px 0 0;color:var(--muted);font-size:.78rem}.admin-help summary{width:max-content;min-height:44px;padding:13px 0;cursor:pointer;font:11px ui-monospace,SFMono-Regular,Consolas,monospace}.admin-help p{max-width:900px;margin:0 0 12px;font-size:.78rem}.result-line,.empty-state{margin:16px 0;font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.people{margin-top:8px;border-top:1px solid var(--line)}.person{margin:0;padding:0;border:0;border-bottom:1px solid var(--line)}.person-summary{display:grid;grid-template-columns:8px minmax(170px,1fr) 84px 130px 12px;gap:12px;align-items:center;min-height:48px;padding:7px 12px;cursor:pointer;list-style:none}.person-summary::-webkit-details-marker{display:none}.person-summary:hover{background:var(--surface)}.person-summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}.status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}.blocked-person .status-dot{background:var(--danger)}.person-name{min-width:0;font:15px/1.2 Georgia,serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.blocked-label{display:inline;margin-left:7px;color:var(--danger);font:9px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase}.person-name small{display:inline;margin:0 0 0 9px;font:10px ui-monospace,SFMono-Regular,Consolas,monospace}.person-count,.person-seen{color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace;text-align:right;white-space:nowrap}.disclosure{width:7px;height:7px;border-right:1px solid var(--muted);border-bottom:1px solid var(--muted);transform:rotate(45deg) translate(-2px,-2px);transition:transform 140ms ease-out}.person[open]>.person-summary .disclosure{transform:rotate(225deg) translate(-1px,-1px)}.person-body{padding:0 12px 12px;background:rgba(255,255,255,.012)}.person .table{margin:0;border-top:1px solid var(--line)}.person table{min-width:940px}.person th,.person td{padding:8px 10px}.person th{font-size:.62rem}.person td{font-size:.78rem}.person td:first-child{width:24%}.person td:nth-child(2){width:27%}.person td:nth-child(3){width:21%}.person td:nth-child(4){width:16%}.person td:last-child{width:12%}.person small{font-size:.62rem;margin-top:2px}.badge{padding:1px 5px;font-size:.52rem}.badge.crawler{border-color:var(--info);color:var(--info)}.ua{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;line-height:1.35;opacity:.85}.ban-reason{color:var(--danger)}.manage{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.manage>summary{width:max-content;min-height:44px;padding:14px 0;color:var(--muted);font-size:.68rem;cursor:pointer}.manage[open]>summary{color:var(--accent)}.manage form{min-width:190px;padding:8px 0}.manage label{gap:4px;font-size:.62rem}.manage input{min-height:44px;padding:7px 9px;font-size:.78rem}.actions{margin-top:6px}.actions button,.account-manage button{min-height:44px;padding:8px 10px;font-size:.68rem}.account-manage{margin-left:auto;padding:8px 0}.account-manage form{display:grid;grid-template-columns:minmax(180px,300px) auto;align-items:end;gap:8px}.pager{display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:10px 0 0;color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace}.pager a{color:var(--accent)}.blocked-row{box-shadow:inset 2px 0 var(--danger)}@media(prefers-reduced-motion:reduce){.disclosure{transition:none}}@media(max-width:700px){.admin{width:min(100% - 24px,1440px);margin:20px auto}.admin-title{display:block}.admin-title>p{margin-top:8px}.admin-search{grid-template-columns:1fr auto}.admin-search a{grid-column:1/-1;padding:0}.person-summary{grid-template-columns:8px minmax(0,1fr) 68px 12px;gap:8px;padding:7px 8px}.person-seen{display:none}.person-name small{display:block;margin:2px 0 0;overflow:hidden;text-overflow:ellipsis}.person-body{padding:0 8px 8px}.person .table{overflow:visible}.person table,.person tbody,.person tr,.person td{display:block;min-width:0}.person thead{display:none}.person tr{padding:8px 0;border-bottom:1px solid var(--line)}.person td{width:auto!important;padding:3px 4px;border:0}.person td:before{display:block;margin-bottom:2px;color:var(--muted);font:9px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase}.person td:nth-child(1):before{content:"Device"}.person td:nth-child(2):before{content:"Identity"}.person td:nth-child(3):before{content:"Network"}.person td:nth-child(4):before{content:"Activity"}.person td:nth-child(5):before{content:"Controls"}.account-manage form{grid-template-columns:1fr}.pager{justify-content:space-between}}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.admin{width:min(100% - 32px,1440px);margin:32px auto}.admin-title{align-items:start}.admin-title h1{font-size:clamp(2rem,4vw,3.5rem);margin:4px 0 8px}.admin-title>p{margin:4px 0;font:11px ui-monospace,SFMono-Regular,Consolas,monospace}.summary-line{margin:0}.admin-search{display:grid;grid-template-columns:minmax(220px,620px) max-content max-content;gap:8px;align-items:center;margin:24px 0 12px}.admin-search input{min-height:44px;padding:8px 12px}.admin-search button{min-height:44px;padding:8px 16px}.admin-search a{padding:8px;color:var(--muted);font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.admin-tabs{display:flex;gap:0;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:none}.admin-tabs::-webkit-scrollbar{display:none}.admin-tabs a{display:flex;align-items:center;gap:7px;min-height:44px;padding:0 14px;border-bottom:2px solid transparent;color:var(--muted);font:11px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.06em;text-decoration:none;text-transform:uppercase;white-space:nowrap}.admin-tabs a:hover,.admin-tabs a:focus-visible{color:var(--text)}.admin-tabs a[aria-current="page"]{color:var(--accent);border-bottom-color:var(--accent)}.admin-tabs span{color:inherit;opacity:.7}.admin-help{margin:8px 0 0;color:var(--muted);font-size:.78rem}.admin-help summary{width:max-content;min-height:44px;padding:13px 0;cursor:pointer;font:11px ui-monospace,SFMono-Regular,Consolas,monospace}.admin-help p{max-width:900px;margin:0 0 12px;font-size:.78rem}.result-line,.empty-state{margin:16px 0;font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.people{margin-top:8px;border-top:1px solid var(--line)}.person{margin:0;padding:0;border:0;border-bottom:1px solid var(--line)}.person-summary{display:grid;grid-template-columns:8px minmax(170px,1fr) 84px 130px 12px;gap:12px;align-items:center;min-height:48px;padding:7px 12px;cursor:pointer;list-style:none}.person-summary::-webkit-details-marker{display:none}.person-summary:hover{background:var(--surface)}.person-summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}.status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}.blocked-person .status-dot{background:var(--danger)}.person-name{min-width:0;font:15px/1.2 Georgia,serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.blocked-label{display:inline;margin-left:7px;color:var(--danger);font:9px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase}.person-name small{display:inline;margin:0 0 0 9px;font:10px ui-monospace,SFMono-Regular,Consolas,monospace}.person-count,.person-seen{color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace;text-align:right;white-space:nowrap}.disclosure{width:7px;height:7px;border-right:1px solid var(--muted);border-bottom:1px solid var(--muted);transform:rotate(45deg) translate(-2px,-2px);transition:transform 140ms ease-out}.person[open]>.person-summary .disclosure{transform:rotate(225deg) translate(-1px,-1px)}.person-body{padding:0 12px 12px;background:rgba(255,255,255,.012)}.person .table{margin:0;border-top:1px solid var(--line)}.person table{min-width:940px}.person th,.person td{padding:8px 10px}.person th{font-size:.62rem}.person td{font-size:.78rem}.person td:first-child{width:24%}.person td:nth-child(2){width:27%}.person td:nth-child(3){width:21%}.person td:nth-child(4){width:16%}.person td:last-child{width:12%}.person small{font-size:.62rem;margin-top:2px}.badge{padding:1px 5px;font-size:.52rem}.badge.crawler{border-color:var(--info);color:var(--info)}.badge.spoof{border-color:var(--danger);color:var(--danger)}.ua{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;line-height:1.35;opacity:.85}.ban-reason{color:var(--danger)}.manage{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.manage>summary{width:max-content;min-height:44px;padding:14px 0;color:var(--muted);font-size:.68rem;cursor:pointer}.manage[open]>summary{color:var(--accent)}.manage form{min-width:190px;padding:8px 0}.manage label{gap:4px;font-size:.62rem}.manage input{min-height:44px;padding:7px 9px;font-size:.78rem}.actions{margin-top:6px}.actions button,.account-manage button{min-height:44px;padding:8px 10px;font-size:.68rem}.account-manage{margin-left:auto;padding:8px 0}.account-manage form{display:grid;grid-template-columns:minmax(180px,300px) auto;align-items:end;gap:8px}.pager{display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:10px 0 0;color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace}.pager a{color:var(--accent)}.blocked-row{box-shadow:inset 2px 0 var(--danger)}@media(prefers-reduced-motion:reduce){.disclosure{transition:none}}@media(max-width:700px){.admin{width:min(100% - 24px,1440px);margin:20px auto}.admin-title{display:block}.admin-title>p{margin-top:8px}.admin-search{grid-template-columns:1fr auto}.admin-search a{grid-column:1/-1;padding:0}.person-summary{grid-template-columns:8px minmax(0,1fr) 68px 12px;gap:8px;padding:7px 8px}.person-seen{display:none}.person-name small{display:block;margin:2px 0 0;overflow:hidden;text-overflow:ellipsis}.person-body{padding:0 8px 8px}.person .table{overflow:visible}.person table,.person tbody,.person tr,.person td{display:block;min-width:0}.person thead{display:none}.person tr{padding:8px 0;border-bottom:1px solid var(--line)}.person td{width:auto!important;padding:3px 4px;border:0}.person td:before{display:block;margin-bottom:2px;color:var(--muted);font:9px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase}.person td:nth-child(1):before{content:"Device"}.person td:nth-child(2):before{content:"Identity"}.person td:nth-child(3):before{content:"Network"}.person td:nth-child(4):before{content:"Activity"}.person td:nth-child(5):before{content:"Controls"}.account-manage form{grid-template-columns:1fr}.pager{justify-content:space-between}}
 .device-manage form+form{border-top:1px solid var(--line)}
 .visits{margin:20px 0 4px;padding:16px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .visit-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line)}
