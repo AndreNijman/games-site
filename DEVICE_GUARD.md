@@ -31,6 +31,22 @@ Identification is a device *class*, not a device identity. Browsers expose no co
 
 Do not deploy before the Access policy exists. Otherwise the admin route returns 403, but it should still be protected at Cloudflare's edge.
 
+## Discoverability
+
+`GAMES` in `worker/index.js` is the single source of truth for every game: name, description, genre, hero image and dimensions, `origin`, and an optional `credit`. `GAME_TITLES` is derived from it. Descriptions and genres were generated from the hub's own structured data so the two cannot drift.
+
+`gameFramePage()` renders each game subdomain as a real page rather than a bare iframe: descriptive title, meta description, canonical, Open Graph and Twitter tags with image dimensions, and three structured-data blocks — `VideoGame`, `BreadcrumbList` and `FAQPage`. Below the game stage sits an About section carrying the description, genres, the answers used in `FAQPage`, and links to all thirteen other games. **The FAQ answers must stay visible on the page**: search engines treat `FAQPage` markup whose answers are not in the rendered page as a violation, so `gameFaq()` feeds both the markup and the `<dl>`.
+
+Every answer in `gameFaq()` restates a fact that already appears on the hub — free to play, runs in the browser, whether an account is needed, whether it is multiplayer, and who made it. Nothing about controls or gameplay is asserted, because that would mean inventing detail no source here confirms.
+
+The game stage keeps its exact `height:100dvh` grid, so the iframe container is unchanged and nothing inside a game resizes; only the outer document scrolls. Only `/` and `/index.html` are indexable — every other path on a game host still renders the game shell but is `noindex,follow` and carries no canonical, because previously any path returned this page with a 200 and gave crawlers an unbounded supply of duplicate URLs.
+
+`?_games_frame=1` inner documents are `noindex,follow` with a canonical to the clean URL, so the framed variant stops competing with the page that embeds it.
+
+Six hosts (`wildbound`, `tung`, `fishing`, `slope`, `motox3m`, `mc`) ship no `robots.txt` of their own and fell back to Cloudflare's managed default, which carries no sitemap pointer. `crawlerFileResponse()` generates `robots.txt` and `sitemap.xml` for exactly those six, and `llms.txt` for the hub. The nine hosts that serve their own files are deliberately untouched — shadowing them would silently override files living in separate repositories, and `topout`'s `Disallow: /server/` would be the first casualty. `crawlerFileResponse()` runs ahead of the asset path because both filenames match the asset extension test.
+
+`Content-Signal: search=yes, ai-input=yes` on the generated files. `ai-input` governs retrieval and grounding for generative answers, which is what earns a citation; `ai-train` is a separate rights question that affects neither and is left unspecified, granting and restricting nothing.
+
 ## Offline games
 
 Several games previously installed service workers and cached enough files to run offline. No online ban system can revoke files that somebody already downloaded. Document navigations and protected APIs are identity-gated, while ordinary static assets are cached without a D1 lookup so game startup does not perform hundreds of database writes. Guarded HTML receives the already-verified status from the Worker and loads `/_guard/client.js` without a second render-blocking status request.

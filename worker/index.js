@@ -47,6 +47,8 @@ const GAMES = {
     description: "A free competitive block-stacking game with modern mechanics, online versus multiplayer, CPU battles, replays and a global leaderboard.",
     genre: ["Puzzle", "Action"],
     image: "topout.png",
+    imageWidth: 1000,
+    imageHeight: 525,
     origin: "original",
   },
   "defenders.andrenijman.com": {
@@ -54,6 +56,8 @@ const GAMES = {
     description: "A free, original fan-made lane-defense tower defense game: five worlds, 40 levels, boss fights, endless mode, installable as a PWA.",
     genre: ["Tower defense", "Strategy"],
     image: "defenders.png",
+    imageWidth: 1000,
+    imageHeight: 525,
     origin: "original",
   },
   "overpop.andrenijman.com": {
@@ -61,6 +65,8 @@ const GAMES = {
     description: "A free, original round-based tower defense game: 25 woodland-critter towers with three-branch upgrade trees, 100 rounds, 16 maps, levelling heroes, paragons and eleven game modes. Installable as a PWA and playable offline.",
     genre: ["Tower defense", "Strategy"],
     image: "overpop.png",
+    imageWidth: 1000,
+    imageHeight: 525,
     origin: "original",
   },
   "wildbound.andrenijman.com": {
@@ -68,6 +74,8 @@ const GAMES = {
     description: "A free multiplayer survival game with gathering, age upgrades, base building, rotating seasons, bosses, CPU rivals and 60 tameable companion species.",
     genre: ["Survival", "Action", "Multiplayer"],
     image: "wildbound.png",
+    imageWidth: 1000,
+    imageHeight: 525,
     origin: "original",
   },
   "tree.andrenijman.com": {
@@ -75,6 +83,8 @@ const GAMES = {
     description: "A full-progression procedural browser sandbox with mining, crafting, building, towns, fishing, invasions, events, and bosses through the Moon Lord.",
     genre: ["Sandbox", "Adventure", "Action"],
     image: "tree.png",
+    imageWidth: 1000,
+    imageHeight: 525,
     origin: "original",
   },
   "tung.andrenijman.com": {
@@ -82,6 +92,8 @@ const GAMES = {
     description: "A free first-person raycaster horror game in a single HTML file. Gather six offerings in the dark and carry them home before the call to Subuh, while a drumming creature hunts by sight, sound and your own panic. Originally by tim.",
     genre: ["Horror", "Survival"],
     image: "tung.png",
+    imageWidth: 1000,
+    imageHeight: 525,
     origin: "original",
     // The hub carries this credit visibly on the card and it is the only
     // original-section game that does, so the game's own page must carry it too.
@@ -92,6 +104,8 @@ const GAMES = {
     description: "A free, from-scratch browser roguelike with seeded floors, 732 collectibles, 34 playable characters, alternate paths, 208 enemies and 80 bosses.",
     genre: ["Roguelike", "Action", "Shooter"],
     image: "isuck.png",
+    imageWidth: 1000,
+    imageHeight: 525,
     origin: "original",
   },
   "bop.andrenijman.com": {
@@ -99,6 +113,8 @@ const GAMES = {
     description: "A free browser physics brawler: draft one of three wild abilities every round, squish opponents off floating terrain, online multiplayer for eight, couch play and bots.",
     genre: ["Action", "Fighting", "Multiplayer"],
     image: "bop.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
     origin: "original",
   },
   "slingwreck.andrenijman.com": {
@@ -106,6 +122,8 @@ const GAMES = {
     description: "A free browser slingshot demolition game: fling nine kinds of critter at pig fortresses across a 52-level campaign, with a hand-written rigid-body physics engine and a fortress workshop for building your own.",
     genre: ["Action", "Puzzle", "Physics"],
     image: "slingwreck.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
     origin: "original",
   },
   "fishing.andrenijman.com": {
@@ -113,6 +131,8 @@ const GAMES = {
     description: "A free browser fishing game: click and drag to catch fish, earn cash, and upgrade your gear.",
     genre: ["Casual", "Simulation"],
     image: "tinyfishing_hero.jpg",
+    imageWidth: 1536,
+    imageHeight: 1024,
     origin: "hosted",
   },
   "bigtower.andrenijman.com": {
@@ -120,6 +140,8 @@ const GAMES = {
     description: "A precision platformer where you play as a tiny square ascending a massive tower.",
     genre: ["Action", "Platformer"],
     image: "bigtower_hero.jpg",
+    imageWidth: 1920,
+    imageHeight: 1080,
     origin: "hosted",
   },
   "slope.andrenijman.com": {
@@ -127,6 +149,8 @@ const GAMES = {
     description: "A 3D endless runner: steer a rolling ball down a neon slope that gets faster the longer you survive.",
     genre: ["Endless runner", "Action"],
     image: "slope_hero.webp",
+    imageWidth: 512,
+    imageHeight: 512,
     origin: "hosted",
   },
   "motox3m.andrenijman.com": {
@@ -134,6 +158,8 @@ const GAMES = {
     description: "A physics-based dirt bike racing game: ride stunt-filled obstacle courses against the clock.",
     genre: ["Racing", "Physics"],
     image: "motox3m_hero.jpg",
+    imageWidth: 1280,
+    imageHeight: 720,
     origin: "hosted",
   },
   [MC_HOST]: {
@@ -141,7 +167,11 @@ const GAMES = {
     description: "A persistent shared anarchy survival world where every signed-in player joins the same map using their games.andrenijman.com username, with a private local-world option and consent-based teleport requests.",
     genre: ["Sandbox", "Survival", "Multiplayer"],
     image: "mc.png",
+    imageWidth: 1000,
+    imageHeight: 525,
     origin: "curated",
+    // The one game that needs an account: the username is the in-world name.
+    requiresAccount: true,
   },
 };
 
@@ -1809,11 +1839,24 @@ function gameStructuredData(url, game) {
     applicationCategory: "Game",
     operatingSystem: "Any browser",
     isAccessibleForFree: true,
-    image: `${HUB_ORIGIN}/${game.image}`,
+    inLanguage: "en",
+    image: {
+      "@type": "ImageObject",
+      url: `${HUB_ORIGIN}/${game.image}`,
+      width: game.imageWidth,
+      height: game.imageHeight,
+    },
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD", availability: "https://schema.org/InStock" },
   };
   if (game.origin !== "hosted") {
-    entity.author = { "@type": "Person", name: "Andre Nijman", url: "https://andrenijman.com/" };
+    // Same @id as the Person node on the hub, so all fifteen hostnames resolve
+    // to one author entity rather than fifteen unrelated ones.
+    entity.author = {
+      "@type": "Person",
+      "@id": "https://andrenijman.com/#person",
+      name: "Andre Nijman",
+      url: "https://andrenijman.com/",
+    };
   }
   if (game.credit) entity.creditText = game.credit;
   return [entity, {
@@ -1822,16 +1865,64 @@ function gameStructuredData(url, game) {
       { "@type": "ListItem", position: 1, name: "Games", item: `${HUB_ORIGIN}/` },
       { "@type": "ListItem", position: 2, name: game.name, item: origin },
     ],
+  }, {
+    "@type": "FAQPage",
+    mainEntity: gameFaq(game).map(({ question, answer }) => ({
+      "@type": "Question",
+      name: question,
+      acceptedAnswer: { "@type": "Answer", text: answer },
+    })),
   }].map((node) => Object.assign({ "@context": "https://schema.org" }, node));
 }
 
-// Three other games, chosen deterministically from this game's position so the
-// links are stable per host rather than reshuffling on every request.
-function relatedGames(hostname) {
-  const hosts = Object.keys(GAMES).filter((host) => host !== hostname);
-  const start = Object.keys(GAMES).indexOf(hostname);
-  return hosts.slice(start % hosts.length).concat(hosts).slice(0, 3)
-    .map((host) => ({ host, name: GAMES[host].name }));
+// Every other game, not a rotating sample of three. Fourteen hostnames each
+// build authority from zero and every link between them is cross-domain, so a
+// full mesh is the cheapest way to stop that being wasted. Grouped because the
+// hosted games must stay visibly separate from the originals.
+function otherGames(hostname) {
+  const pick = (origin) => Object.entries(GAMES)
+    .filter(([host, game]) => host !== hostname && game.origin === origin)
+    .map(([host, game]) => ({ host, name: game.name }));
+  return [
+    { heading: "More games made by Andre Nijman", games: pick("original").concat(pick("curated")) },
+    { heading: "Also hosted here", games: pick("hosted") },
+  ].filter((group) => group.games.length);
+}
+
+// Every answer restates a fact already on the hub — free to play, runs in the
+// browser, who made it, whether it is multiplayer. Nothing about controls or
+// gameplay is asserted, because that would mean inventing detail no source
+// here confirms. Questions are the ones an assistant is actually asked, and
+// authorship is the one it is most likely to get wrong.
+function gameFaq(game) {
+  const entries = [
+    [`Is ${game.name} free to play?`,
+      `Yes. ${game.name} is free to play in a web browser with nothing to pay.`],
+    [`Do I need to download or install ${game.name}?`,
+      `No. ${game.name} runs in the browser, so there is nothing to download.`],
+  ];
+  entries.push([`Do I need an account to play ${game.name}?`,
+    game.requiresAccount
+      ? `Yes. ${game.name} uses a games.andrenijman.com account, because the account username is your name inside the shared world.`
+      : `No. ${game.name} can be played without creating an account.`]);
+  if (game.genre.includes("Multiplayer")) {
+    entries.push([`Does ${game.name} have multiplayer?`,
+      `Yes. ${game.name} supports online multiplayer.`]);
+  }
+  entries.push([`Who made ${game.name}?`, gameAuthorAnswer(game)]);
+  return entries.map(([question, answer]) => ({ question, answer }));
+}
+
+function gameAuthorAnswer(game) {
+  if (game.origin === "hosted") {
+    return `${game.name} was not made by Andre Nijman. It is hosted on games.andrenijman.com for convenience, and credit belongs to its original developer.`;
+  }
+  if (game.origin === "curated") {
+    return `${game.name} is an open-source client curated and hosted by Andre Nijman.`;
+  }
+  return game.credit
+    ? `${game.name} was made by Andre Nijman, ${game.credit}.`
+    : `${game.name} was made by Andre Nijman.`;
 }
 
 function gameFramePage(url, game) {
@@ -1846,6 +1937,16 @@ function gameFramePage(url, game) {
     : game.description;
   const pageTitle = `${game.name} — free browser ${game.genre[0] ? game.genre[0].toLowerCase() : "game"} game`;
   const image = `${HUB_ORIGIN}/${game.image}`;
+  // Only the root path is the game. Every other path on the host used to return
+  // this same page with a 200, which is an unbounded supply of duplicate URLs
+  // for a crawler and a broken game for a visitor, because the iframe then
+  // points at a subpath upstream does not have. Those paths stay out of the
+  // index, and carry no canonical: noindex already settles where they belong,
+  // and pairing the two sends a crawler contradictory instructions.
+  const isRoot = url.pathname === "/" || url.pathname === "/index.html";
+  const indexing = isRoot
+    ? `<link rel="canonical" href="${escapeHtml(canonical)}">`
+    : `<meta name="robots" content="noindex,follow">`;
   return new Response(`<!doctype html>
 <html lang="en">
 <head>
@@ -1854,13 +1955,16 @@ function gameFramePage(url, game) {
   <meta name="theme-color" content="#141110">
   <title>${escapeHtml(pageTitle)} | Andre Nijman</title>
   <meta name="description" content="${escapeHtml(summary)}">
-  <link rel="canonical" href="${escapeHtml(canonical)}">
+  ${indexing}
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Games by Andre Nijman">
   <meta property="og:title" content="${escapeHtml(pageTitle)}">
   <meta property="og:description" content="${escapeHtml(summary)}">
   <meta property="og:url" content="${escapeHtml(canonical)}">
   <meta property="og:image" content="${escapeHtml(image)}">
+  <meta property="og:image:width" content="${game.imageWidth}">
+  <meta property="og:image:height" content="${game.imageHeight}">
+  <meta property="og:image:alt" content="${escapeHtml(`${game.name} gameplay`)}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${escapeHtml(pageTitle)}">
   <meta name="twitter:description" content="${escapeHtml(summary)}">
@@ -1887,6 +1991,9 @@ function gameFramePage(url, game) {
     .game-about p{margin:0 0 20px;color:var(--ink);font-size:14px;line-height:1.65}
     .game-about .credit{color:var(--muted);font-size:12px}
     .game-about h3{margin:32px 0 10px;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+    .faq{margin:0}
+    .faq dt{margin:16px 0 5px;color:var(--ink);font-size:13px;font-weight:400}
+    .faq dd{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
     .game-about ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:10px}
     .game-about li a{display:inline-block;padding:7px 12px;border:1px solid var(--line);color:var(--ink);font-size:12px;text-decoration:none}
     .game-about li a:hover,.game-about li a:focus-visible{border-color:var(--accent);color:var(--accent)}
@@ -1911,9 +2018,12 @@ function gameFramePage(url, game) {
     <p class="genre">${escapeHtml(genreLine)}</p>
     <p>${escapeHtml(game.description)}</p>
     <p class="credit">Free to play in the browser, nothing to download. ${escapeHtml(gameCredit(game).replace(/^./, (c) => c.toUpperCase()))}.</p>
-    <h3>More games</h3>
-    <ul>${relatedGames(url.hostname).map((other) =>
-      `<li><a href="https://${other.host}/">${escapeHtml(other.name)}</a></li>`).join("")}</ul>
+    <h3>Questions</h3>
+    <dl class="faq">${gameFaq(game).map(({ question, answer }) =>
+      `<dt>${escapeHtml(question)}</dt><dd>${escapeHtml(answer)}</dd>`).join("")}</dl>
+    ${otherGames(url.hostname).map((group) => `<h3>${escapeHtml(group.heading)}</h3>
+    <ul>${group.games.map((other) =>
+      `<li><a href="https://${other.host}/">${escapeHtml(other.name)}</a></li>`).join("")}</ul>`).join("\n    ")}
   </section>
 </body>
 </html>`, {
