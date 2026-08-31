@@ -688,8 +688,26 @@ const CRAWLERS = [
   { re: /java\/|okhttp|go-http|axios|dalvik|guzzle|postman|insomnia/i, name: "HTTP client", kind: "tool" },
 ];
 
+// The console classifies every loaded device several times per render — tab
+// count, view filter, search and row — and ADMIN_ROW_WINDOW is 25000. Agent
+// strings repeat heavily, so memoising by string turns that back into one walk
+// of the table per distinct agent. Results are shared and must be treated as
+// read-only. Cleared wholesale at the cap so a stream of unique agents cannot
+// grow the isolate without bound.
+const AGENT_CACHE = new Map();
+const AGENT_CACHE_MAX = 2000;
+
 function classifyAgent(userAgent) {
   const ua = String(userAgent || "");
+  const cached = AGENT_CACHE.get(ua);
+  if (cached) return cached;
+  const result = classifyAgentUncached(ua);
+  if (AGENT_CACHE.size >= AGENT_CACHE_MAX) AGENT_CACHE.clear();
+  AGENT_CACHE.set(ua, result);
+  return result;
+}
+
+function classifyAgentUncached(ua) {
   if (!ua) return { bot: true, name: "No user agent", kind: "other" };
   for (const entry of CRAWLERS) {
     if (entry.re.test(ua)) return { bot: true, name: entry.name, kind: entry.kind, asn: entry.asn };
