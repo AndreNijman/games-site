@@ -27,10 +27,6 @@ const HOSTS = new Set([
   "isaac.andrenijman.com",
   "bop.andrenijman.com",
   "slingwreck.andrenijman.com",
-  "fishing.andrenijman.com",
-  "bigtower.andrenijman.com",
-  "slope.andrenijman.com",
-  "motox3m.andrenijman.com",
   MC_HOST,
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
@@ -125,42 +121,6 @@ const GAMES = {
     imageWidth: 2000,
     imageHeight: 1050,
     origin: "original",
-  },
-  "fishing.andrenijman.com": {
-    name: "Tiny Fishing",
-    description: "A free browser fishing game: click and drag to catch fish, earn cash, and upgrade your gear.",
-    genre: ["Casual", "Simulation"],
-    image: "tinyfishing_hero.jpg",
-    imageWidth: 1536,
-    imageHeight: 1024,
-    origin: "hosted",
-  },
-  "bigtower.andrenijman.com": {
-    name: "Big Tower Tiny Square",
-    description: "A precision platformer where you play as a tiny square ascending a massive tower.",
-    genre: ["Action", "Platformer"],
-    image: "bigtower_hero.jpg",
-    imageWidth: 1920,
-    imageHeight: 1080,
-    origin: "hosted",
-  },
-  "slope.andrenijman.com": {
-    name: "Slope",
-    description: "A 3D endless runner: steer a rolling ball down a neon slope that gets faster the longer you survive.",
-    genre: ["Endless runner", "Action"],
-    image: "slope_hero.webp",
-    imageWidth: 512,
-    imageHeight: 512,
-    origin: "hosted",
-  },
-  "motox3m.andrenijman.com": {
-    name: "Moto X3M",
-    description: "A physics-based dirt bike racing game: ride stunt-filled obstacle courses against the clock.",
-    genre: ["Racing", "Physics"],
-    image: "motox3m_hero.jpg",
-    imageWidth: 1280,
-    imageHeight: 720,
-    origin: "hosted",
   },
   [MC_HOST]: {
     name: "ONE WORLD",
@@ -407,30 +367,6 @@ function upstreamTarget(source, path) {
   if (source.hostname === MC_HOST) {
     const upstream = new URL(MC_PAGES_ORIGIN);
     upstream.pathname = `${MC_PAGES_BASE}${target.pathname}`;
-    upstream.search = target.search;
-    return upstream;
-  }
-  if (source.hostname === "fishing.andrenijman.com") {
-    const upstream = new URL("https://games.andrenijman.com");
-    upstream.pathname = `/tinyfishing${target.pathname === "/" ? "/index.html" : target.pathname}`;
-    upstream.search = target.search;
-    return upstream;
-  }
-  if (source.hostname === "bigtower.andrenijman.com") {
-    const upstream = new URL("https://games.andrenijman.com");
-    upstream.pathname = `/bigtower${target.pathname === "/" ? "/index.html" : target.pathname}`;
-    upstream.search = target.search;
-    return upstream;
-  }
-  if (source.hostname === "slope.andrenijman.com") {
-    const upstream = new URL("https://games.andrenijman.com");
-    upstream.pathname = `/slope${target.pathname === "/" ? "/index.html" : target.pathname}`;
-    upstream.search = target.search;
-    return upstream;
-  }
-  if (source.hostname === "motox3m.andrenijman.com") {
-    const upstream = new URL("https://games.andrenijman.com");
-    upstream.pathname = `/motox3m${target.pathname === "/" ? "/index.html" : target.pathname}`;
     upstream.search = target.search;
     return upstream;
   }
@@ -1714,25 +1650,15 @@ function shell(title, content, status = 200) {
   });
 }
 
-// These six hosts ship no robots.txt of their own, so Cloudflare answers with
-// its managed default: no rules, and no sitemap pointer either. The other nine
+// These three hosts ship no robots.txt of their own, so Cloudflare answers with
+// its managed default: no rules, and no sitemap pointer either. The other eight
 // serve real files from their own repositories and are deliberately NOT handled
 // here — shadowing them would silently override a file edited elsewhere, and
 // topout's `Disallow: /server/` would be the first casualty.
 const GENERATED_CRAWLER_FILES = new Set([
   "wildbound.andrenijman.com",
   "tung.andrenijman.com",
-  "fishing.andrenijman.com",
-  "slope.andrenijman.com",
-  "motox3m.andrenijman.com",
   MC_HOST,
-  // bigtower is the one exception to leaving upstream files alone. Its own
-  // robots.txt was audited and contains exactly "User-agent: *" and "Allow: /"
-  // — the same rules generated here — while declaring no sitemap, and its
-  // /sitemap.xml returns 404, so it had neither. Nothing is lost by generating
-  // both. If rules are ever added to that repository's robots.txt, remove this
-  // entry or they will be silently shadowed.
-  "bigtower.andrenijman.com",
 ]);
 
 function crawlerFileResponse(url) {
@@ -1783,8 +1709,9 @@ function sitemapXml(host) {
 
 // An assistant reading this should be able to answer "what is on this site and
 // who made it" without executing the games. The origin split is stated because
-// it is the fact most likely to be got wrong: four of these are hosted, not
-// written here, and summarising them as Andre's work would be inaccurate.
+// it is the fact most likely to be got wrong: one of these is a curated
+// open-source client, not written here, and calling it Andre's work would be
+// inaccurate. Everything else on the site is his.
 function llmsTxt() {
   const section = (origin) => Object.entries(GAMES)
     .filter(([, game]) => game.origin === origin)
@@ -1803,13 +1730,6 @@ ${section("original")}
 
 ${section("curated")}
 
-## Hosted games, NOT made by Andre Nijman
-
-These are hosted on the site for convenience. Andre Nijman is not the author and
-should not be credited as such.
-
-${section("hosted")}
-
 ## Notes
 
 - Author of the original games: Andre Nijman, ${"https://andrenijman.com/"}
@@ -1825,12 +1745,11 @@ function jsonLd(data) {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
 
-// Attribution follows GAMES.origin. The hub says the hosted games are not
-// Andre's work, so those pages credit the hub as host only and their structured
-// data carries no author. Claiming otherwise would be false on four live pages.
+// Attribution follows GAMES.origin. The curated client is upstream open source,
+// so its page credits curation rather than authorship and its structured data
+// names the upstream projects in isBasedOn. Claiming authorship would be false.
 function gameCredit(game) {
   if (game.origin === "curated") return "open-source client curated by Andre Nijman";
-  if (game.origin === "hosted") return "hosted by Andre Nijman, not made by him";
   return game.credit ? `game made by Andre Nijman, ${game.credit}` : "game made by Andre Nijman";
 }
 
@@ -1856,8 +1775,8 @@ function gameStructuredData(url, game) {
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD", availability: "https://schema.org/InStock" },
   };
   if (game.origin !== "hosted") {
-    // Same @id as the Person node on the hub, so all fifteen hostnames resolve
-    // to one author entity rather than fifteen unrelated ones.
+    // Same @id as the Person node on the hub, so all eleven hostnames resolve
+    // to one author entity rather than eleven unrelated ones.
     entity.author = {
       "@type": "Person",
       "@id": "https://andrenijman.com/#person",
@@ -1882,17 +1801,15 @@ function gameStructuredData(url, game) {
   }].map((node) => Object.assign({ "@context": "https://schema.org" }, node));
 }
 
-// Every other game, not a rotating sample of three. Fourteen hostnames each
-// build authority from zero and every link between them is cross-domain, so a
-// full mesh is the cheapest way to stop that being wasted. Grouped because the
-// hosted games must stay visibly separate from the originals.
+// Every other game, not a rotating sample of three. Ten hostnames each build
+// authority from zero and every link between them is cross-domain, so a full
+// mesh is the cheapest way to stop that being wasted.
 function otherGames(hostname) {
   const pick = (origin) => Object.entries(GAMES)
     .filter(([host, game]) => host !== hostname && game.origin === origin)
     .map(([host, game]) => ({ host, name: game.name }));
   return [
     { heading: "More games made by Andre Nijman", games: pick("original").concat(pick("curated")) },
-    { heading: "Also hosted here", games: pick("hosted") },
   ].filter((group) => group.games.length);
 }
 
@@ -1921,9 +1838,6 @@ function gameFaq(game) {
 }
 
 function gameAuthorAnswer(game) {
-  if (game.origin === "hosted") {
-    return `${game.name} was not made by Andre Nijman. It is hosted on games.andrenijman.com for convenience, and credit belongs to its original developer.`;
-  }
   if (game.origin === "curated") {
     return `${game.name} is an open-source client curated and hosted by Andre Nijman.`;
   }

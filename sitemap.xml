@@ -3,18 +3,18 @@
   Cross-host submission. Every hostname below is a subdomain of andrenijman.com
   under the same ownership, which is what makes listing them in one sitemap
   valid; Search Console additionally requires each host to be verified there.
-  Listing them here gives crawlers a single entry point to all fourteen games
+  Listing them here gives crawlers a single entry point to all ten games
   rather than relying on them following links from the hub, which is how
   Baiduspider reached OVERPOP while the rest went undiscovered.
 
-  All fifteen hosts declare their own sitemap in their own robots.txt: eight
+  All eleven hosts declare their own sitemap in their own robots.txt: eight
   serve that file from their own repository, and the Worker generates it for the
-  seven that had none.
+  three that had none.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://games.andrenijman.com/</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
@@ -69,26 +69,5 @@
     <lastmod>2026-08-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
-  </url>
-
-  <url>
-    <loc>https://fishing.andrenijman.com/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://bigtower.andrenijman.com/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://slope.andrenijman.com/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://motox3m.andrenijman.com/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
   </url>
 </urlset>
