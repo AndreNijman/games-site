@@ -1856,7 +1856,7 @@ function gameFramePage(url, game) {
   const summary = game.description.length > 158
     ? `${game.description.slice(0, 155).replace(/[\s,;:]+\S*$/, "")}…`
     : game.description;
-  const pageTitle = `${game.name} — free browser ${game.genre[0] ? game.genre[0].toLowerCase() : "game"} game`;
+  const pageTitle = `${game.name} · free browser ${game.genre[0] ? game.genre[0].toLowerCase() : "game"} game`;
   const image = `${HUB_ORIGIN}/${game.image}`;
   // Only the root path is the game. Every other path on the host used to return
   // this same page with a 200, which is an unbounded supply of duplicate URLs
