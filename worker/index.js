@@ -27,6 +27,7 @@ const HOSTS = new Set([
   "isaac.andrenijman.com",
   "bop.andrenijman.com",
   "slingwreck.andrenijman.com",
+  "bladehymn.andrenijman.com",
   MC_HOST,
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
@@ -121,6 +122,21 @@ const GAMES = {
     imageWidth: 2000,
     imageHeight: 1050,
     origin: "original",
+  },
+  "bladehymn.andrenijman.com": {
+    name: "Blade Hymn",
+    description: "A free sword-fighting platformer made by Eason: three hand-crafted stages, three bosses, dash combos and per-stage speedrun leaderboards.",
+    genre: ["Platformer", "Action"],
+    image: "bladehymn.png",
+    imageWidth: 1000,
+    imageHeight: 525,
+    origin: "original",
+    // The whole game is Eason's work; the hub and the game's own page both
+    // carry that credit visibly. `author` overrides the default Andre
+    // authorship everywhere it is generated (JSON-LD, llms.txt, FAQ,
+    // cross-links).
+    credit: "made by Eason",
+    author: { name: "Eason", url: "https://github.com/Eason-F" },
   },
   [MC_HOST]: {
     name: "ONE WORLD",
@@ -270,6 +286,7 @@ async function handleGuardRoute(request, env, url) {
   if (url.pathname === "/_guard/tung-lobbies") return tungLobbies(request, env, url, identity);
   if (url.pathname === "/_guard/tung-ws") return tungSocket(request, env, url, identity);
   if (url.pathname === "/_guard/bop-lobbies") return bopLobbies(request, url, identity);
+  if (url.pathname === "/_guard/bladehymn-runs") return bladeHymnRuns(request, env, url, identity);
   if (url.pathname.startsWith("/_guard/admin")) {
     return withCookies(await handleAdmin(request, env, url), identity.cookies);
   }
@@ -437,6 +454,96 @@ async function contentVersion(request, url) {
   return Response.json({ version }, {
     headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
   });
+}
+
+// Blade Hymn per-stage speedrun board, backed by D1. One best row per
+// submitter per stage: signed-in players key on their account so multiple
+// devices collapse into one entry, signed-out players on their device cookie.
+// Times are client-measured, so this keeps honest-ish company rather than
+// being an anti-cheat boundary: bounds exist only to reject garbage.
+const BLADEHYMN_HOST = "bladehymn.andrenijman.com";
+const BLADEHYMN_LEVELS = new Set(["spring", "winter", "desert"]);
+const BLADEHYMN_MIN_MS = 15000;   // no stage is plausibly faster
+const BLADEHYMN_MAX_MS = 7200000; // two hours
+
+async function bladeHymnRuns(request, env, url, identity) {
+  if (url.hostname !== BLADEHYMN_HOST) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  if (request.method === "GET") {
+    const level = url.searchParams.get("level") || "";
+    if (!BLADEHYMN_LEVELS.has(level)) {
+      return Response.json({ error: "unknown level" }, { status: 400, headers: { "Cache-Control": "no-store" } });
+    }
+    const result = await env.DB.prepare(`
+      SELECT name, ms, created_at FROM blade_hymn_runs
+      WHERE level = ? ORDER BY ms ASC, created_at ASC LIMIT 20
+    `).bind(level).all();
+    const runs = (result.results || []).map((row) => ({
+      name: row.name,
+      ms: Number(row.ms),
+      createdAt: row.created_at,
+    }));
+    return withCookies(Response.json({ runs }, { headers: { "Cache-Control": "no-store" } }), identity.cookies);
+  }
+
+  if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  let body;
+  try { body = await request.json(); } catch { return Response.json({ error: "invalid body" }, { status: 400 }); }
+  const level = String(body.level || "");
+  const ms = Math.floor(Number(body.ms));
+  if (!BLADEHYMN_LEVELS.has(level)) {
+    return Response.json({ error: "unknown level" }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!Number.isFinite(ms) || ms < BLADEHYMN_MIN_MS || ms > BLADEHYMN_MAX_MS) {
+    return Response.json({ error: "implausible run time" }, { status: 422, headers: { "Cache-Control": "no-store" } });
+  }
+
+  const accountId = identity.account ? identity.account.id : null;
+  let name = "";
+  if (identity.account) {
+    name = String(identity.account.username);
+  } else {
+    name = cleanText(body.name, 16);
+    if (!name) name = "runner";
+  }
+
+  let existing;
+  if (accountId != null) {
+    existing = await env.DB.prepare(`
+      SELECT id, ms FROM blade_hymn_runs WHERE level = ? AND account_id = ? LIMIT 1
+    `).bind(level, accountId).first();
+  } else {
+    existing = await env.DB.prepare(`
+      SELECT id, ms FROM blade_hymn_runs WHERE level = ? AND account_id IS NULL AND device_id = ? LIMIT 1
+    `).bind(level, identity.deviceId).first();
+  }
+
+  let saved = ms;
+  let improved = true;
+  if (existing && ms >= Number(existing.ms)) {
+    improved = false;
+    saved = Number(existing.ms);
+  } else if (existing) {
+    await env.DB.prepare(`
+      UPDATE blade_hymn_runs SET ms = ?, name = ?, device_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).bind(ms, name, identity.deviceId, existing.id).run();
+  } else {
+    await env.DB.prepare(`
+      INSERT INTO blade_hymn_runs (level, account_id, device_id, name, ms) VALUES (?, ?, ?, ?, ?)
+    `).bind(level, accountId, identity.deviceId, name, ms).run();
+  }
+
+  const rankRow = await env.DB.prepare(`
+    SELECT COUNT(*) AS better FROM blade_hymn_runs WHERE level = ? AND ms < ?
+  `).bind(level, saved).first();
+  return withCookies(Response.json({
+    ok: true,
+    improved,
+    best: saved,
+    rank: Number(rankRow?.better || 0) + 1,
+  }, { headers: { "Cache-Control": "no-store" } }), identity.cookies);
 }
 
 // Same-origin proxy for the BOP lobby directory. The relay lives on a
@@ -1713,11 +1820,11 @@ function sitemapXml(host) {
 // open-source client, not written here, and calling it Andre's work would be
 // inaccurate. Everything else on the site is his.
 function llmsTxt() {
-  const section = (origin) => Object.entries(GAMES)
-    .filter(([, game]) => game.origin === origin)
+  const section = (origin, requireOwnAuthor = false) => Object.entries(GAMES)
+    .filter(([host, game]) => game.origin === origin && (requireOwnAuthor ? Boolean(game.author) : !game.author))
     .map(([host, game]) => `- [${game.name}](https://${host}/): ${game.description} Genres: ${game.genre.join(", ")}.`)
     .join("\n");
-  return crawlerText(`# Games by Andre Nijman
+  return crawlerText(`# Games at ${HUB_ORIGIN}
 
 > Free browser games at ${HUB_ORIGIN}. Every game runs in the browser with
 > nothing to download and no payment. Each game lives on its own subdomain.
@@ -1726,6 +1833,10 @@ function llmsTxt() {
 
 ${section("original")}
 
+## Guest games hosted with credit
+
+${section("original", true)}
+
 ## Curated open-source client
 
 ${section("curated")}
@@ -1733,6 +1844,8 @@ ${section("curated")}
 ## Notes
 
 - Author of the original games: Andre Nijman, ${"https://andrenijman.com/"}
+- Guest games are the work of their credited authors; Blade Hymn is made by
+  Eason, https://github.com/Eason-F
 - All games are free and require no account, except ONE WORLD, which uses a
   site account as the in-world player name.
 - Canonical hub page: ${HUB_ORIGIN}/
@@ -1775,14 +1888,24 @@ function gameStructuredData(url, game) {
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD", availability: "https://schema.org/InStock" },
   };
   if (game.origin !== "hosted") {
-    // Same @id as the Person node on the hub, so all eleven hostnames resolve
-    // to one author entity rather than eleven unrelated ones.
-    entity.author = {
-      "@type": "Person",
-      "@id": "https://andrenijman.com/#person",
-      name: "Andre Nijman",
-      url: "https://andrenijman.com/",
-    };
+    if (game.author) {
+      // A guest author owns this game; never resolve them onto Andre's
+      // person node.
+      entity.author = {
+        "@type": "Person",
+        name: game.author.name,
+        ...(game.author.url ? { url: game.author.url } : {}),
+      };
+    } else {
+      // Same @id as the Person node on the hub, so all eleven hostnames resolve
+      // to one author entity rather than eleven unrelated ones.
+      entity.author = {
+        "@type": "Person",
+        "@id": "https://andrenijman.com/#person",
+        name: "Andre Nijman",
+        url: "https://andrenijman.com/",
+      };
+    }
   }
   if (game.credit) entity.creditText = game.credit;
   return [entity, {
@@ -1803,14 +1926,25 @@ function gameStructuredData(url, game) {
 
 // Every other game, not a rotating sample of three. Ten hostnames each build
 // authority from zero and every link between them is cross-domain, so a full
-// mesh is the cheapest way to stop that being wasted.
+// mesh is the cheapest way to stop that being wasted. Guest-authored games
+// (Blade Hymn by Eason) get their own honest heading rather than sitting under
+// Andre's byline.
 function otherGames(hostname) {
   const pick = (origin) => Object.entries(GAMES)
     .filter(([host, game]) => host !== hostname && game.origin === origin)
     .map(([host, game]) => ({ host, name: game.name }));
-  return [
-    { heading: "More games made by Andre Nijman", games: pick("original").concat(pick("curated")) },
-  ].filter((group) => group.games.length);
+  const groups = [
+    {
+      heading: "More games made by Andre Nijman",
+      games: pick("original").concat(pick("curated"))
+        .filter((game) => !GAMES[game.host].author),
+    },
+    {
+      heading: "More games hosted here",
+      games: pick("original").filter((game) => GAMES[game.host].author),
+    },
+  ];
+  return groups.filter((group) => group.games.length);
 }
 
 // Every answer restates a fact already on the hub — free to play, runs in the
@@ -1838,6 +1972,11 @@ function gameFaq(game) {
 }
 
 function gameAuthorAnswer(game) {
+  if (game.author) {
+    return game.author.url
+      ? `${game.name} was made by ${game.author.name} (${game.author.url}) and is hosted here with credit.`
+      : `${game.name} was made by ${game.author.name} and is hosted here with credit.`;
+  }
   if (game.origin === "curated") {
     return `${game.name} is an open-source client curated and hosted by Andre Nijman.`;
   }
