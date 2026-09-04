@@ -80,8 +80,23 @@ CREATE TABLE game_saves (
   PRIMARY KEY (account_id, game, save_id)
 );
 
+-- Blade Hymn per-stage speedrun times; one best row per submitter per stage
+-- (account-keyed when signed in, device-keyed otherwise). See
+-- migrations/2026-09-04-blade-hymn-runs.sql.
+CREATE TABLE blade_hymn_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  level TEXT NOT NULL,
+  account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
+  device_id TEXT,
+  name TEXT NOT NULL,
+  ms INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX devices_account_id ON devices(account_id);
 CREATE INDEX devices_last_seen_at ON devices(last_seen_at DESC);
 CREATE INDEX sessions_account_id ON sessions(account_id);
 CREATE INDEX sessions_expires_at ON sessions(expires_at);
 CREATE INDEX device_aliases_device_id ON device_aliases(device_id);
+CREATE INDEX blade_hymn_runs_level_ms ON blade_hymn_runs(level, ms);

@@ -3,11 +3,11 @@
   Cross-host submission. Every hostname below is a subdomain of andrenijman.com
   under the same ownership, which is what makes listing them in one sitemap
   valid; Search Console additionally requires each host to be verified there.
-  Listing them here gives crawlers a single entry point to all ten games
+  Listing them here gives crawlers a single entry point to all eleven games
   rather than relying on them following links from the hub, which is how
   Baiduspider reached OVERPOP while the rest went undiscovered.
 
-  All eleven hosts declare their own sitemap in their own robots.txt: eight
+  All twelve hosts declare their own sitemap in their own robots.txt: nine
   serve that file from their own repository, and the Worker generates it for the
   three that had none.
 -->
@@ -61,6 +61,11 @@
   </url>
   <url>
     <loc>https://slingwreck.andrenijman.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://bladehymn.andrenijman.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
