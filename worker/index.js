@@ -1863,7 +1863,9 @@ function jsonLd(data) {
 // names the upstream projects in isBasedOn. Claiming authorship would be false.
 function gameCredit(game) {
   if (game.origin === "curated") return "open-source client curated by Andre Nijman";
-  return game.credit ? `game made by Andre Nijman, ${game.credit}` : "game made by Andre Nijman";
+  return game.author
+    ? `game made by ${game.author.name}, hosted by Andre Nijman`
+    : game.credit ? `game made by Andre Nijman, ${game.credit}` : "game made by Andre Nijman";
 }
 
 function gameStructuredData(url, game) {
