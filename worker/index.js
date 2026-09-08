@@ -28,6 +28,7 @@ const HOSTS = new Set([
   "bop.andrenijman.com",
   "slingwreck.andrenijman.com",
   "bladehymn.andrenijman.com",
+  "celeste.andrenijman.com",
   MC_HOST,
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
@@ -137,6 +138,17 @@ const GAMES = {
     // cross-links).
     credit: "made by Eason",
     author: { name: "Eason", url: "https://github.com/Eason-F" },
+  },
+  "celeste.andrenijman.com": {
+    name: "Celeste",
+    description: "A free browser platformer homage: 46 curated rooms across 14 chapters, precision physics, dashes, wall climbing, collectibles, achievements, and synthesized WebAudio.",
+    genre: ["Platformer", "Precision", "Action"],
+    image: "celeste.png",
+    imageWidth: 1000,
+    imageHeight: 525,
+    origin: "original",
+    credit: "homage to Maddy Makes Games",
+    author: { name: "Maddy Makes Games (homage)", url: "https://www.celestegame.com" },
   },
   [MC_HOST]: {
     name: "ONE WORLD",
