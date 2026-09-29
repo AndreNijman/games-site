@@ -25,5 +25,29 @@
       "database_name": "games-guard",
       "database_id": "70dd6bf0-302b-4800-88dc-9fbd814e1157"
     }
-  ]
+  ],
+  // What rime-secretd deploys: `rime secret use cloudflare
+  // cloudflare.wrangler.deploy games-guard` runs `wrangler deploy --env
+  // production`. The same Worker, not a games-guard-production beside it, so
+  // it keeps its secrets and the routes above that already point at it.
+  // routes is emptied on purpose (an environment would otherwise inherit it):
+  // the broker's token cannot read the andrenijman.com zone's Worker routes,
+  // and wrangler only touches the routes it is given, so these stay as they
+  // are. Change a route with a plain `npm run deploy`. d1_databases is
+  // repeated because wrangler does not carry bindings into an environment.
+  "env": {
+    "production": {
+      "name": "games-guard",
+      "routes": [],
+      "workers_dev": false,
+      "preview_urls": false,
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "games-guard",
+          "database_id": "70dd6bf0-302b-4800-88dc-9fbd814e1157"
+        }
+      ]
+    }
+  }
 }
