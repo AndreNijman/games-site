@@ -1,0 +1,45 @@
+/* ─── andrenijman.com design tokens ──────────────────────────────────────────
+ * Shared word for word by andrenijman.com (AndreNijman/portfolio) and
+ * games.andrenijman.com (AndreNijman/games-site), at src/styles/tokens.css in
+ * both, with fonts.css and base.css beside it. Change one, change both.
+ *
+ * Colour: Rime OS's default dark. These are the roles Rime Shell derives from
+ * Rime's default wallpaper (matugen, scheme-content), as published in
+ * rimeos.com's src/data/scenes.json for the scene "rime-default".
+ *
+ * Edges: the border language comes out of Andre's own game art. Every picture
+ * is a sticker with a solid edge and a hard shadow with no blur, the way a
+ * critter in SLINGWRECK is drawn.
+ *
+ * Timing: Rime Shell's motion roles (theme/motion.js), as rimeos.com's
+ * generated motion.css publishes them.
+ * ────────────────────────────────────────────────────────────────────────── */
+:root {
+  --surface-base: #121315;      /* surfaceBase: the page */
+  --surface-raised: #1c1d1f;    /* surfaceRaised: cards, panels, the band */
+  --surface-selected: #2c3037;  /* surfaceSelected: the count strip, callouts */
+  --text-primary: #e3e2e5;      /* textPrimary */
+  --text-secondary: #a8a8ab;    /* textSecondary */
+  --outline-strong: #444547;    /* outlineStrong: every sticker's edge and shadow */
+  --accent: #b2c8ec;            /* accent: the one colour that is not a surface */
+  --on-accent: #121315;         /* surfaceOnSelected: text on the accent */
+
+  --edge: 2.5px solid var(--outline-strong);
+  --shadow: 5px 5px 0 var(--outline-strong);
+  --shadow-sm: 3px 3px 0 var(--outline-strong);
+
+  --display: "Fraunces", Georgia, serif;
+  --body: "Hanken Grotesk", system-ui, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  /* the soft, slightly odd cut that matches hand-drawn art */
+  --display-cut: "SOFT" 100, "WONK" 1;
+
+  --dur-press: 160ms;           /* a sticker pressing into its shadow */
+  --dur-micro: 140ms;           /* Rime Shell: colour changes on hover */
+  --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  /* paper tooth, barely there */
+  --paper-tooth: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
+
+  color-scheme: dark;
+}

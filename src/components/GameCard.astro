@@ -1,0 +1,22 @@
+---
+// One game: a sticker card with the screenshot, the genres, the name, what
+// it has, and a credit when the game is not only Andre's. Same markup as the
+// gallery on andrenijman.com; the hub opens games in the same tab.
+import type { Game } from "../data/games";
+import { artPath, gameUrl } from "../data/games";
+interface Props { game: Game; eager?: boolean }
+const { game, eager = false } = Astro.props;
+const wide = game.wide === "all" ? "game--wide" : game.wide === "lg" ? "game--wide-lg" : undefined;
+const size = game.wide ? { width: 1000, height: 525 } : { width: 800, height: 420 };
+// A line that wraps never starts with its separator: each · keeps to the word before it.
+const joined = (s: string) => s.replace(/ · /g, "\u00a0· ");
+---
+<a class:list={["game", "sticker", wide]} href={gameUrl(game)} aria-label={game.label}>
+  <img src={artPath(game.image)} width={size.width} height={size.height} loading={eager ? undefined : "lazy"} alt={game.alt} />
+  <div class="game__body">
+    <p class="game__kind">{joined(game.genre.join(" · "))}</p>
+    <h3>{game.name}</h3>
+    <p>{joined(game.meta)}</p>
+    {game.credit && <p class="game__credit">{game.credit}</p>}
+  </div>
+</a>

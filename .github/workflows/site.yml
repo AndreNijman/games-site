@@ -1,0 +1,107 @@
+name: games.andrenijman.com
+
+# Every pull request and every push to main goes through the same gates as
+# andrenijman.com: unit tests, astro check with a syntax check of the Worker,
+# the build and its postbuild gate, then the browser suites in Chromium,
+# Firefox and WebKit. A push to main that passes them is deployed to GitHub
+# Pages. The Worker itself is not deployed from here: npm run deploy.
+#
+# Deploying needs the repository's Pages source set to "GitHub Actions"
+# (Settings → Pages, or: gh api -X PUT repos/AndreNijman/games-site/pages -f build_type=workflow).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  # never cancel a deploy halfway; superseded pull request runs can go
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Type check (astro check, node --check worker/index.js)
+        run: npm run check
+
+      # astro build, then the postbuild gate: every file the old hub served,
+      # the elements and routes the Worker relies on, links, images, JSON-LD.
+      - name: Build
+        run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          include-hidden-files: true
+          retention-days: 3
+
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
+  browsers:
+    name: Browser tests
+    needs: build
+    runs-on: ubuntu-latest
+    # The Playwright release the lockfile pins, with its three browsers and
+    # their system libraries. --user 1001: Firefox refuses to run as root
+    # under another user's HOME.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --user 1001
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Playwright
+        run: npx playwright test --reporter=line
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build, browsers]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

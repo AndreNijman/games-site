@@ -1,0 +1,25 @@
+---
+// The bar across the top, with the account controls. Both halves of the
+// account start hidden; the script at the end of the page shows one of them
+// from the games-guard status the Worker put in <head>. The ids, the logout
+// form and the login link's return parameter are what the Worker's /_guard/
+// routes expect.
+---
+<header class="site-header">
+  <div class="wrap">
+    <nav class="nav" aria-label="Primary">
+      <a class="brand" href="https://andrenijman.com"><span class="brand__mark" aria-hidden="true">▶</span><span>Andre Nijman <span class="brand__sub">/ Games</span></span></a>
+      <div class="nav-right">
+        <span class="account" id="account" hidden>
+          <span><span class="account-label">signed in as </span><span class="account-name" id="account-name"></span></span>
+          <form class="logout-form" method="post" action="/_guard/logout">
+            <input type="hidden" name="return" value="https://games.andrenijman.com/" />
+            <button class="nav-link" type="submit">log out</button>
+          </form>
+        </span>
+        <a class="nav-link" id="nav-signin" href="/_guard/login?return=https%3A%2F%2Fgames.andrenijman.com%2F" hidden>sign in</a>
+        <a class="nav-link" href="https://andrenijman.com">← portfolio</a>
+      </div>
+    </nav>
+  </div>
+</header>

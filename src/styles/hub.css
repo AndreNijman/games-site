@@ -1,0 +1,99 @@
+/* The hub's own pieces on top of kit.css: the header with the account
+ * controls, the three-cell strip, the wide-at-three-columns card, the credit
+ * line and the advertising. */
+
+/* ── header ───────────────────────────────────────────────── */
+/* the bar the build-notes pages on andrenijman.com carry */
+.site-header { border-bottom: var(--edge); background: var(--surface-raised); }
+.nav {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px 18px; flex-wrap: wrap; min-height: 62px;
+}
+.brand {
+  display: inline-flex; align-items: center; gap: 12px; min-height: 44px;
+  font-family: var(--display); font-variation-settings: var(--display-cut);
+  font-weight: 700; font-size: 20px; letter-spacing: -.02em;
+  color: var(--text-primary); text-decoration: none;
+}
+.brand:hover { color: var(--accent); }
+.brand__mark {
+  display: grid; place-items: center; width: 30px; height: 30px;
+  border: 2px solid var(--outline-strong); box-shadow: 2px 2px 0 var(--outline-strong);
+  background: var(--accent); color: var(--on-accent); font: 700 12px/1 var(--body);
+}
+.brand__sub { color: var(--text-secondary); }
+.nav-right { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
+.nav-link {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0;
+  font: 600 13.5px var(--body); letter-spacing: .09em; text-transform: uppercase;
+  color: var(--accent); text-decoration: none; background: none; border: 0; cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-standard);
+}
+.nav-link:hover, .nav-link:focus-visible { color: var(--text-primary); }
+.account { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; font-size: 14px; color: var(--text-secondary); }
+.account-name { color: var(--text-primary); font-weight: 600; overflow-wrap: anywhere; }
+.logout-form { margin: 0; display: contents; }
+@media (max-width: 560px) {
+  .account-label { display: none; }
+  .nav-right { width: 100%; justify-content: space-between; }
+}
+
+/* ── the strip: three cells at every width ────────────────── */
+.strip--three { grid-template-columns: repeat(3, 1fr); }
+.strip--three div:nth-child(2n) { border-right: var(--edge); }
+.strip--three div:nth-child(-n+2) { border-bottom: 0; }
+.strip--three div:last-child { border-right: 0; }
+.strip--three span { display: block; line-height: 1.4; margin-top: 4px; }
+@media (max-width: 559px) { .strip--three div { padding: 16px 14px; } }
+
+/* ── the gallery ──────────────────────────────────────────── */
+/* ONE WORLD takes two columns wherever there are two, Celeste only at three,
+   so thirteen cards fill every row at every width. */
+@media (min-width: 1060px) {
+  .game--wide-lg { grid-column: span 2; }
+  .game--wide-lg img { aspect-ratio: 2000 / 700; }
+}
+.game__body .game__credit { margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--accent); }
+
+/* ── advertising ──────────────────────────────────────────── */
+.ad-label {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--text-secondary); opacity: 0; margin: 0 0 10px;
+  transition: opacity .2s;
+}
+.is-live .ad-label { opacity: .8; }
+.ad-inline { padding: clamp(28px, 4vw, 44px) 0 0; }
+.ad-inline .ad-host { min-height: 90px; }
+.ad-sticky {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  background: var(--surface-raised); border-top: var(--edge);
+}
+.ad-sticky-inner {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  min-height: 96px; padding: 5px 60px;
+}
+/* AdSense reads offsetWidth synchronously inside push(), and a flex item
+   with no width shrink-to-fits an ins that is itself width:auto. That
+   circular sizing measures 0 and the slot is skipped with "No slot size
+   for availableWidth=0". min-width:0 overrides the auto min-size that
+   would otherwise reintroduce content-based sizing. */
+.ad-sticky-inner .ad-host { flex: 1 1 auto; width: 100%; min-width: 0; }
+/* wide screens only: the 300x600 sits in the dead gutter beside the
+   1180px content column, centred in that space and never overlapping. */
+.ad-rail { display: none; }
+@media (min-width: 1860px) and (min-height: 720px) {
+  .ad-rail {
+    display: block; position: fixed; top: 50%; z-index: 30; width: 300px;
+    right: calc((100vw - 1180px) / 4 - 150px); transform: translateY(-50%);
+  }
+  .ad-rail .ad-host { min-height: 600px; }
+}
+.ad-close {
+  position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+  display: grid; place-items: center; width: 44px; height: 44px; padding: 0;
+  font: 600 18px/1 var(--body); color: var(--text-secondary);
+  background: var(--surface-base); border: 2px solid var(--outline-strong); box-shadow: 2px 2px 0 var(--outline-strong);
+  cursor: pointer; transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease, color var(--dur-micro);
+}
+.ad-close:hover { color: var(--text-primary); transform: translate(2px, calc(-50% + 2px)); box-shadow: 0 0 0 var(--outline-strong); }
+@media (max-width: 560px) { .ad-sticky-inner { min-height: 58px; padding: 4px 60px 4px 8px; } }

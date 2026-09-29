@@ -1,0 +1,98 @@
+/* ─── the kit ───────────────────────────────────────────────────────────────
+ * The pieces the home page and the games hub are both built from: type, the
+ * hero, buttons, the count strip, sections, the gallery of sticker cards and
+ * the footer. Shared word for word by andrenijman.com and
+ * games.andrenijman.com, like tokens.css. Change one, change both.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+body { font-size: 17px; line-height: 1.6; }
+
+.wrap { width: min(100% - 44px, 1180px); margin: 0 auto; }
+
+/* ── type ─────────────────────────────────────────────────── */
+h1, h2, h3 {
+  font-family: var(--display); margin: 0;
+  font-variation-settings: var(--display-cut);
+  line-height: 1.02; letter-spacing: -.02em; font-weight: 700;
+}
+h1 { font-size: clamp(46px, 8vw, 104px); line-height: .94; }
+h2 { font-size: clamp(31px, 4.4vw, 52px); }
+h3 { font-size: clamp(20px, 2vw, 25px); line-height: 1.12; }
+p { margin: 0 0 18px; }
+.lede { font-size: clamp(19px, 2vw, 23px); line-height: 1.5; max-width: 34ch; }
+.muted { color: var(--text-secondary); }
+
+/* ── hero ─────────────────────────────────────────────────── */
+.hero { padding: clamp(46px, 8vh, 96px) 0 clamp(40px, 6vh, 72px); }
+.hero__grid { display: grid; gap: clamp(30px, 4vw, 58px); align-items: center; }
+@media (min-width: 940px) { .hero__grid { grid-template-columns: 1.06fr 1fr; } }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero .lede { margin-top: 24px; }
+.hero__art { position: relative; display: block; text-decoration: none; }
+/* the picture is a link to rimeos.com: it presses in like the game cards */
+.hero__art img, .hero__art .hero__cap { transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease; }
+.hero__art:hover img, .hero__art:focus-visible img { transform: translate(3px, 3px); box-shadow: 2px 2px 0 var(--outline-strong); }
+.hero__art:hover .hero__cap, .hero__art:focus-visible .hero__cap { transform: translate(2px, 2px) rotate(-1.6deg); box-shadow: 1px 1px 0 var(--outline-strong); }
+.hero__art img { width: 100%; height: auto; aspect-ratio: 2000 / 1050; object-fit: cover; }
+.hero__cap {
+  position: absolute; left: -14px; bottom: -20px;
+  background: var(--accent); color: var(--on-accent); border: var(--edge); box-shadow: var(--shadow-sm);
+  font-weight: 600; font-size: 13px; padding: 7px 13px; transform: rotate(-1.6deg);
+}
+@media (max-width: 939px) { .hero__cap { left: auto; right: 8px; } }
+
+.btnrow { display: flex; flex-wrap: wrap; gap: 13px; margin-top: 32px; }
+.btn {
+  display: inline-block; font-weight: 600; font-size: 15.5px; text-decoration: none;
+  padding: 13px 22px; border: var(--edge); box-shadow: var(--shadow-sm);
+  background: var(--accent); color: var(--on-accent);
+  transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease;
+}
+.btn:hover { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--outline-strong); }
+.btn--plain { background: var(--surface-base); color: var(--text-primary); }
+
+/* ── the count strip ──────────────────────────────────────── */
+.strip {
+  border-top: var(--edge); border-bottom: var(--edge);
+  background: var(--surface-selected); color: var(--text-primary);
+  display: grid; grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 760px) { .strip { grid-template-columns: repeat(4, 1fr); } }
+.strip div { padding: 20px 22px; border-right: var(--edge); }
+.strip div:last-child { border-right: 0; }
+@media (max-width: 759px) {
+  .strip div:nth-child(2n) { border-right: 0; }
+  .strip div:nth-child(-n+2) { border-bottom: var(--edge); }
+}
+.strip b { display: block; font-family: var(--display); font-size: clamp(30px, 3.6vw, 42px); font-variation-settings: var(--display-cut); line-height: 1; }
+.strip span { font-size: 12.5px; letter-spacing: .09em; text-transform: uppercase; font-weight: 600; opacity: .9; }
+
+/* ── sections ─────────────────────────────────────────────── */
+section { padding: clamp(58px, 9vh, 104px) 0; }
+.section-head { max-width: 52ch; margin-bottom: clamp(30px, 4vh, 50px); }
+.section-head p { margin-top: 14px; font-size: 18px; color: var(--text-secondary); }
+
+/* the gallery: Rime and the games */
+.games { display: grid; gap: clamp(20px, 2.6vw, 34px); }
+@media (min-width: 700px) { .games { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1060px) { .games { grid-template-columns: repeat(3, 1fr); } }
+.game { text-decoration: none; display: flex; flex-direction: column; background: var(--surface-raised); }
+.game img { width: 100%; aspect-ratio: 1000 / 525; object-fit: cover; border-bottom: var(--edge); }
+.game__body { padding: 16px 18px 18px; }
+.game__body h3 { margin-bottom: 5px; }
+.game__body p { margin: 0; font-size: 14.5px; color: var(--text-secondary); line-height: 1.5; }
+.game__kind {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 9px;
+}
+.game--wide { grid-column: 1 / -1; }
+@media (min-width: 700px) { .game--wide { grid-column: span 2; } }
+@media (min-width: 1060px) { .game--wide img { aspect-ratio: 2000 / 700; } }
+/* Rime's recordings: keep the bar at the top when a wide card crops them */
+.game--rime img { object-position: top; }
+
+/* footer */
+footer { padding: 44px 0 54px; border-top: var(--edge); }
+.foot { display: flex; flex-wrap: wrap; gap: 14px 34px; justify-content: space-between; align-items: baseline; font-size: 14.5px; }
+.foot a { font-weight: 600; display: inline-block; padding: 9px 0; }
+.foot .muted { font-size: 13.5px; }
