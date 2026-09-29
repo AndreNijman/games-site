@@ -1,0 +1,54 @@
+/* The reset and the pieces every page shares. Page-specific layout lives in
+ * home.css and prose.css. */
+@import "./tokens.css";
+@import "./fonts.css";
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+body {
+  margin: 0;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--body);
+  -webkit-font-smoothing: antialiased;
+  background-image: var(--paper-tooth);
+}
+
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+img { max-width: 100%; height: auto; display: block; }
+[hidden] { display: none !important; }
+
+.skip {
+  position: absolute; left: -9999px; z-index: 99;
+  background: var(--text-primary); color: var(--surface-base);
+  padding: 10px 16px;
+}
+.skip:focus { left: 10px; top: 10px; }
+
+/* ── the sticker: a solid edge and a hard shadow, like his sprites ── */
+.sticker {
+  border: var(--edge);
+  box-shadow: var(--shadow);
+  background: var(--surface-raised);
+  transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease;
+}
+a.sticker:hover, a.sticker:focus-visible {
+  transform: translate(3px, 3px);
+  box-shadow: 2px 2px 0 var(--outline-strong);
+}
+
+/* a small caps kicker with a rule running out to the right */
+.label, .eyebrow, .more__head {
+  font-family: var(--body); font-weight: 600; font-size: 12px;
+  letter-spacing: .15em; text-transform: uppercase; color: var(--accent);
+  margin: 0 0 16px; display: flex; align-items: center; gap: 11px;
+}
+.label::after, .eyebrow::after, .more__head::after {
+  content: ""; flex: 1; height: 2px; background: var(--surface-selected); opacity: .45;
+}

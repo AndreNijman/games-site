@@ -1,0 +1,134 @@
+---
+// The three AdSense units: the rail beside the column on very wide screens and
+// the bar along the bottom (the leaderboard sits in the page, under the
+// strip). Every unit starts hidden and stays hidden unless it fills.
+---
+<aside class="ad-rail" id="ad-rail" aria-label="Advertisement" hidden>
+  <p class="ad-label">Advertisement</p>
+  <div class="ad-host" id="ad-rail-host"></div>
+</aside>
+
+<div class="ad-sticky" id="ad-sticky" hidden>
+  <div class="ad-sticky-inner">
+    <button class="ad-close" id="ad-sticky-close" type="button" aria-label="Close advertisement">&times;</button>
+    <div class="ad-host" id="ad-sticky-host"></div>
+  </div>
+</div>
+
+<script is:inline>
+  // Ad units stay dormant until both slot IDs are filled in. Create two
+  // Display units in AdSense, then paste their data-ad-slot numbers here.
+  (function () {
+    var CLIENT = 'ca-pub-9868351013932229';
+    var SLOTS = {
+      leaderboard: '7663301317',
+      sticky: '7607460996',
+      rail: '6118285359'
+    };
+    var STICKY_DISMISSED = 'games-sticky-ad-closed';
+    // The rail only fits in the gutter beside the 1180px column from here up.
+    var RAIL_QUERY = '(min-width: 1860px) and (min-height: 720px)';
+
+    function settle(ins, onFilled, onEmpty) {
+      var done = false;
+      function read() {
+        if (done) return false;
+        var status = ins.getAttribute('data-ad-status');
+        if (status !== 'filled' && status !== 'unfilled') return false;
+        done = true;
+        if (status === 'filled') onFilled(); else onEmpty();
+        return true;
+      }
+      if (read()) return;
+      var observer = new MutationObserver(function () {
+        if (read()) observer.disconnect();
+      });
+      observer.observe(ins, { attributes: true, attributeFilter: ['data-ad-status'] });
+      setTimeout(function () {
+        if (!done) { done = true; observer.disconnect(); onEmpty(); }
+      }, 5000);
+    }
+
+    // Hide rather than detach. The AdSense runtime holds references to every
+    // ins it has processed, so removing nodes mid-flight is unsafe, and
+    // hidden collapses the box to nothing. Only ever runs when a unit comes
+    // back unfilled, which stops happening once the account serves ads.
+    function drop(node) {
+      if (node) node.hidden = true;
+    }
+
+    // The container must be laid out before the tag is pushed: AdSense reads
+    // offsetWidth, and a display:none parent yields availableWidth=0.
+    function mount(container, slot, options, onFilled, onEmpty) {
+      if (!container || !slot) return;
+      var host = container.querySelector('.ad-host');
+      if (!host) return;
+      container.hidden = false;
+
+      var ins = document.createElement('ins');
+      ins.className = 'adsbygoogle';
+      ins.setAttribute('data-ad-client', CLIENT);
+      ins.setAttribute('data-ad-slot', slot);
+      if (options.width) {
+        ins.style.display = 'inline-block';
+        ins.style.width = options.width + 'px';
+        ins.style.height = options.height + 'px';
+      } else {
+        ins.style.display = 'block';
+        ins.setAttribute('data-ad-format', options.format);
+        ins.setAttribute('data-full-width-responsive', 'true');
+      }
+      host.appendChild(ins);
+
+      settle(ins, function () {
+        container.classList.add('is-live');
+        onFilled();
+      }, function () {
+        drop(container);
+        onEmpty();
+      });
+
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (error) {
+        drop(container);
+        onEmpty();
+      }
+    }
+
+    function noop() {}
+
+    mount(document.getElementById('ad-leaderboard'), SLOTS.leaderboard,
+      { format: 'horizontal' }, noop, noop);
+
+    var sticky = document.getElementById('ad-sticky');
+    var dismissed = false;
+    try { dismissed = sessionStorage.getItem(STICKY_DISMISSED) === '1'; } catch (error) {}
+    if (dismissed) {
+      drop(sticky);
+    } else {
+      document.getElementById('ad-sticky-close').addEventListener('click', function () {
+        drop(sticky);
+        document.body.style.paddingBottom = '';
+        try { sessionStorage.setItem(STICKY_DISMISSED, '1'); } catch (error) {}
+      });
+      // The served creative decides its own height, so the spacer that keeps
+      // the bar off the footer is measured rather than assumed.
+      mount(sticky, SLOTS.sticky, { format: 'horizontal' }, function () {
+        var pad = function () { document.body.style.paddingBottom = sticky.offsetHeight + 'px'; };
+        pad();
+        if (window.ResizeObserver) new ResizeObserver(pad).observe(sticky);
+        else window.addEventListener('resize', pad);
+      }, function () {
+        document.body.style.paddingBottom = '';
+      });
+    }
+
+    var rail = document.getElementById('ad-rail');
+    if (window.matchMedia && window.matchMedia(RAIL_QUERY).matches) {
+      mount(rail, SLOTS.rail, { width: 300, height: 600 }, noop, noop);
+    } else {
+      drop(rail);
+    }
+  }());
+</script>

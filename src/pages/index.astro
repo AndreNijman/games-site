@@ -1,0 +1,164 @@
+---
+import Base from "../layouts/Base.astro";
+import Header from "../components/Header.astro";
+import GameCard from "../components/GameCard.astro";
+import Ads from "../components/Ads.astro";
+import { GAMES, FEATURED, gameUrl, artPath } from "../data/games";
+
+const ORIGIN = "https://games.andrenijman.com/";
+const title = "Games by Andre Nijman · free browser games";
+const description = "Free browser games by Andre Nijman: original games and credited open-source projects, including ONE WORLD, TOPOUT, OVERPOP, Wildbound.io, and more.";
+const ogDescription = "Free browser games spanning competitive puzzling, tower defense, survival, sandbox adventure, horror, and roguelikes. Nothing to download.";
+const twitterDescription = "Free browser games spanning competitive puzzling, tower defense, survival, sandbox adventure, horror, and roguelikes.";
+
+const collection = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: "Games by Andre Nijman",
+  url: ORIGIN,
+  description: "Free original browser games and clearly credited open-source game projects curated by Andre Nijman.",
+  author: { "@type": "Person", name: "Andre Nijman", url: "https://andrenijman.com/" },
+  mainEntity: {
+    "@type": "ItemList",
+    itemListElement: GAMES.map((g, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      item: {
+        "@type": "VideoGame",
+        name: g.name,
+        url: gameUrl(g),
+        description: g.description,
+        genre: g.genre,
+        gamePlatform: "Web browser",
+        ...(g.author && { author: g.author }),
+        ...(g.isBasedOn && { isBasedOn: g.isBasedOn }),
+        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      },
+    })),
+  },
+};
+const site = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${ORIGIN}#website`,
+      name: "Games by Andre Nijman",
+      url: ORIGIN,
+      inLanguage: "en",
+      publisher: { "@id": "https://andrenijman.com/#person" },
+    },
+    {
+      "@type": "Person",
+      "@id": "https://andrenijman.com/#person",
+      name: "Andre Nijman",
+      url: "https://andrenijman.com/",
+      sameAs: ["https://github.com/AndreNijman", ORIGIN],
+    },
+  ],
+};
+---
+<Base path="/" title={title} description={description} ads>
+  <Fragment slot="head">
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Games by Andre Nijman" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={ogDescription} />
+    <meta property="og:url" content={ORIGIN} />
+    <meta property="og:image" content={`${ORIGIN}og-image.png`} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Games by Andre Nijman" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={twitterDescription} />
+    <meta name="twitter:image" content={`${ORIGIN}og-image.png`} />
+    <script type="application/ld+json" set:html={JSON.stringify(collection, null, 2)} />
+    <script type="application/ld+json" set:html={JSON.stringify(site, null, 2)} />
+  </Fragment>
+
+  <Header />
+
+  <main id="main" tabindex="-1">
+    <div class="hero">
+      <div class="wrap hero__grid">
+        <div>
+          <p class="label">The browser is your playground</p>
+          <h1>Hop on<br /><em>the games.</em></h1>
+          <p class="lede">A little collection of big distractions. Original games, friends’ creations, and credited open-source projects. All free. Pick one and play.</p>
+          <div class="btnrow">
+            <a class="btn" href="#games">Find your next game ↓</a>
+          </div>
+        </div>
+        <a class="hero__art" href={gameUrl(FEATURED)} aria-label={FEATURED.label}>
+          <img class="sticker" src={artPath(FEATURED.image)} width="1400" height="735" fetchpriority="high" alt={FEATURED.alt} />
+          <span class="hero__cap">{FEATURED.cap}</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="strip strip--three">
+      <div><b>{GAMES.length}</b><span>games to get lost in</span></div>
+      <div><b>$0</b><span>to play</span></div>
+      <div><b>0</b><span>things to install</span></div>
+    </div>
+
+    <aside class="ad-inline" id="ad-leaderboard" aria-label="Advertisement" hidden>
+      <div class="wrap">
+        <p class="ad-label">Advertisement</p>
+        <div class="ad-host" id="ad-leaderboard-host"></div>
+      </div>
+    </aside>
+
+    <section id="games" aria-labelledby="games-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="label">The games</p>
+          <h2 id="games-heading">Pick your kind of chaos.</h2>
+          <p>Solo adventures. Friendly competition. One more round.</p>
+        </div>
+        <div class="games">
+          {GAMES.map((game, i) => <GameCard game={game} eager={i < 3} />)}
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <span><a href="https://andrenijman.com">andrenijman.com</a> &nbsp;·&nbsp; <a href="https://github.com/AndreNijman">GitHub</a> &nbsp;·&nbsp; <a href="/_guard/privacy">Privacy &amp; ads</a></span>
+      <span class="muted">&copy; 2026 Andre Nijman · originals and credited open source</span>
+    </div>
+  </footer>
+
+  <Ads />
+
+  <script is:inline>
+    (function () {
+      function render(status) {
+        if (!status) return;
+        if (status.signedIn && status.username) {
+          document.getElementById('account-name').textContent = status.username;
+          document.getElementById('account').hidden = false;
+        } else {
+          document.getElementById('nav-signin').hidden = false;
+        }
+      }
+      if (window.__gamesGuardStatus) {
+        render(window.__gamesGuardStatus);
+        return;
+      }
+      var statusMeta = document.querySelector('meta[name="games-guard-status"]');
+      if (statusMeta) {
+        try {
+          render(JSON.parse(statusMeta.content));
+          return;
+        } catch (error) {}
+      }
+      fetch('/_guard/status', { cache: 'no-store', credentials: 'same-origin' })
+        .then(function (response) { return response.ok ? response.json() : null; })
+        .then(render)
+        .catch(function () {});
+    }());
+  </script>
+</Base>

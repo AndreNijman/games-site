@@ -1,0 +1,45 @@
+---
+// The hub's document. No CSP meta here, unlike andrenijman.com: AdSense loads
+// from a spread of Google hosts that no fixed list keeps up with.
+//
+// The games-guard Worker rewrites every HTML response from this site before it
+// reaches a browser: it prepends a content-version meta, a games-guard-status
+// meta and <script defer src="/_guard/client.js"> to <head>. So <head> must
+// stay a plain element the rewriter can find, and nothing here may assume it
+// is first.
+import "../styles/base.css";
+import "../styles/kit.css";
+import "../styles/hub.css";
+
+interface Props {
+  title: string;
+  description: string;
+  path: string;
+  noindex?: boolean;
+  ads?: boolean;
+}
+const { title, description, path, noindex = false, ads = false } = Astro.props;
+const ORIGIN = "https://games.andrenijman.com";
+const url = ORIGIN + path;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#121315" />
+    <meta name="color-scheme" content="dark" />
+    {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={url} />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/hanken-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <slot name="head" />
+    {ads && <script is:inline async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9868351013932229" crossorigin="anonymous"></script>}
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to games</a>
+    <slot />
+  </body>
+</html>

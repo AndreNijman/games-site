@@ -1,0 +1,34 @@
+---
+// GitHub Pages answers a missing path on the hub with this file and a 404;
+// the Worker passes it through like any other page.
+import Base from "../layouts/Base.astro";
+import Header from "../components/Header.astro";
+---
+<Base path="/404.html" noindex title="Not found · Games by Andre Nijman" description="There is no page at this address on games.andrenijman.com.">
+  <Header />
+  <main id="main" tabindex="-1">
+    <div class="hero">
+      <div class="wrap">
+        <p class="label">404</p>
+        <h1>Nothing<br /><em>here.</em></h1>
+        <p class="lede">There is no page at this address. Every game is one click from the hub.</p>
+        <div class="btnrow">
+          <a class="btn" href="/">All the games</a>
+          <a class="btn btn--plain" href="https://andrenijman.com">andrenijman.com</a>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script is:inline>
+    (function () {
+      var s = document.querySelector('meta[name="games-guard-status"]');
+      try { s = s && JSON.parse(s.content); } catch (e) { s = null; }
+      if (s && s.signedIn && s.username) {
+        document.getElementById('account-name').textContent = s.username;
+        document.getElementById('account').hidden = false;
+      } else if (s) {
+        document.getElementById('nav-signin').hidden = false;
+      }
+    }());
+  </script>
+</Base>
