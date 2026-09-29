@@ -39,7 +39,7 @@ Do not deploy before the Access policy exists. Otherwise the admin route returns
 
 Every answer in `gameFaq()` restates a fact that already appears on the hub — free to play, runs in the browser, whether an account is needed, whether it is multiplayer, and who made it. Nothing about controls or gameplay is asserted, because that would mean inventing detail no source here confirms.
 
-The game stage keeps its exact `height:100dvh` grid, so the iframe container is unchanged and nothing inside a game resizes; only the outer document scrolls. Only `/` and `/index.html` are indexable — every other path on a game host still renders the game shell but is `noindex,follow` and carries no canonical, because previously any path returned this page with a 200 and gave crawlers an unbounded supply of duplicate URLs.
+The game stage keeps its exact `height:100dvh` grid, so the iframe container is unchanged and nothing inside a game resizes; only the outer document scrolls. (Since the hub's redesign the window around the iframe has a 2.5px edge rather than 1px, so the iframe is 3px smaller each way than it was before 29 September 2026; the grid and its padding are the same.) Only `/` and `/index.html` are indexable — every other path on a game host still renders the game shell but is `noindex,follow` and carries no canonical, because previously any path returned this page with a 200 and gave crawlers an unbounded supply of duplicate URLs.
 
 `?_games_frame=1` inner documents are `noindex,follow` with a canonical to the clean URL, so the framed variant stops competing with the page that embeds it.
 
