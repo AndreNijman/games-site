@@ -89,6 +89,8 @@ export const GAMES: Game[] = [
     image: "slingwreck.png",
     alt: "SLINGWRECK in play: a wooden and glass pig fortress coming apart mid-shot, debris in the air",
     label: "Play SLINGWRECK, a free slingshot demolition game with a 52-level campaign and 1v1 online siege",
+
+    wide: "lg",
   },
   {
     host: "bop.andrenijman.com",
@@ -99,6 +101,17 @@ export const GAMES: Game[] = [
     image: "bop.png",
     alt: "BOP in play: coloured blobs fighting on floating platforms above water with an ability HUD",
     label: "Play BOP, a free online physics brawler with drafted abilities",
+  },
+  {
+    host: "memoryburn.andrenijman.com",
+    name: "Memory Burn",
+    genre: ["Action", "Shooter", "Survival"],
+    description: "A free browser wave-survival shooter: somebody burned out your memory and is selling it as shards, so you fight 15 contracts across seven cyberpunk districts, spend your eddies in a back-alley market between waves, and face three named bosses before an endless Afterburn mode.",
+    meta: "Wave-survival shooter · 15-contract story · 8 characters · 42 items · 3 bosses · endless Afterburn",
+    image: "memoryburn.png",
+    alt: "Memory Burn in play: a potato gunslinger surrounded by blob robots on a neon grid floor, with a wave timer and side-job HUD",
+    label: "Play Memory Burn, a free cyberpunk wave-survival shooter with a 15-contract story",
+    wide: "all",
   },
   {
     host: "wildbound.andrenijman.com",
