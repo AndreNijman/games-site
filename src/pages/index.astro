@@ -4,6 +4,7 @@ import Header from "../components/Header.astro";
 import GameCard from "../components/GameCard.astro";
 import Ads from "../components/Ads.astro";
 import { GAMES, FEATURED, gameUrl, artPath } from "../data/games";
+import { ORDERED, ORDER_SOURCE } from "../data/hub-order";
 
 const ORIGIN = "https://games.andrenijman.com/";
 const title = "Games by Andre Nijman · free browser games";
@@ -20,7 +21,7 @@ const collection = {
   author: { "@type": "Person", name: "Andre Nijman", url: "https://andrenijman.com/" },
   mainEntity: {
     "@type": "ItemList",
-    itemListElement: GAMES.map((g, i) => ({
+    itemListElement: ORDERED.map((g, i) => ({
       "@type": "ListItem",
       position: i + 1,
       item: {
@@ -117,8 +118,8 @@ const site = {
           <h2 id="games-heading">Pick your kind of chaos.</h2>
           <p>Solo adventures. Friendly competition. One more round.</p>
         </div>
-        <div class="games">
-          {GAMES.map((game, i) => <GameCard game={game} eager={i < 3} />)}
+        <div class="games" data-order={ORDER_SOURCE}>
+          {ORDERED.map((game, i) => <GameCard game={game} eager={i < 3} />)}
         </div>
       </div>
     </section>

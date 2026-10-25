@@ -2,9 +2,9 @@
 // One game: a sticker card with the screenshot, the genres, the name, what
 // it has, and a credit when the game is not only Andre's. Same markup as the
 // gallery on andrenijman.com; the hub opens games in the same tab.
-import type { Game } from "../data/games";
+import type { Placed } from "../data/order";
 import { artPath, gameUrl } from "../data/games";
-interface Props { game: Game; eager?: boolean }
+interface Props { game: Placed; eager?: boolean }
 const { game, eager = false } = Astro.props;
 const wide = game.wide === "all" ? "game--wide" : game.wide === "lg" ? "game--wide-lg" : undefined;
 const size = game.wide ? { width: 1000, height: 525 } : { width: 800, height: 420 };

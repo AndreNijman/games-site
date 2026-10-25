@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { GAMES, FEATURED, artPath } from "../../src/data/games";
+import { GAMES, FEATURED, artPath, type Game } from "../../src/data/games";
+import { PINNED, holes, layout, orderGames } from "../../src/data/order";
 
 // The Worker's own table, read out of worker/index.js without running the
 // Worker: the object literal between `const GAMES = {` and the next `};`.
@@ -54,15 +55,50 @@ describe("the gallery", () => {
   it("has no game twice", () => {
     expect(new Set(GAMES.map((g) => g.host)).size).toBe(GAMES.length);
   });
-  it("fills every row at two and at three columns", () => {
-    const all = GAMES.filter((g) => g.wide === "all").length;
-    const lg = GAMES.filter((g) => g.wide === "lg").length;
-    // A wide card takes one extra cell. If this fails after adding a game,
-    // move or add a wide card rather than leave one alone on a row.
-    expect((GAMES.length + all) % 2, "two columns").toBe(0);
-    expect((GAMES.length + all + lg) % 3, "three columns").toBe(0);
-  });
   it("features a game that is on the hub", () => {
     expect(GAMES.some((g) => g.host === FEATURED.host)).toBe(true);
+  });
+});
+
+describe("the order", () => {
+  const hosts = (games: Game[]) => games.map((g) => g.host);
+  it("puts the pins first, then the ranking, then the unranked in GAMES order", () => {
+    const ranked = ["tung.andrenijman.com", "slingwreck.andrenijman.com", "bop.andrenijman.com", "nowhere.example.com"];
+    const out = hosts(orderGames(GAMES, ranked));
+    expect(out.slice(0, 4)).toEqual([...PINNED, "tung.andrenijman.com", "bop.andrenijman.com"]);
+    const rest = hosts(GAMES).filter((h) => !out.slice(0, 4).includes(h));
+    expect(out.slice(4)).toEqual(rest);
+  });
+  it("is every game exactly once whatever the ranking says", () => {
+    for (const ranked of [[], ["x"], hosts(GAMES).reverse(), [...hosts(GAMES), ...hosts(GAMES)]]) {
+      const out = hosts(orderGames(GAMES, ranked));
+      expect(out.length).toBe(GAMES.length);
+      expect(new Set(out)).toEqual(new Set(hosts(GAMES)));
+    }
+  });
+  it("pins only games that are on the hub", () => {
+    for (const host of PINNED) expect(GAMES.some((g) => g.host === host), host).toBe(true);
+  });
+});
+
+describe("the gallery layout", () => {
+  it("counts holes the way sparse grid placement leaves them", () => {
+    expect(holes(["all", undefined, undefined, undefined, undefined], 3)).toBe(0);
+    expect(holes(["all", undefined, undefined], 3)).toBe(2);
+    expect(holes([undefined, undefined, "lg", undefined], 3)).toBe(1); // lg cannot start in column 3
+    expect(holes(["all", undefined], 2)).toBe(1);
+  });
+  it("fills every row at two and at three columns for any order and size", () => {
+    const shuffled = [...GAMES].reverse();
+    // a hub smaller than six cards may have no full layout; it never will be
+    for (let n = 6; n <= GAMES.length; n++) {
+      for (const games of [GAMES.slice(0, n), shuffled.slice(0, n)]) {
+        const w = layout(games).map((g) => g.wide);
+        expect(holes(w, 2), `${n} at two`).toBe(0);
+        expect(holes(w, 3), `${n} at three`).toBe(0);
+        expect(w[0]).toBe("all");
+        expect(w[1]).toBeUndefined(); // the second pin sits beside the first
+      }
+    }
   });
 });

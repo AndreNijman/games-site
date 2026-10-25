@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { GAMES } from "../../src/data/games";
+import { PINNED } from "../../src/data/order";
 
 // Stand in for the games-guard Worker and Google: the Worker's routes answer,
 // the AdSense loader is empty, and a hub page gets the status meta prepended
@@ -49,14 +50,30 @@ test("a signed-in player sees their name and can log out", async ({ page }) => {
   await expect(page.locator('form[action="/_guard/logout"] button')).toBeVisible();
 });
 
-test("every game has its card, in order, and every picture loads", async ({ page }) => {
+test("every game has its card, the pins first, and every picture loads", async ({ page }) => {
   await asTheWorker(page, null);
   await page.goto("/");
   const cards = page.locator("#games .game");
   await expect(cards).toHaveCount(GAMES.length);
-  for (const [i, g] of GAMES.entries()) {
-    await expect(cards.nth(i)).toHaveAttribute("href", `https://${g.host}/`);
-    await expect(cards.nth(i).locator("h3")).toHaveText(g.name);
+  // the rest follow the visit ranking the build fetched, so only the pins are fixed
+  const hrefs = await cards.evaluateAll((els) => els.map((e) => e.getAttribute("href")));
+  expect(hrefs.slice(0, PINNED.length)).toEqual(PINNED.map((h) => `https://${h}/`));
+  expect([...hrefs].sort()).toEqual(GAMES.map((g) => `https://${g.host}/`).sort());
+  for (const g of GAMES) await expect(page.locator(`#games .game[href="https://${g.host}/"] h3`)).toHaveText(g.name);
+  // no row left open at three columns or at two
+  for (const width of [1280, 800]) {
+    await page.setViewportSize({ width, height: 900 });
+    const open = await page.locator("#games .games").evaluate((grid) => {
+      const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").length;
+      const rows = new Map<number, number>();
+      for (const card of grid.children) {
+        const r = card.getBoundingClientRect();
+        rows.set(Math.round(r.top), (rows.get(Math.round(r.top)) ?? 0) + r.width);
+      }
+      const full = grid.getBoundingClientRect().width;
+      return [...rows.values()].filter((w) => w < full * 0.9).length + (cols > 0 ? 0 : 1);
+    });
+    expect(open, `open rows at ${width}`).toBe(0);
   }
   // every file exists and decodes: load the lazy ones now rather than scroll for them
   await page.evaluate(() => document.querySelectorAll<HTMLImageElement>("img[loading=lazy]").forEach((i) => { i.loading = "eager"; }));

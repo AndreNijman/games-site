@@ -1,6 +1,7 @@
-// Every game on the hub, in the order the hub shows them. The cards, the
-// count in the strip and the CollectionPage structured data are all drawn
-// from this list, so they cannot disagree.
+// Every game on the hub. The cards, the count in the strip and the
+// CollectionPage structured data are all drawn from this list, so they cannot
+// disagree. The hub shows them in the order order.ts gives (pins, then the most
+// visited); this order is the fallback and places games with no visit data.
 //
 // The games-guard Worker keeps its own table (GAMES in worker/index.js) for
 // the pages it draws on each game's host; tests/unit/games.test.ts holds the
@@ -21,8 +22,6 @@ export type Game = {
   alt: string;
   /** the link's accessible name */
   label: string;
-  /** "all": two columns wherever there are two; "lg": only at three */
-  wide?: "all" | "lg";
   author?: { "@type": "Person" | "Organization"; name: string; url: string };
   isBasedOn?: string[];
 };
@@ -37,7 +36,6 @@ export const GAMES: Game[] = [
     image: "slipstream.png",
     alt: "Slipstream in play: a red car on a winding forest road below red rock hills and pine trees",
     label: "Play Slipstream, a free 3D browser racing game with online races",
-    wide: "all",
   },
   {
     host: "mc.andrenijman.com",
@@ -99,8 +97,6 @@ export const GAMES: Game[] = [
     image: "slingwreck.png",
     alt: "SLINGWRECK in play: a wooden and glass pig fortress coming apart mid-shot, debris in the air",
     label: "Play SLINGWRECK, a free slingshot demolition game with a 52-level campaign and 1v1 online siege",
-
-    wide: "lg",
   },
   {
     host: "bop.andrenijman.com",
@@ -185,7 +181,6 @@ export const GAMES: Game[] = [
     image: "celeste.png",
     alt: "Celeste in play: Madeline mid-dash towards a winged strawberry in a snowy twilight mountain peak",
     label: "Play Celeste, a free browser platformer homage to Maddy Makes Games",
-    wide: "lg",
     author: { "@type": "Organization", name: "Maddy Makes Games (homage)", url: "https://www.celestegame.com" },
   },
 ];

@@ -285,6 +285,7 @@ async function handleGuardRoute(request, env, url) {
     });
   }
   if (url.pathname === "/_guard/version") return contentVersion(request, url);
+  if (url.pathname === "/_guard/popular") return popularGames(env);
 
   const identity = await identify(request, env, url.hostname);
   if (identity.blocked) {
@@ -993,6 +994,25 @@ async function visitStats(env) {
     },
     hosts: (hosts?.results || []).map((row) => ({ host: row.host, views: Number(row.views || 0) })),
   };
+}
+
+// The game hosts, most visited first over the last 30 Perth days (views, as
+// the admin panel ranks them, then unique devices). The hub's build orders its
+// cards by this. Only the order is public, never the counts. Games that are not
+// behind this Worker have no visits here and are absent.
+async function popularGames(env) {
+  const since = perthDay(new Date(Date.now() - 29 * 86400000));
+  const rows = await env.DB.prepare(`
+    SELECT v.host, SUM(v.views) AS views,
+      (SELECT COUNT(DISTINCT device_id) FROM visit_device_days d WHERE d.host = v.host AND d.day >= ?1) AS devices
+    FROM visit_days v WHERE v.day >= ?1 GROUP BY v.host ORDER BY views DESC, devices DESC
+  `).bind(since).all();
+  const hosts = (rows?.results || [])
+    .map((row) => row.host)
+    .filter((host) => HOSTS.has(host) && host !== "games.andrenijman.com");
+  return Response.json({ window: "30 days", by: "views", hosts }, {
+    headers: { "Cache-Control": "public, max-age=3600", "Access-Control-Allow-Origin": "*" },
+  });
 }
 
 async function deviceProfile(request, env, identity) {

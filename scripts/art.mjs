@@ -5,8 +5,9 @@
 // and are never renamed: the games-guard Worker builds each game page's social
 // card and structured data from https://games.andrenijman.com/<game>.png.
 //
-// Cards are 800 wide, enough for a card at twice the pixels. The hero and the
-// wide cards keep up to 1400. Run after changing a screenshot: npm run art
+// Every picture keeps up to 1400 wide: which cards are wide depends on the
+// order the build gives them (src/data/order.ts), so any card may be one.
+// Run after changing a screenshot: npm run art
 // ─────────────────────────────────────────────────────────────────────────────
 import { mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -19,7 +20,7 @@ const PUBLIC = join(ROOT, "public");
 mkdirSync(join(PUBLIC, "art"), { recursive: true });
 
 const jobs = new Map();
-for (const g of GAMES) jobs.set(g.image, Math.max(jobs.get(g.image) ?? 0, g.wide ? 1400 : 800));
+for (const g of GAMES) jobs.set(g.image, 1400);
 jobs.set(FEATURED.image, 1400);
 
 for (const [png, width] of jobs) {
