@@ -29,6 +29,17 @@ export type Game = {
 
 export const GAMES: Game[] = [
   {
+    host: "slipstream.andrenijman.com",
+    name: "Slipstream",
+    genre: ["Racing", "Multiplayer"],
+    description: "A free 3D browser racing game: a new procedurally generated track every race, online rooms with friends, solo events with AI rivals, time trials with ghosts, replays, and a garage of cars to unlock, paint and upgrade.",
+    meta: "3D racing · a new track every race · online rooms · AI rivals · ghosts and replays · car garage",
+    image: "slipstream.png",
+    alt: "Slipstream in play: a red car on a winding forest road below red rock hills and pine trees",
+    label: "Play Slipstream, a free 3D browser racing game with online races",
+    wide: "all",
+  },
+  {
     host: "mc.andrenijman.com",
     name: "ONE WORLD",
     genre: ["Sandbox", "Survival", "Multiplayer"],
@@ -37,7 +48,6 @@ export const GAMES: Game[] = [
     image: "mc.png",
     alt: "ONE WORLD browser survival game menu with shared-world and private local-world choices",
     label: "Play ONE WORLD, a persistent shared anarchy survival world that requires a games.andrenijman.com account",
-    wide: "all",
     isBasedOn: ["https://github.com/zardoy/minecraft-web-client", "https://github.com/MultiPaper/MultiPaper"],
   },
   {
@@ -111,7 +121,6 @@ export const GAMES: Game[] = [
     image: "memoryburn.png",
     alt: "Memory Burn in play: a potato gunslinger surrounded by blob robots on a neon grid floor, with a wave timer and side-job HUD",
     label: "Play Memory Burn, a free cyberpunk wave-survival shooter with a 15-contract story",
-    wide: "all",
   },
   {
     host: "wildbound.andrenijman.com",

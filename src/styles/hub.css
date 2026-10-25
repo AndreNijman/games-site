@@ -47,8 +47,8 @@
 @media (max-width: 559px) { .strip--three div { padding: 16px 14px; } }
 
 /* ── the gallery ──────────────────────────────────────────── */
-/* ONE WORLD takes two columns wherever there are two, Celeste only at three,
-   so thirteen cards fill every row at every width. */
+/* Slipstream takes two columns wherever there are two, SLINGWRECK and Celeste
+   only at three, so fifteen cards fill every row at every width. */
 @media (min-width: 1060px) {
   .game--wide-lg { grid-column: span 2; }
   .game--wide-lg img { aspect-ratio: 2000 / 700; }
