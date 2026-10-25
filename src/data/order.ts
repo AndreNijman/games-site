@@ -14,7 +14,7 @@
 import type { Game } from "./games";
 
 /** Always first, in this order. */
-export const PINNED = ["slipstream.andrenijman.com", "slingwreck.andrenijman.com"];
+export const PINNED = ["slipstream.andrenijman.com", "slingwreck.andrenijman.com", "memoryburn.andrenijman.com"];
 
 export const POPULAR_URL = "https://games.andrenijman.com/_guard/popular";
 

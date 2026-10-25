@@ -65,9 +65,10 @@ describe("the order", () => {
   it("puts the pins first, then the ranking, then the unranked in GAMES order", () => {
     const ranked = ["tung.andrenijman.com", "slingwreck.andrenijman.com", "bop.andrenijman.com", "nowhere.example.com"];
     const out = hosts(orderGames(GAMES, ranked));
-    expect(out.slice(0, 4)).toEqual([...PINNED, "tung.andrenijman.com", "bop.andrenijman.com"]);
-    const rest = hosts(GAMES).filter((h) => !out.slice(0, 4).includes(h));
-    expect(out.slice(4)).toEqual(rest);
+    const head = PINNED.length + 2;
+    expect(out.slice(0, head)).toEqual([...PINNED, "tung.andrenijman.com", "bop.andrenijman.com"]);
+    const rest = hosts(GAMES).filter((h) => !out.slice(0, head).includes(h));
+    expect(out.slice(head)).toEqual(rest);
   });
   it("is every game exactly once whatever the ranking says", () => {
     for (const ranked of [[], ["x"], hosts(GAMES).reverse(), [...hosts(GAMES), ...hosts(GAMES)]]) {
