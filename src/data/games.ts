@@ -28,14 +28,14 @@ export type Game = {
 
 export const GAMES: Game[] = [
   {
-    host: "slipstream.andrenijman.com",
-    name: "Slipstream",
+    host: "rasists.andrenijman.com",
+    name: "Rasists",
     genre: ["Racing", "Multiplayer"],
     description: "A free 3D browser racing game: a new procedurally generated track every race, online rooms with friends, solo events with AI rivals, time trials with ghosts, replays, and a garage of cars to unlock, paint and upgrade.",
     meta: "3D racing · a new track every race · online rooms · AI rivals · ghosts and replays · car garage",
-    image: "slipstream.png",
-    alt: "Slipstream in play: a red car on a winding forest road below red rock hills and pine trees",
-    label: "Play Slipstream, a free 3D browser racing game with online races",
+    image: "rasists.png",
+    alt: "Rasists in play: a red car on a winding forest road below red rock hills and pine trees",
+    label: "Play Rasists, a free 3D browser racing game with online races",
   },
   {
     host: "mc.andrenijman.com",
