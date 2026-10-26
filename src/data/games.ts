@@ -28,6 +28,16 @@ export type Game = {
 
 export const GAMES: Game[] = [
   {
+    host: "stink.andrenijman.com",
+    name: "Stinkwater",
+    genre: ["Roguelike", "RPG", "Life sim"],
+    description: "A free pixel-art story roguelike in the browser: a year in a fen town as Rax Pu, seven backgrounds, about 250 branching stories played out where they happen, trades and magic to learn, a real-time dungeon under the old well, and a kingdom that falls and changes around you.",
+    meta: "Story roguelike · a year in a fen town · 250 branching stories · dungeon fights · trades and magic · four save slots",
+    image: "stink.png",
+    alt: "Stinkwater in play: Rax, purple-haired, in the cobbled town square by the well, townsfolk at a fruit stall, a statue and a timber cottage",
+    label: "Play Stinkwater, a free story roguelike set in a pixel-art fen town",
+  },
+  {
     host: "rasists.andrenijman.com",
     name: "Rasists",
     genre: ["Racing", "Multiplayer"],
