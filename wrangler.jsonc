@@ -17,7 +17,12 @@
     { "pattern": "slingwreck.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "bladehymn.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "celeste.andrenijman.com/*", "zone_name": "andrenijman.com" },
-    { "pattern": "mc.andrenijman.com/*", "zone_name": "andrenijman.com" }
+    { "pattern": "mc.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "stink.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "rasists.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "scrap.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "memoryburn.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "fart.andrenijman.com/*", "zone_name": "andrenijman.com" }
   ],
   "d1_databases": [
     {

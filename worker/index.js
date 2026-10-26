@@ -29,6 +29,11 @@ const HOSTS = new Set([
   "slingwreck.andrenijman.com",
   "bladehymn.andrenijman.com",
   "celeste.andrenijman.com",
+  "stink.andrenijman.com",
+  "rasists.andrenijman.com",
+  "scrap.andrenijman.com",
+  "memoryburn.andrenijman.com",
+  "fart.andrenijman.com",
   MC_HOST,
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
@@ -149,6 +154,51 @@ const GAMES = {
     origin: "original",
     credit: "homage to Maddy Makes Games",
     author: { name: "Maddy Makes Games (homage)", url: "https://www.celestegame.com" },
+  },
+  "stink.andrenijman.com": {
+    name: "Stinkwater",
+    description: "A free pixel-art story roguelike in the browser: a year in a fen town as Rax Pu, seven backgrounds, about 250 branching stories played out where they happen, trades and magic to learn, a real-time dungeon under the old well, and a kingdom that falls and changes around you.",
+    genre: ["Roguelike", "RPG", "Life sim"],
+    image: "stink.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+  },
+  "rasists.andrenijman.com": {
+    name: "Rasists",
+    description: "A free 3D browser racing game: a new procedurally generated track every race, online rooms with friends, solo events with AI rivals, time trials with ghosts, replays, and a garage of cars to unlock, paint and upgrade.",
+    genre: ["Racing", "Multiplayer"],
+    image: "rasists.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+  },
+  "scrap.andrenijman.com": {
+    name: "SCRAP AND STEEL",
+    description: "A free browser physics robot-building sandbox and 1v1 arena fighter: assemble a robot from a modular parts catalog, wire its power grid, bind its controls, test it with real physics, then fight online. Breakable welds, heat, traction and battery endurance decide fights — no hidden health bars.",
+    genre: ["Sandbox", "Action", "Physics"],
+    image: "scrap.png",
+    imageWidth: 1000,
+    imageHeight: 525,
+    origin: "original",
+  },
+  "memoryburn.andrenijman.com": {
+    name: "Memory Burn",
+    description: "A free browser wave-survival shooter: somebody burned out your memory and is selling it as shards, so you fight 15 contracts across seven cyberpunk districts, spend your eddies in a back-alley market between waves, and face three named bosses before an endless Afterburn mode.",
+    genre: ["Action", "Shooter", "Survival"],
+    image: "memoryburn.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+  },
+  "fart.andrenijman.com": {
+    name: "FART TOGETHER",
+    description: "A free co-op pixel-art raft game for 1 to 4 players: hippos ride a round raft down procedurally generated water flumes in the sky and steer by farting, each from their own share of the rim, past spike walls, hammers and open drops.",
+    genre: ["Co-op", "Party", "Multiplayer"],
+    image: "fart.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
   },
   [MC_HOST]: {
     name: "ONE WORLD",
@@ -1789,14 +1839,16 @@ function shell(title, content, status = 200) {
   });
 }
 
-// These three hosts ship no robots.txt of their own, so Cloudflare answers with
-// its managed default: no rules, and no sitemap pointer either. The other eight
+// These five hosts ship no robots.txt of their own, so Cloudflare answers with
+// its managed default: no rules, and no sitemap pointer either. The others
 // serve real files from their own repositories and are deliberately NOT handled
 // here — shadowing them would silently override a file edited elsewhere, and
 // topout's `Disallow: /server/` would be the first casualty.
 const GENERATED_CRAWLER_FILES = new Set([
   "wildbound.andrenijman.com",
   "tung.andrenijman.com",
+  "rasists.andrenijman.com",
+  "memoryburn.andrenijman.com",
   MC_HOST,
 ]);
 
