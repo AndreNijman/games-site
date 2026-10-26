@@ -80,3 +80,13 @@ test("every game has its card, the pins first, and every picture loads", async (
   await expect.poll(() => page.evaluate(() => [...document.images].every((i) => i.complete && i.naturalWidth > 0))).toBe(true);
   await expect(page.locator(".strip b").first()).toHaveText(String(GAMES.length));
 });
+
+test("games.json lists the cards in the hub's order, for andrenijman.com", async ({ page, request }) => {
+  await asTheWorker(page, null);
+  await page.goto("/");
+  const hrefs = await page.locator("#games .game").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
+  const feed = await (await request.get("/games.json")).json() as { source: string; games: { href: string; art: string; name: string }[] };
+  expect(["visits", "static"]).toContain(feed.source);
+  expect(feed.games.map((g) => g.href)).toEqual(hrefs);
+  for (const g of feed.games) expect((await request.get(g.art)).ok(), g.art).toBe(true);
+});
