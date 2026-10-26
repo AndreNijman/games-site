@@ -15,8 +15,8 @@ function workerGames(): Record<string, { name: string; image: string; credit?: s
 }
 
 // On the hub but not behind the Worker: served by its own host.
-// memoryburn and rasists have no games-guard route yet: the broker token cannot add Worker routes.
-const OUTSIDE_WORKER = new Set(["scrap.andrenijman.com", "memoryburn.andrenijman.com", "rasists.andrenijman.com"]);
+// memoryburn, rasists and fart have no games-guard route yet: the broker token cannot add Worker routes.
+const OUTSIDE_WORKER = new Set(["scrap.andrenijman.com", "memoryburn.andrenijman.com", "rasists.andrenijman.com", "fart.andrenijman.com"]);
 
 describe("the hub and the Worker agree", () => {
   const worker = workerGames();

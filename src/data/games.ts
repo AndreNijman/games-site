@@ -183,6 +183,16 @@ export const GAMES: Game[] = [
     label: "Play Celeste, a free browser platformer homage to Maddy Makes Games",
     author: { "@type": "Organization", name: "Maddy Makes Games (homage)", url: "https://www.celestegame.com" },
   },
+  {
+    host: "fart.andrenijman.com",
+    name: "FART TOGETHER",
+    genre: ["Co-op", "Party", "Multiplayer"],
+    description: "A free co-op pixel-art raft game for 1 to 4 players: hippos ride a round raft down procedurally generated water flumes in the sky and steer by farting, each from their own share of the rim, past spike walls, hammers and open drops.",
+    meta: "Co-op raft game · 1–4 players · steer by farting · online rooms · a new seeded course every run",
+    image: "fart.png",
+    alt: "FART TOGETHER in play: four hippos on a round wooden raft rounding a bend in a sky-high water flume, a green gas cloud behind them",
+    label: "Play FART TOGETHER, a free co-op raft game where hippos steer by farting",
+  },
 ];
 
 // The picture beside the headline.
