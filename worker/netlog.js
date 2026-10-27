@@ -22,7 +22,7 @@ export const LAG_LIMITS = { rttP95: 200, gapP95: 150, fpsMed: 40, tickGap: 250, 
 export const NET_GAMES_KEEP = 2000;
 
 /** Relays allowed to write, by the short name each uses (its hub host's first label). */
-export const NET_GAMES = new Set(["fart", "topout", "tung", "bop", "wildbound", "tree", "slingwreck", "scrap", "rasists"]);
+export const NET_GAMES = new Set(["fart", "topout", "tung", "bop", "wildbound", "tree", "slingwreck", "scrap", "rasists", "scoops"]);
 
 const num = (v, max = 1e7) => {
   const n = Number(v);
