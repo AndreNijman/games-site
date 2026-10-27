@@ -47,6 +47,7 @@ export function normalizeNetLog(game, raw) {
     code: text(r.code, 16), mode: text(r.mode, 60), outcome: text(r.outcome, 24), colo: text(r.colo, 8),
     runTime: num(r.runTime, 86400 * 7),
     server, seats,
+    lag: /** @type {string[]} */ ([]),
   };
   log.lag = judgeNetLog(log, (Array.isArray(r.lag) ? r.lag : []).slice(0, 8).map((l) => text(l, 120)));
   return log;

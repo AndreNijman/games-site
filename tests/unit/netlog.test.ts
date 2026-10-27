@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-// @ts-expect-error plain JS module shared with the Worker
 import { judgeNetLog, normalizeNetLog, NET_GAMES } from "../../worker/netlog.js";
 
 const seat = (o = {}) => ({ name: "A", rttMed: 40, rttP95: 60, rttMax: 90, fpsMed: 60, fpsMin: 55, frameMax: 30, reconnects: 0, ...o });
