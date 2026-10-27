@@ -47,7 +47,6 @@ const HOSTS = new Set([
   "scoops.andrenijman.com",
   MC_HOST,
 ]);
-const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
 // Single source of truth for what each game is. Descriptions and genres are
 // lifted from the hub's own structured data so the two cannot drift, and the
 // hub had no entry at all for Slope or Moto X3M until this table existed.
@@ -690,7 +689,10 @@ async function tungLobbies(request, env, url, identity) {
     return new Response("Not found", { status: 404 });
   }
   const wantsAdmin = url.searchParams.get("admin") === "1";
-  const isAdmin = identity.account && TUNG_ADMINS.has(String(identity.account.username).toLowerCase());
+  // Tung's admins are the devs: browsers the admin pages marked, while their
+  // email is still an admin one (the same test as /_guard/dev).
+  const dev = wantsAdmin ? await readDevCookie(request, env) : null;
+  const isAdmin = Boolean(dev && isAdminEmail(dev.email, env));
   if (wantsAdmin && !isAdmin) {
     return withCookies(Response.json({ error: "admin account required" }, { status: 403 }), identity.cookies);
   }
@@ -702,7 +704,7 @@ async function tungLobbies(request, env, url, identity) {
   };
   if (wantsAdmin) {
     headers["X-Tung-Proxy-Authorization"] = `Bearer ${env.TUNG_PROXY_SECRET}`;
-    headers["X-Tung-Proxy-Admin-Name"] = String(identity.account.username).toLowerCase();
+    headers["X-Tung-Proxy-Admin-Name"] = dev.name;
   }
   const upstream = await fetch(`https://relay.tung.andrenijman.com${path}`, {
     headers,
@@ -733,13 +735,13 @@ async function tungSocket(request, env, url, identity) {
       request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
     return new Response("WebSocket upgrade required", { status: 426 });
   }
-  const username = String(identity.account?.username || "").toLowerCase();
   const target = new URL("https://relay.tung.andrenijman.com/ws");
   target.search = url.search;
   const upstream = new Request(target, request);
   upstream.headers.set("Origin", "https://tung.andrenijman.com");
   upstream.headers.set("X-Tung-Proxy-Authorization", `Bearer ${env.TUNG_PROXY_SECRET}`);
-  upstream.headers.set("X-Tung-Proxy-Admin-Name", TUNG_ADMINS.has(username) ? username : "");
+  // A dev proves itself to the relay with its pass, not through this proxy.
+  upstream.headers.set("X-Tung-Proxy-Admin-Name", "");
   // The relay sees this proxy's hop, not the player: pass on where they are.
   upstream.headers.set("X-Games-Country", String(request.cf?.country || ""));
   upstream.headers.set("X-Games-Edge", String(request.cf?.colo || ""));
