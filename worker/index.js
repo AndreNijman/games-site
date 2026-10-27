@@ -391,6 +391,7 @@ async function handleGuardRoute(request, env, url) {
   if (url.pathname.startsWith("/_guard/probe/")) return probeRegion(env, url);
   if (url.pathname === "/_guard/live") return liveBeat(request, env, url);
   if (url.pathname === "/_guard/dev") return devPassFor(request, env, url);
+  if (url.pathname === "/_guard/tung-ping") return tungPing(request, url);
   if (url.pathname === "/_guard/lag-health") {
     return Response.json({ games: await netHealth(env.DB) }, { headers: { "Cache-Control": "no-store" } });
   }
@@ -711,6 +712,20 @@ async function tungLobbies(request, env, url, identity) {
     headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
   return withCookies(response, identity.cookies);
+}
+
+// Where a tung room runs, for its lobby ping: the relay's /ping, which only
+// says { colo, region }, so it needs no identity and runs before identify().
+async function tungPing(request, url) {
+  const headers = { "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" };
+  if (url.hostname !== "tung.andrenijman.com" || request.method !== "GET") return new Response(null, { status: 404, headers });
+  const target = new URL("https://relay.tung.andrenijman.com/ping");
+  for (const key of ["room", "shard"]) {
+    const value = url.searchParams.get(key);
+    if (value) target.searchParams.set(key, value.slice(0, 40));
+  }
+  const upstream = await fetch(target, { headers: { Accept: "application/json" } });
+  return new Response(upstream.body, { status: upstream.status, headers: { ...headers, "Content-Type": "application/json; charset=utf-8" } });
 }
 
 async function tungSocket(request, env, url, identity) {
