@@ -203,6 +203,16 @@ export const GAMES: Game[] = [
     alt: "FART TOGETHER in play: four hippos on a round wooden raft rounding a bend in a sky-high water flume, a green gas cloud behind them",
     label: "Play FART TOGETHER, a free co-op raft game where hippos steer by farting",
   },
+  {
+    host: "scoops.andrenijman.com",
+    name: "SCOOP TROUBLE",
+    genre: ["Co-op", "Arcade", "Multiplayer"],
+    description: "A free co-op pixel-art arcade puzzle game for 1 to 4 players: ice-cream scoops build and break ice walls to trap enemies and collect every fruit across 120 levels in 12 worlds, on one keyboard or in online rooms.",
+    meta: "Co-op arcade puzzle · 1–4 players · build and break ice · online rooms · 120 levels",
+    image: "scoops.png",
+    alt: "SCOOP TROUBLE in play: vanilla, blueberry and strawberry scoops beside freshly built ice blocks in a snowy maze, bugs and lemons around them",
+    label: "Play SCOOP TROUBLE, a free co-op arcade game where ice-cream scoops build ice to trap enemies",
+  },
 ];
 
 // The picture beside the headline.

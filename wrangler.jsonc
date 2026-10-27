@@ -22,7 +22,8 @@
     { "pattern": "rasists.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "scrap.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "memoryburn.andrenijman.com/*", "zone_name": "andrenijman.com" },
-    { "pattern": "fart.andrenijman.com/*", "zone_name": "andrenijman.com" }
+    { "pattern": "fart.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "scoops.andrenijman.com/*", "zone_name": "andrenijman.com" }
   ],
   "d1_databases": [
     {

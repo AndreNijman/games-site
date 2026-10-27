@@ -40,6 +40,7 @@ const HOSTS = new Set([
   "scrap.andrenijman.com",
   "memoryburn.andrenijman.com",
   "fart.andrenijman.com",
+  "scoops.andrenijman.com",
   MC_HOST,
 ]);
 const TUNG_ADMINS = new Set(["andrenijman", "mechtical", "pojodragon365"]);
@@ -202,6 +203,15 @@ const GAMES = {
     description: "A free co-op pixel-art raft game for 1 to 4 players: hippos ride a round raft down procedurally generated water flumes in the sky and steer by farting, each from their own share of the rim, past spike walls, hammers and open drops.",
     genre: ["Co-op", "Party", "Multiplayer"],
     image: "fart.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+  },
+  "scoops.andrenijman.com": {
+    name: "SCOOP TROUBLE",
+    description: "A free co-op pixel-art arcade puzzle game for 1 to 4 players: ice-cream scoops build and break ice walls to trap enemies and collect every fruit across 120 levels in 12 worlds, on one keyboard or in online rooms.",
+    genre: ["Co-op", "Arcade", "Multiplayer"],
+    image: "scoops.png",
     imageWidth: 2000,
     imageHeight: 1050,
     origin: "original",
@@ -2082,6 +2092,7 @@ const GENERATED_CRAWLER_FILES = new Set([
   "tung.andrenijman.com",
   "rasists.andrenijman.com",
   "memoryburn.andrenijman.com",
+  "scoops.andrenijman.com",
   MC_HOST,
 ]);
 
