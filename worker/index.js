@@ -1,5 +1,8 @@
 import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
 import { NET_GAMES, netHealth, netPlayers, netRecent, netSince, netSummary, storeNetLog } from "./netlog.js";
+import { cleanBeat, liveDevices } from "./live.js";
+
+export { Live } from "./live.js";
 
 const DEVICE_COOKIE = "games_device";
 const SESSION_COOKIE = "games_session";
@@ -372,6 +375,7 @@ async function handleGuardRoute(request, env, url) {
   if (url.pathname === "/_guard/version") return contentVersion(request, url);
   if (url.pathname === "/_guard/popular") return popularGames(env);
   if (url.pathname.startsWith("/_guard/probe/")) return probeRegion(env, url);
+  if (url.pathname === "/_guard/live") return liveBeat(request, env, url);
   if (url.pathname === "/_guard/lag-health") {
     return Response.json({ games: await netHealth(env.DB) }, { headers: { "Cache-Control": "no-store" } });
   }
@@ -1222,6 +1226,7 @@ async function handleAdmin(request, env, url) {
   }
 
   if (url.pathname === "/_guard/admin/lag") return lagAdminPage(env, url, adminEmail);
+  if (url.pathname === "/_guard/admin/live") return liveAdminPage(env, adminEmail);
 
   if (request.method === "POST") {
     const form = await request.formData();
@@ -1281,7 +1286,7 @@ async function handleAdmin(request, env, url) {
   // bounded to protect the isolate. The headline counts come from SQL instead,
   // so they stay truthful even when the window is not big enough to hold
   // every device.
-  const [devices, totals, visits, net, netLogs] = await Promise.all([
+  const [devices, totals, visits, net, netLogs, live] = await Promise.all([
     env.DB.prepare(`
       SELECT devices.*, accounts.username, accounts.banned_at AS account_banned_at
       FROM devices LEFT JOIN accounts ON accounts.id = devices.account_id
@@ -1295,6 +1300,7 @@ async function handleAdmin(request, env, url) {
     visitStats(env),
     netSummary(env.DB, 7).catch(() => null),
     netSince(env.DB, 7).catch(() => null),
+    liveNow(env).catch(() => null),
   ]);
   const rows = devices.results || [];
   return adminPage(groupDevices(rows), adminEmail, url, {
@@ -1305,6 +1311,7 @@ async function handleAdmin(request, env, url) {
     visits,
     net,
     netPlayers: netLogs && netPlayers(netLogs),
+    live,
   });
 }
 
@@ -1683,7 +1690,7 @@ function adminPage(groups, email, url, stats = {}) {
   ].map(([value, label, count]) => `<a href="${escapeHtml(adminHref(value, query))}"${view === value ? ` aria-current="page"` : ""}>${label}<span>${count}</span></a>`).join("");
 
   return shell("Device access", `<main class="admin">
-    <header class="admin-title"><div><p class="kicker">ACCESS CONTROL · <a href="/_guard/admin/lag">MULTIPLAYER LAG</a></p><h1>Who is playing</h1><p class="summary-line">${accountGroups.length} accounts · ${deviceCount} devices · ${labelledCount} custom-labelled</p></div><p>${escapeHtml(email)}</p></header>
+    <header class="admin-title"><div><p class="kicker">ACCESS CONTROL · <a href="/_guard/admin/live">LIVE NOW</a> · <a href="/_guard/admin/lag">MULTIPLAYER LAG</a></p><h1>Who is playing</h1><p class="summary-line">${accountGroups.length} accounts · ${deviceCount} devices · ${labelledCount} custom-labelled</p></div><p>${escapeHtml(email)}</p></header>
     <form class="admin-search" method="get" action="/_guard/admin">
       <input type="hidden" name="view" value="${escapeHtml(view)}">
       <label class="sr-only" for="admin-q">Search accounts and devices</label>
@@ -1691,6 +1698,7 @@ function adminPage(groups, email, url, stats = {}) {
       <button type="submit">Search</button>
       ${query ? `<a href="${escapeHtml(adminHref(view))}">Clear</a>` : ""}
     </form>
+    ${livePanel(stats.live)}
     ${visitPanel(stats.visits)}
     ${lagPanel(stats.net, stats.netPlayers)}
     <nav class="admin-tabs" aria-label="Device filters">${tabs}</nav>
@@ -1699,6 +1707,98 @@ function adminPage(groups, email, url, stats = {}) {
     ${query ? `<p class="result-line">${visible.length} matching ${visible.length === 1 ? "group" : "groups"} for “${escapeHtml(query)}”</p>` : ""}
     <div class="people">${sections || `<p class="empty-state">No accounts or devices match this view.</p>`}</div>
   </main>`);
+}
+
+// A game page's report that its tab is open (see CLIENT_JS's startLive). It
+// runs before identify(), which writes the device row on every call: the
+// signed device cookie alone says who it is, and the report is kept in
+// memory only, by the Live object (worker/live.js).
+async function liveBeat(request, env, url) {
+  const headers = { "Cache-Control": "no-store" };
+  if (request.method !== "POST") return new Response(null, { status: 405, headers });
+  if (!HOSTS.has(url.hostname) || url.hostname === HUB_HOST) return new Response(null, { status: 204, headers });
+  let device = null;
+  for (const value of cookieValues(request.headers.get("Cookie") || "", DEVICE_COOKIE).reverse()) {
+    device = await verifyDeviceCookie(value, env.COOKIE_SECRET);
+    if (device) break;
+  }
+  const beat = cleanBeat(await request.json().catch(() => null));
+  if (!device || !beat) return new Response(null, { status: 204, headers });
+  await env.LIVE.getByName("live").beat({
+    ...beat, device, host: url.hostname,
+    country: String(request.cf?.country || "").slice(0, 2),
+    city: String(request.cf?.city || "").slice(0, 60),
+    colo: String(request.cf?.colo || "").slice(0, 4),
+  });
+  return new Response(null, { status: 204, headers });
+}
+
+// The open game tabs right now, grouped by device, with each device's label
+// and account from D1.
+async function liveNow(env) {
+  const devices = liveDevices(await env.LIVE.getByName("live").list());
+  const ids = devices.map((d) => d.device).slice(0, 90);
+  if (ids.length) {
+    const rows = await env.DB.prepare(`
+      SELECT devices.id, devices.label, devices.model, devices.os, devices.browser, accounts.username
+      FROM devices LEFT JOIN accounts ON accounts.id = devices.account_id
+      WHERE devices.id IN (${ids.map(() => "?").join(",")})
+    `).bind(...ids).all();
+    const byId = new Map((rows.results || []).map((row) => [row.id, row]));
+    for (const d of devices) d.info = byId.get(d.device) || null;
+  }
+  return devices;
+}
+
+function liveFor(seconds) {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+  return `${Math.floor(seconds / 3600)} h ${Math.floor((seconds % 3600) / 60)} min`;
+}
+
+function liveCounts(devices) {
+  const count = (status) => devices.filter((d) => d.status === status).length;
+  return `${count("playing")} playing · ${count("idle")} idle · ${count("background")} in background`;
+}
+
+// One row per device: who, which game(s), what they're doing and for how
+// long, and where from.
+function liveTable(devices) {
+  const status = { playing: "Playing", idle: "Open, idle", background: "In background" };
+  const rows = devices.map((d) => {
+    const info = d.info || {};
+    const name = info.username || info.label || "Unknown device";
+    const kind = [info.model, info.os, info.browser].filter(Boolean).join(" · ");
+    const games = d.tabs.map((tab) => {
+      const note = tab.status === "playing" ? `for ${liveFor(tab.forS)}`
+        : tab.status === "idle" ? `no input for ${liveFor(tab.idleS)}` : `hidden, open ${liveFor(tab.forS)}`;
+      return `<li><b class="live-${tab.status}">${status[tab.status]}</b> ${escapeHtml(GAME_TITLES[tab.host] || tab.host.replace(/\.andrenijman\.com$/, ""))}${tab.path !== "/" ? ` <small class="lag-ok">${escapeHtml(tab.path)}</small>` : ""} <small class="lag-ok">${note}</small></li>`;
+    }).join("");
+    const t = d.tabs[0];
+    const where = [t.city, t.country].filter(Boolean).join(", ");
+    return `<tr class="live-row-${d.status}">
+      <td><a href="/_guard/admin?q=${encodeURIComponent(d.device)}">${escapeHtml(name)}</a>${info.username && info.label ? `<small>${escapeHtml(info.label)}</small>` : ""}<small>${escapeHtml(kind)}</small></td>
+      <td><ul class="lag-seats">${games}</ul></td>
+      <td>${escapeHtml(where || "—")}${t.colo ? `<small>via ${escapeHtml(t.colo)}</small>` : ""}</td>
+    </tr>`;
+  }).join("");
+  return `<table class="lag-table"><thead><tr><th>Device</th><th>Game</th><th>Where</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function livePanel(devices) {
+  if (!devices) return "";
+  return `<section class="visits lag-panel" aria-label="Live now">
+    <div class="visit-hosts"><span class="visit-label">Live now · ${liveCounts(devices)} · <a href="/_guard/admin/live">live view, refreshes itself</a></span></div>
+    ${devices.length ? liveTable(devices.slice(0, 12)) : `<p class="empty-state">Nobody has a game open right now.</p>`}
+  </section>`;
+}
+
+async function liveAdminPage(env, email) {
+  const devices = await liveNow(env);
+  return shell("Live now", `<main class="admin">
+    <header class="admin-title"><div><p class="kicker"><a href="/_guard/admin">ACCESS CONTROL</a> / LIVE NOW</p><h1>Live now</h1><p class="summary-line">${liveCounts(devices)}. Playing means the game's tab is visible and had a key, click, touch or gamepad input in the last minute. Refreshes every 5 s.</p></div><p>${escapeHtml(email)}</p></header>
+    ${devices.length ? liveTable(devices) : `<p class="empty-state">Nobody has a game open right now.</p>`}
+  </main>`, 200, `<meta http-equiv="refresh" content="5">`);
 }
 
 // Online matches per game over the last week and how many looked laggy, from
@@ -1943,6 +2043,7 @@ function referrerHost(value) {
 function privacyPage() {
   return shell("Privacy", `<main class="auth privacy"><p class="kicker">PRIVACY</p><h1>Site data</h1>
     <p>You can use the site without naming your device or creating an account. The site records an automatically generated internal device label, an optional account, a random signed browser identifier, and the games you visit with first and last visit times. Older records may retain a device label supplied before device naming was removed.</p>
+    <p>While a game is open, its page reports every 20 seconds whether its tab is visible and how many seconds since your last key press, click, touch or gamepad input, so the site owner can see who is playing right now. These reports are kept in memory for at most three minutes and never stored.</p>
     <p>It also records what your browser reports about itself: browser and operating-system family and version, processor architecture, device model on Android, screen size and pixel ratio, processor core count, rough memory size, touch support, time zone, and languages, plus the graphics adapter name your browser exposes to web pages.</p>
     <p>From the network connection it records a partial IP network, country, city, region, and the network operator name. If you arrived from another website it records the address that site's browser sent, for your first arrival and for the most recent one. Browsers send only the site's address and not the page within it, and moving between pages of this site is never recorded as a referral. Signed-in players may also store supported game progress and named world saves in their account.</p>
     <p>ONE WORLD uses your account username as your in-world name. When you join its shared world, the site creates a short-lived signed ticket containing that username and sends it to the private game relay. The shared world stores normal game data such as your inventory, location, builds, and chat in its persistent world files.</p>
@@ -1957,8 +2058,8 @@ function htmlPage(title, message, status = 200) {
   return shell(title, `<main class="auth"><p class="kicker">GAMES / ACCESS</p><h1>${escapeHtml(title)}</h1><p>${message}</p></main>`, status);
 }
 
-function shell(title, content, status = 200) {
-  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} | Andre Nijman</title><style>${CSS}</style></head><body>${content}</body></html>`, {
+function shell(title, content, status = 200, head = "") {
+  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${head}<title>${escapeHtml(title)} | Andre Nijman</title><style>${CSS}</style></head><body>${content}</body></html>`, {
     status,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
@@ -2389,6 +2490,48 @@ const CLIENT_JS = `(function () {
     }
     setInterval(checkForUpdate, 60000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) checkForUpdate(); });
+
+    if (location.hostname !== 'games.andrenijman.com') {
+      try { startLive(); } catch (error) {}
+    }
+  }
+
+  // Tells the guard this game is open: every 20 s while the tab is visible,
+  // and at once when it is hidden or closed, with the seconds since the last
+  // input, for the admin's live view.
+  function startLive() {
+    if (window.__gamesLive) return;
+    window.__gamesLive = true;
+    var tab = Math.random().toString(36).slice(2, 10);
+    var lastInput = Date.now();
+    function touched() { lastInput = Date.now(); }
+    ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'wheel'].forEach(function (type) {
+      window.addEventListener(type, touched, { capture: true, passive: true });
+    });
+    var pads = false;
+    window.addEventListener('gamepadconnected', function () { pads = true; });
+    setInterval(function () {
+      if (!pads || document.hidden || !navigator.getGamepads) return;
+      var list = navigator.getGamepads();
+      for (var i = 0; i < list.length; i++) {
+        var pad = list[i];
+        if (!pad) continue;
+        for (var b = 0; b < pad.buttons.length; b++) if (pad.buttons[b].pressed) { touched(); return; }
+        for (var a = 0; a < pad.axes.length; a++) if (Math.abs(pad.axes[a]) > 0.3) { touched(); return; }
+      }
+    }, 2000);
+    function send(state) {
+      var body = JSON.stringify({ tab: tab, path: location.pathname, idle: Math.round((Date.now() - lastInput) / 1000), state: state });
+      if (state !== 'on' && navigator.sendBeacon) {
+        navigator.sendBeacon('/_guard/live', new Blob([body], { type: 'application/json' }));
+        return;
+      }
+      fetch('/_guard/live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', keepalive: true, body: body }).catch(function () {});
+    }
+    send('on');
+    setInterval(function () { if (!document.hidden) send('on'); }, 20000);
+    document.addEventListener('visibilitychange', function () { send(document.hidden ? 'hidden' : 'on'); });
+    window.addEventListener('pagehide', function () { send('gone'); });
   }
 
   var statusMeta = document.querySelector('meta[name="games-guard-status"]');
@@ -2443,6 +2586,10 @@ ${FONT_FACES}
 .lag-heading a{font-size:12px;font-weight:400;color:var(--muted)}
 .lag-table p{margin:6px 0 0}
 .lag-row-bad td:first-child{box-shadow:inset 2px 0 #e0624f}
+.live-playing{color:#7fd18b}
+.live-idle{color:#e5c07b}
+.live-background{color:var(--muted);font-weight:400}
+.live-row-playing td:first-child{box-shadow:inset 2px 0 #7fd18b}
 .visit-note{margin:14px 0 0;color:var(--muted);font-size:.7rem;line-height:1.5}
 .account-controls{display:grid;grid-template-columns:minmax(180px,1fr) minmax(260px,1.5fr) minmax(180px,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .account-controls form{display:grid;grid-template-columns:1fr;align-content:start;gap:8px;padding:12px 16px 12px 0}
