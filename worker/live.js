@@ -17,7 +17,11 @@ const MAX_TABS = 5000;
 
 const STATES = new Set(["on", "hidden", "gone"]);
 
-/** The client's report, or null if it isn't one: `{ tab, path, idle, state }`. */
+/**
+ * The client's report, or null if it isn't one: `{ tab, path, idle, state,
+ * player, room }`, the last two being who the game says is playing and in
+ * which room (shared/net/netdev.js setPlayer), or "".
+ */
 export function cleanBeat(body) {
   if (!body || typeof body !== "object") return null;
   const tab = String(body.tab || "");
@@ -29,6 +33,8 @@ export function cleanBeat(body) {
     state,
     path: String(body.path || "/").slice(0, 120),
     idle: Number.isFinite(idle) && idle >= 0 ? Math.min(Math.round(idle), 86400) : 0,
+    player: String(body.player || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 24),
+    room: String(body.room || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 40),
   };
 }
 
@@ -51,6 +57,7 @@ export class LiveTabs {
     const prev = this.tabs.get(key);
     this.tabs.set(key, {
       device: entry.device, host: entry.host, tab: entry.tab, path: entry.path,
+      player: entry.player || "", room: entry.room || "",
       country: entry.country || "", city: entry.city || "", colo: entry.colo || "",
       since: prev ? prev.since : now, at: now, inputAt: now - entry.idle * 1000,
       hidden: entry.state === "hidden",

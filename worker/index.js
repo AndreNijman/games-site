@@ -1,11 +1,15 @@
 import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
 import { NET_GAMES, netHealth, netPlayers, netRecent, netSince, netSummary, storeNetLog } from "./netlog.js";
 import { cleanBeat, liveDevices } from "./live.js";
+import { cleanDevName, signDevPass } from "../shared/net/netdev.js";
 
 export { Live } from "./live.js";
 
 const DEVICE_COOKIE = "games_device";
 const SESSION_COOKIE = "games_session";
+// Marks a browser as a dev's (shared/net/netdev.js): set when an admin opens
+// the admin pages, read by /_guard/dev on every game host.
+const DEV_COOKIE = "games_dev";
 const COOKIE_DOMAIN = ".andrenijman.com";
 const SESSION_DAYS = 30;
 const PBKDF2_ITERATIONS = 100000;
@@ -386,6 +390,7 @@ async function handleGuardRoute(request, env, url) {
   if (url.pathname === "/_guard/popular") return popularGames(env);
   if (url.pathname.startsWith("/_guard/probe/")) return probeRegion(env, url);
   if (url.pathname === "/_guard/live") return liveBeat(request, env, url);
+  if (url.pathname === "/_guard/dev") return devPassFor(request, env, url);
   if (url.pathname === "/_guard/lag-health") {
     return Response.json({ games: await netHealth(env.DB) }, { headers: { "Cache-Control": "no-store" } });
   }
@@ -1234,9 +1239,23 @@ async function handleAdmin(request, env, url) {
   if (!isAdminEmail(adminEmail, env)) {
     return htmlPage("Forbidden", "This dashboard requires a configured Cloudflare Access administrator.", 403);
   }
+  // Opening the admin pages makes this browser a dev's in every game, under
+  // the name it already has or one taken from the email.
+  const held = await readDevCookie(request, env);
+  if (url.pathname === "/_guard/admin/dev" && request.method === "POST") {
+    const form = await request.formData();
+    const name = cleanDevName(form.get("dev_name")) || defaultDevName(adminEmail);
+    return withCookies(Response.redirect(new URL(safeAdminReturn(form.get("return")), HUB_ORIGIN), 303),
+      [await devCookie(adminEmail, name, env.COOKIE_SECRET)]);
+  }
+  const dev = held && held.email === adminEmail.trim().toLowerCase() ? held : { email: adminEmail, name: defaultDevName(adminEmail) };
+  const response = await adminRoutes(request, env, url, adminEmail, dev);
+  return held === dev ? response : withCookies(response, [await devCookie(adminEmail, dev.name, env.COOKIE_SECRET)]);
+}
 
+async function adminRoutes(request, env, url, adminEmail, dev) {
   if (url.pathname === "/_guard/admin/lag") return lagAdminPage(env, url, adminEmail);
-  if (url.pathname === "/_guard/admin/live") return liveAdminPage(env, adminEmail);
+  if (url.pathname === "/_guard/admin/live") return liveAdminPage(env, adminEmail, dev);
 
   if (request.method === "POST") {
     const form = await request.formData();
@@ -1314,6 +1333,7 @@ async function handleAdmin(request, env, url) {
   ]);
   const rows = devices.results || [];
   return adminPage(groupDevices(rows), adminEmail, url, {
+    dev,
     totalDevices: Number(totals?.devices || 0),
     totalLabelled: Number(totals?.custom_labelled || 0),
     loaded: rows.length,
@@ -1495,6 +1515,56 @@ async function verifyDeviceCookie(value, secret) {
   const signature = value.slice(split + 1);
   if (!/^[0-9a-f-]{36}$/.test(id)) return null;
   return timingSafeEqual(signature, await hmac(id, secret)) ? id : null;
+}
+
+// "andre.perth.2010@gmail.com" plays as "ANDRE" until renamed on the live page.
+function defaultDevName(email) {
+  return cleanDevName((/[a-z]+/i.exec(String(email).split("@")[0]) || ["DEV"])[0]);
+}
+
+async function devCookie(email, name, secret) {
+  if (!secret) throw new Error("COOKIE_SECRET is not configured");
+  const body = btoa(encodeURIComponent(JSON.stringify({ e: String(email).trim().toLowerCase(), n: cleanDevName(name) })))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return cookie(DEV_COOKIE, `${body}.${await hmac(`dev:${body}`, secret)}`, 31536000);
+}
+
+/** The dev this browser was marked as, { email, name }, or null. */
+async function readDevCookie(request, env) {
+  if (!env.COOKIE_SECRET) return null;
+  for (const value of cookieValues(request.headers.get("Cookie") || "", DEV_COOKIE).reverse()) {
+    const split = value.lastIndexOf(".");
+    if (split < 1) continue;
+    const body = value.slice(0, split);
+    if (!timingSafeEqual(value.slice(split + 1), await hmac(`dev:${body}`, env.COOKIE_SECRET))) continue;
+    try {
+      const claims = JSON.parse(decodeURIComponent(atob(body.replace(/-/g, "+").replace(/_/g, "/"))));
+      const name = cleanDevName(claims.n);
+      if (claims.e && name) return { email: String(claims.e), name };
+    } catch {}
+  }
+  return null;
+}
+
+function safeAdminReturn(value) {
+  const path = String(value || "");
+  return /^\/_guard\/admin[\w/?=&%.-]*$/.test(path) ? path : "/_guard/admin/live";
+}
+
+// A game asks whether its player is a dev before it creates or joins a room
+// (shared/net/netdev.js devPass). Only a browser marked by the admin pages,
+// whose email is still an admin's, gets a pass, signed for this game alone.
+async function devPassFor(request, env, url) {
+  const headers = { "Cache-Control": "no-store" };
+  if (request.method !== "GET") return new Response(null, { status: 405, headers });
+  const dev = HOSTS.has(url.hostname) && url.hostname !== HUB_HOST ? await readDevCookie(request, env) : null;
+  if (!dev || !isAdminEmail(dev.email, env)) return Response.json({ dev: false }, { headers });
+  if (!env.DEV_SIGNING_KEY) {
+    console.error("DEV_SIGNING_KEY is not configured");
+    return Response.json({ dev: false }, { headers });
+  }
+  const { pass, exp } = await signDevPass(env.DEV_SIGNING_KEY, { name: dev.name, host: url.hostname });
+  return Response.json({ dev: true, name: dev.name, pass, exp }, { headers });
 }
 
 function cookie(name, value, maxAge) {
@@ -1708,7 +1778,7 @@ function adminPage(groups, email, url, stats = {}) {
       <button type="submit">Search</button>
       ${query ? `<a href="${escapeHtml(adminHref(view))}">Clear</a>` : ""}
     </form>
-    ${livePanel(stats.live)}
+    ${livePanel(stats.live, stats.dev)}
     ${visitPanel(stats.visits)}
     ${lagPanel(stats.net, stats.netPlayers)}
     <nav class="admin-tabs" aria-label="Device filters">${tabs}</nav>
@@ -1777,36 +1847,54 @@ function liveTable(devices) {
   const status = { playing: "Playing", idle: "Open, idle", background: "In background" };
   const rows = devices.map((d) => {
     const info = d.info || {};
-    const name = info.username || info.label || "Unknown device";
+    // The name they play under, as the game reports it, comes first.
+    const players = [...new Set(d.tabs.map((tab) => tab.player).filter(Boolean))];
+    const device = info.username || info.label || "Unknown device";
+    const name = players.join(", ") || device;
     const kind = [info.model, info.os, info.browser].filter(Boolean).join(" · ");
     const games = d.tabs.map((tab) => {
       const note = tab.status === "playing" ? `for ${liveFor(tab.forS)}`
         : tab.status === "idle" ? `no input for ${liveFor(tab.idleS)}` : `hidden, open ${liveFor(tab.forS)}`;
-      return `<li><b class="live-${tab.status}">${status[tab.status]}</b> ${escapeHtml(GAME_TITLES[tab.host] || tab.host.replace(/\.andrenijman\.com$/, ""))}${tab.path !== "/" ? ` <small class="lag-ok">${escapeHtml(tab.path)}</small>` : ""} <small class="lag-ok">${note}</small></li>`;
+      const room = tab.room
+        ? ` <span class="live-room">room ${escapeHtml(tab.room)} · <a href="https://${tab.host}/?join=${encodeURIComponent(tab.room)}" target="_blank" rel="noopener">join as dev</a></span>`
+        : "";
+      return `<li><b class="live-${tab.status}">${status[tab.status]}</b> ${escapeHtml(GAME_TITLES[tab.host] || tab.host.replace(/\.andrenijman\.com$/, ""))}${tab.path !== "/" ? ` <small class="lag-ok">${escapeHtml(tab.path)}</small>` : ""}${tab.player && players.length > 1 ? ` <small>as ${escapeHtml(tab.player)}</small>` : ""}${room} <small class="lag-ok">${note}</small></li>`;
     }).join("");
     const t = d.tabs[0];
     const where = [t.city, t.country].filter(Boolean).join(", ");
     return `<tr class="live-row-${d.status}">
-      <td><a href="/_guard/admin?q=${encodeURIComponent(d.device)}">${escapeHtml(name)}</a>${info.username && info.label ? `<small>${escapeHtml(info.label)}</small>` : ""}<small>${escapeHtml(kind)}</small></td>
+      <td><a href="/_guard/admin?q=${encodeURIComponent(d.device)}">${escapeHtml(name)}</a>${players.length ? `<small>${escapeHtml(device)}${info.username && info.label ? ` · ${escapeHtml(info.label)}` : ""}</small>` : info.username && info.label ? `<small>${escapeHtml(info.label)}</small>` : ""}<small>${escapeHtml(kind)}</small></td>
       <td><ul class="lag-seats">${games}</ul></td>
       <td>${escapeHtml(where || "—")}${t.colo ? `<small>via ${escapeHtml(t.colo)}</small>` : ""}</td>
     </tr>`;
   }).join("");
-  return `<table class="lag-table"><thead><tr><th>Device</th><th>Game</th><th>Where</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="lag-table"><thead><tr><th>Player</th><th>Game</th><th>Where</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-function livePanel(devices) {
+// This browser's dev name, which every game shows when it joins a room, and
+// a form to change it.
+function devLine(dev, back) {
+  if (!dev) return "";
+  return `<form class="dev-line" method="post" action="/_guard/admin/dev"><input type="hidden" name="return" value="${escapeHtml(back)}">
+    <span>This browser joins any game's room as <b>DEV ${escapeHtml(dev.name)}</b>, even locked, full or mid-match. Use “join as dev” next to a room, or open a game with <code>?join=CODE</code>.</span>
+    <label>Name <input name="dev_name" value="${escapeHtml(dev.name)}" maxlength="16" pattern="[A-Za-z0-9 ]{1,16}" required></label><button type="submit">Save</button>
+  </form>`;
+}
+
+function livePanel(devices, dev) {
   if (!devices) return "";
   return `<section class="visits lag-panel" aria-label="Live now">
     <div class="visit-hosts"><span class="visit-label">Live now · ${liveCounts(devices)} · <a href="/_guard/admin/live">live view, refreshes itself</a></span></div>
+    ${devLine(dev, "/_guard/admin")}
     ${devices.length ? liveTable(devices.slice(0, 12)) : `<p class="empty-state">Nobody has a game open right now.</p>`}
   </section>`;
 }
 
-async function liveAdminPage(env, email) {
+async function liveAdminPage(env, email, dev) {
   const devices = await liveNow(env);
   return shell("Live now", `<main class="admin">
     <header class="admin-title"><div><p class="kicker"><a href="/_guard/admin">ACCESS CONTROL</a> / LIVE NOW</p><h1>Live now</h1><p class="summary-line">${liveCounts(devices)}. Playing means the game's tab is visible and had a key, click, touch or gamepad input in the last minute. Refreshes every 5 s.</p></div><p>${escapeHtml(email)}</p></header>
+    ${devLine(dev, "/_guard/admin/live")}
     ${devices.length ? liveTable(devices) : `<p class="empty-state">Nobody has a game open right now.</p>`}
   </main>`, 200, `<meta http-equiv="refresh" content="5">`);
 }
@@ -2053,7 +2141,7 @@ function referrerHost(value) {
 function privacyPage() {
   return shell("Privacy", `<main class="auth privacy"><p class="kicker">PRIVACY</p><h1>Site data</h1>
     <p>You can use the site without naming your device or creating an account. The site records an automatically generated internal device label, an optional account, a random signed browser identifier, and the games you visit with first and last visit times. Older records may retain a device label supplied before device naming was removed.</p>
-    <p>While a game is open, its page reports every 20 seconds whether its tab is visible and how many seconds since your last key press, click, touch or gamepad input, so the site owner can see who is playing right now. These reports are kept in memory for at most three minutes and never stored.</p>
+    <p>While a game is open, its page reports every 20 seconds whether its tab is visible and how many seconds since your last key press, click, touch or gamepad input, plus the name you play under and the room you are in for online games, so the site owner can see who is playing right now. These reports are kept in memory for at most three minutes and never stored.</p>
     <p>It also records what your browser reports about itself: browser and operating-system family and version, processor architecture, device model on Android, screen size and pixel ratio, processor core count, rough memory size, touch support, time zone, and languages, plus the graphics adapter name your browser exposes to web pages.</p>
     <p>From the network connection it records a partial IP network, country, city, region, and the network operator name. If you arrived from another website it records the address that site's browser sent, for your first arrival and for the most recent one. Browsers send only the site's address and not the page within it, and moving between pages of this site is never recorded as a referral. Signed-in players may also store supported game progress and named world saves in their account.</p>
     <p>ONE WORLD uses your account username as your in-world name. When you join its shared world, the site creates a short-lived signed ticket containing that username and sends it to the private game relay. The shared world stores normal game data such as your inventory, location, builds, and chat in its persistent world files.</p>
@@ -2532,7 +2620,9 @@ const CLIENT_JS = `(function () {
       }
     }, 2000);
     function send(state) {
-      var body = JSON.stringify({ tab: tab, path: location.pathname, idle: Math.round((Date.now() - lastInput) / 1000), state: state });
+      // The game names its player and room through shared/net/netdev.js setPlayer.
+      var player = window.__gamesPlayer || {};
+      var body = JSON.stringify({ tab: tab, path: location.pathname, idle: Math.round((Date.now() - lastInput) / 1000), state: state, player: player.name || '', room: player.room || '' });
       if (state !== 'on' && navigator.sendBeacon) {
         navigator.sendBeacon('/_guard/live', new Blob([body], { type: 'application/json' }));
         return;
@@ -2601,6 +2691,11 @@ ${FONT_FACES}
 .live-idle{color:#e5c07b}
 .live-background{color:var(--muted);font-weight:400}
 .live-row-playing td:first-child{box-shadow:inset 2px 0 #7fd18b}
+.live-room{color:var(--muted);font-size:.75rem}
+.dev-line{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:12px 0;padding:10px 12px;border:1px solid #ffd23f55;border-radius:6px;font-size:.8rem}
+.dev-line b{color:#ffd23f}
+.dev-line span{flex:1 1 320px}
+.dev-line input{width:9em}
 .visit-note{margin:14px 0 0;color:var(--muted);font-size:.7rem;line-height:1.5}
 .account-controls{display:grid;grid-template-columns:minmax(180px,1fr) minmax(260px,1.5fr) minmax(180px,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .account-controls form{display:grid;grid-template-columns:1fr;align-content:start;gap:8px;padding:12px 16px 12px 0}

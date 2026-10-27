@@ -9,11 +9,20 @@ const beat = (over: Record<string, unknown> = {}) => ({
 describe("live now", () => {
   it("accepts only well-formed reports", () => {
     expect(cleanBeat({ tab: "abcd1234", path: "/play", idle: 12.4, state: "hidden" }))
-      .toEqual({ tab: "abcd1234", path: "/play", idle: 12, state: "hidden" });
+      .toEqual({ tab: "abcd1234", path: "/play", idle: 12, state: "hidden", player: "", room: "" });
+    expect(cleanBeat({ tab: "abcd1234", player: " Andre\u0007 ", room: "ABCDE" })).toMatchObject({ player: "Andre", room: "ABCDE" });
+    expect(cleanBeat({ tab: "abcd1234", player: "x".repeat(40) })?.player).toHaveLength(24);
     expect(cleanBeat({ tab: "x", state: "on" })).toBeNull();
     expect(cleanBeat({ tab: "abcd1234", state: "deleted" })).toBeNull();
     expect(cleanBeat(null)).toBeNull();
     expect(cleanBeat({ tab: "abcd1234", idle: -5 })?.idle).toBe(0);
+  });
+
+  it("keeps the in-game name and room each report gives", () => {
+    const live = new LiveTabs();
+    live.beat(beat({ player: "Andre", room: "ABCDE" }), 0);
+    live.beat(beat({ player: "Andre2", room: "" }), 20_000);
+    expect(live.list(20_000)[0]).toMatchObject({ player: "Andre2", room: "" });
   });
 
   it("tells playing, idle and background apart and keeps when a tab opened", () => {
