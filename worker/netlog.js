@@ -126,3 +126,11 @@ export async function netRecent(db, { game = "", laggy = false, limit = 100 } = 
     ORDER BY at DESC LIMIT ${Math.max(1, Math.min(500, limit | 0))}`).bind(...args).all();
   return (rows?.results || []).map((r) => { try { return JSON.parse(r.record); } catch { return null; } }).filter(Boolean);
 }
+
+/** Public liveness of the lag logs: per game, matches logged in the last day and the latest one. No players, no pings. */
+export async function netHealth(db) {
+  await ensureNetTable(db);
+  const since = new Date(Date.now() - 86400000).toISOString();
+  const rows = await db.prepare(`SELECT game, SUM(CASE WHEN at >= ? THEN 1 ELSE 0 END) AS day, MAX(at) AS last FROM net_games GROUP BY game`).bind(since).all();
+  return Object.fromEntries((rows?.results || []).map((r) => [r.game, { lastDay: Number(r.day || 0), last: r.last }]));
+}

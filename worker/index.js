@@ -1,5 +1,5 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { NET_GAMES, netRecent, netSummary, storeNetLog } from "./netlog.js";
+import { NET_GAMES, netHealth, netRecent, netSummary, storeNetLog } from "./netlog.js";
 
 const DEVICE_COOKIE = "games_device";
 const SESSION_COOKIE = "games_session";
@@ -348,6 +348,9 @@ async function handleGuardRoute(request, env, url) {
   }
   if (url.pathname === "/_guard/version") return contentVersion(request, url);
   if (url.pathname === "/_guard/popular") return popularGames(env);
+  if (url.pathname === "/_guard/lag-health") {
+    return Response.json({ games: await netHealth(env.DB) }, { headers: { "Cache-Control": "no-store" } });
+  }
 
   const identity = await identify(request, env, url.hostname);
   if (identity.blocked) {
