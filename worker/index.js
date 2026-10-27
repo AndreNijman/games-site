@@ -1,3 +1,6 @@
+import { WorkerEntrypoint } from "cloudflare:workers";
+import { NET_GAMES, netRecent, netSummary, storeNetLog } from "./netlog.js";
+
 const DEVICE_COOKIE = "games_device";
 const SESSION_COOKIE = "games_session";
 const COOKIE_DOMAIN = ".andrenijman.com";
@@ -215,6 +218,15 @@ const GAMES = {
 
 const GAME_TITLES = Object.fromEntries(
   Object.entries(GAMES).map(([host, game]) => [host, game.name]));
+
+// Game relays call this over a service binding when an online match ends:
+// `env.NETLOG.record("bop", log)`. Only Workers bound to it can reach it.
+export class NetLog extends WorkerEntrypoint {
+  async record(game, log) {
+    const stored = await storeNetLog(this.env.DB, String(game), log);
+    return { ok: true, laggy: stored.lag.length > 0 };
+  }
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -1179,6 +1191,8 @@ async function handleAdmin(request, env, url) {
     return htmlPage("Forbidden", "This dashboard requires a configured Cloudflare Access administrator.", 403);
   }
 
+  if (url.pathname === "/_guard/admin/lag") return lagAdminPage(env, url, adminEmail);
+
   if (request.method === "POST") {
     const form = await request.formData();
     const action = String(form.get("action") || "");
@@ -1237,7 +1251,7 @@ async function handleAdmin(request, env, url) {
   // bounded to protect the isolate. The headline counts come from SQL instead,
   // so they stay truthful even when the window is not big enough to hold
   // every device.
-  const [devices, totals, visits] = await Promise.all([
+  const [devices, totals, visits, net] = await Promise.all([
     env.DB.prepare(`
       SELECT devices.*, accounts.username, accounts.banned_at AS account_banned_at
       FROM devices LEFT JOIN accounts ON accounts.id = devices.account_id
@@ -1249,6 +1263,7 @@ async function handleAdmin(request, env, url) {
       FROM devices
     `).first(),
     visitStats(env),
+    netSummary(env.DB, 7).catch(() => null),
   ]);
   const rows = devices.results || [];
   return adminPage(groupDevices(rows), adminEmail, url, {
@@ -1257,6 +1272,7 @@ async function handleAdmin(request, env, url) {
     loaded: rows.length,
     truncated: rows.length >= ADMIN_ROW_WINDOW,
     visits,
+    net,
   });
 }
 
@@ -1644,11 +1660,57 @@ function adminPage(groups, email, url, stats = {}) {
       ${query ? `<a href="${escapeHtml(adminHref(view))}">Clear</a>` : ""}
     </form>
     ${visitPanel(stats.visits)}
+    ${lagPanel(stats.net)}
     <nav class="admin-tabs" aria-label="Device filters">${tabs}</nav>
     ${stats.truncated ? `<p class="result-line">Showing the ${loadedCount} most recently seen of ${deviceCount} devices. Search to reach older records.</p>` : ""}
     <details class="admin-help"><summary>How identification works</summary><p>Account names and admin labels are authoritative; measured hardware and network details are only hints. Visitors are never asked to name a device. A device ban applies to one signed browser profile, not to a household or network.</p></details>
     ${query ? `<p class="result-line">${visible.length} matching ${visible.length === 1 ? "group" : "groups"} for “${escapeHtml(query)}”</p>` : ""}
     <div class="people">${sections || `<p class="empty-state">No accounts or devices match this view.</p>`}</div>
+  </main>`);
+}
+
+// Online matches per game over the last week and how many looked laggy, from
+// the relays' own measurements (worker/netlog.js). Links to the full log.
+function lagPanel(net) {
+  if (!net) return "";
+  const rows = net.length
+    ? `<ul>${net.map((row) => `<li><a href="/_guard/admin/lag?game=${encodeURIComponent(row.game)}">${escapeHtml(row.game)}</a><span>${row.games} ${row.games === 1 ? "match" : "matches"} · <b class="${row.laggy ? "lag-bad" : "lag-ok"}">${row.laggy} laggy</b></span></li>`).join("")}</ul>`
+    : `<p class="visit-note">No online matches logged in the last 7 days.</p>`;
+  return `<section class="visits lag-panel" aria-label="Multiplayer lag">
+    <div class="visit-hosts"><span class="visit-label">Multiplayer lag, last 7 days · <a href="/_guard/admin/lag">full log</a> · <a href="/_guard/admin/lag?laggy=1">laggy only</a></span>${rows}</div>
+  </section>`;
+}
+
+// Every logged online match, newest first: who played, their ping and frame
+// rate, and what looked laggy. Filter by game and to laggy matches only.
+async function lagAdminPage(env, url, email) {
+  const game = NET_GAMES.has(url.searchParams.get("game") || "") ? url.searchParams.get("game") : "";
+  const laggy = url.searchParams.get("laggy") === "1";
+  const [summary, logs] = await Promise.all([netSummary(env.DB, 30), netRecent(env.DB, { game, laggy, limit: 200 })]);
+  const href = (g, l) => {
+    const q = new URLSearchParams();
+    if (g) q.set("game", g);
+    if (l) q.set("laggy", "1");
+    const qs = q.toString();
+    return `/_guard/admin/lag${qs ? `?${qs}` : ""}`;
+  };
+  const tabs = [["", "All games"], ...summary.map((row) => [row.game, row.game])]
+    .map(([value, label]) => `<a href="${escapeHtml(href(value, laggy))}"${game === value ? ` aria-current="page"` : ""}>${escapeHtml(label)}<span>${value ? summary.find((row) => row.game === value)?.games ?? 0 : summary.reduce((n, row) => n + row.games, 0)}</span></a>`).join("");
+  const ms = (v) => `${Math.round(Number(v) || 0)}`;
+  const rows = logs.map((log) => {
+    const seats = log.seats.map((seat) => `<li><b>${escapeHtml(seat.name)}</b> ping ${ms(seat.rttMed)}/${ms(seat.rttP95)}/${ms(seat.rttMax)} ms${seat.gapP95 ? ` · gaps p95 ${ms(seat.gapP95)} ms` : ""}${seat.fpsMed ? ` · ${seat.fpsMed} fps (worst frame ${ms(seat.frameMax)} ms)` : ""}${seat.reconnects ? ` · ${seat.reconnects} reconnect${seat.reconnects === 1 ? "" : "s"}` : ""}</li>`).join("");
+    const server = log.server ? ` · server ${escapeHtml(log.colo || "?")} sim ${Math.round(log.server.simSpeed * 100)}%, worst tick ${ms(log.server.tickGapMax)} ms` : (log.colo ? ` · server ${escapeHtml(log.colo)}` : "");
+    return `<tr class="${log.lag.length ? "lag-row-bad" : ""}">
+      <td>${escapeHtml(formatAdminTime(log.at.replace("T", " ").replace(/\.\d+Z$/, "")))}<small>${escapeHtml(log.game)}${log.code ? ` · ${escapeHtml(log.code)}` : ""}</small></td>
+      <td>${escapeHtml([log.mode, log.outcome].filter(Boolean).join(" · ")) || "&mdash;"}<small>${Math.round(log.runTime)} s${server}</small></td>
+      <td><ul class="lag-seats">${seats}</ul>${log.lag.length ? `<p class="lag-bad">${log.lag.map(escapeHtml).join("<br>")}</p>` : ""}</td>
+    </tr>`;
+  }).join("");
+  return shell("Multiplayer lag", `<main class="admin">
+    <header class="admin-title"><div><p class="kicker"><a href="/_guard/admin">ACCESS CONTROL</a> / LAG</p><h1>Multiplayer lag</h1><p class="summary-line">Ping is median / 95th percentile / worst, in ms, measured by each player's game against its relay. Laggy means ping p95 over 200 ms, input gaps p95 over 150 ms, under 40 fps, a reconnect, or the server falling behind.</p></div><p>${escapeHtml(email)}</p></header>
+    <nav class="admin-tabs" aria-label="Games">${tabs}</nav>
+    <p class="result-line"><a href="${escapeHtml(href(game, !laggy))}">${laggy ? "Show every match" : "Show laggy matches only"}</a> · last 30 days counted in tabs</p>
+    ${rows ? `<table class="lag-table"><thead><tr><th>When</th><th>Match</th><th>Players</th></tr></thead><tbody>${rows}</tbody></table>` : `<p class="empty-state">No matches logged${game ? ` for ${escapeHtml(game)}` : ""}${laggy ? " that looked laggy" : ""}.</p>`}
   </main>`);
 }
 
@@ -2298,6 +2360,17 @@ ${FONT_FACES}
 .visit-hosts ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 24px;margin:8px 0 0;padding:0;list-style:none}
 .visit-hosts li{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--line);font:11px ui-monospace,SFMono-Regular,Consolas,monospace}
 .visit-hosts li span:last-child{color:var(--accent)}
+.lag-panel{border-top:0;padding-top:0}
+.lag-panel a{color:inherit}
+.lag-ok{color:var(--muted);font-weight:400}
+.lag-bad{color:#e0624f}
+.lag-table{width:100%;border-collapse:collapse;margin-top:12px;font:12px ui-monospace,SFMono-Regular,Consolas,monospace}
+.lag-table th{text-align:left;color:var(--muted);font-weight:400;padding:6px 8px;border-bottom:1px solid var(--line)}
+.lag-table td{vertical-align:top;padding:8px;border-bottom:1px solid var(--line)}
+.lag-table td small{display:block;color:var(--muted);margin-top:2px}
+.lag-seats{margin:0;padding:0;list-style:none}
+.lag-table p{margin:6px 0 0}
+.lag-row-bad td:first-child{box-shadow:inset 2px 0 #e0624f}
 .visit-note{margin:14px 0 0;color:var(--muted);font-size:.7rem;line-height:1.5}
 .account-controls{display:grid;grid-template-columns:minmax(180px,1fr) minmax(260px,1.5fr) minmax(180px,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .account-controls form{display:grid;grid-template-columns:1fr;align-content:start;gap:8px;padding:12px 16px 12px 0}

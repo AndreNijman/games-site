@@ -94,9 +94,28 @@ CREATE TABLE blade_hymn_runs (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Multiplayer lag logs, one row per finished online match. See
+-- migrations/2026-10-27-net-games.sql and worker/netlog.js.
+CREATE TABLE net_games (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  game TEXT NOT NULL,
+  at TEXT NOT NULL,
+  code TEXT NOT NULL DEFAULT '',
+  mode TEXT NOT NULL DEFAULT '',
+  outcome TEXT NOT NULL DEFAULT '',
+  colo TEXT NOT NULL DEFAULT '',
+  run_s REAL NOT NULL DEFAULT 0,
+  players INTEGER NOT NULL DEFAULT 0,
+  laggy INTEGER NOT NULL DEFAULT 0,
+  lag TEXT NOT NULL DEFAULT '[]',
+  record TEXT NOT NULL
+);
+
 CREATE INDEX devices_account_id ON devices(account_id);
 CREATE INDEX devices_last_seen_at ON devices(last_seen_at DESC);
 CREATE INDEX sessions_account_id ON sessions(account_id);
 CREATE INDEX sessions_expires_at ON sessions(expires_at);
 CREATE INDEX device_aliases_device_id ON device_aliases(device_id);
 CREATE INDEX blade_hymn_runs_level_ms ON blade_hymn_runs(level, ms);
+CREATE INDEX net_games_game_at ON net_games(game, at DESC);
+CREATE INDEX net_games_at ON net_games(at DESC);
