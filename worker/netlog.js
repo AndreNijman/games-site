@@ -7,9 +7,13 @@
 // A record, as relays send it (every field but `seats` optional):
 //   { at, code, mode, outcome, runTime (s), colo,
 //     server: { simSpeed, tickGapMax, stalls, lostMs },
-//     seats: [{ name, rttMed, rttP95, rttMax, gapP95, gapMax,
+//     region, moved: { from, to },
+//     seats: [{ name, country, edge, rttMed, rttP95, rttMax, gapP95, gapMax,
 //               fpsMed, fpsMin, frameMax, reconnects }],
 //     lag: [ extra notes ] }
+// `region` is the Cloudflare location hint the room ran under, `moved` a
+// relocation at match start (netplace.js), `country` the player's ISO code and
+// `edge` the Cloudflare colo they connected through.
 
 /** What counts as laggy, shared with FART TOGETHER's own log. */
 export const LAG_LIMITS = { rttP95: 200, gapP95: 150, fpsMed: 40, tickGap: 250, simSpeed: 0.97 };
@@ -33,6 +37,7 @@ export function normalizeNetLog(game, raw) {
   const at = Number.isFinite(Date.parse(r.at)) ? new Date(r.at).toISOString() : new Date().toISOString();
   const seats = (Array.isArray(r.seats) ? r.seats : []).slice(0, 16).map((s) => ({
     name: text(s?.name, 32) || "?",
+    country: text(s?.country, 2).toUpperCase(), edge: text(s?.edge, 4).toUpperCase(),
     rttMed: num(s?.rttMed, 60000), rttP95: num(s?.rttP95, 60000), rttMax: num(s?.rttMax, 60000),
     gapP95: num(s?.gapP95, 600000), gapMax: num(s?.gapMax, 600000),
     fpsMed: num(s?.fpsMed, 1000), fpsMin: num(s?.fpsMin, 1000), frameMax: num(s?.frameMax, 600000),
@@ -46,6 +51,8 @@ export function normalizeNetLog(game, raw) {
     game, at,
     code: text(r.code, 16), mode: text(r.mode, 60), outcome: text(r.outcome, 24), colo: text(r.colo, 8),
     runTime: num(r.runTime, 86400 * 7),
+    region: text(r.region, 4),
+    moved: r.moved && typeof r.moved === "object" ? { from: text(r.moved.from, 8), to: text(r.moved.to, 8) } : null,
     server, seats,
     lag: /** @type {string[]} */ ([]),
   };
@@ -146,12 +153,16 @@ export function netPlayers(logs) {
     for (const s of log.seats || []) {
       const key = `${log.game}\u0000${s.name}`;
       let p = by.get(key);
-      if (!p) by.set(key, p = { game: log.game, name: s.name, games: 0, laggy: 0, rtt: [], fps: [], rttWorst: 0, last: log.at });
+      if (!p) by.set(key, p = { game: log.game, name: s.name, country: "", edge: "", games: 0, laggy: 0, rtt: [], fps: [], rttWorst: 0, last: log.at });
       p.games++;
       if ((log.lag || []).some((l) => l.startsWith(`${s.name}: `))) p.laggy++;
       if (s.rttP95) p.rtt.push(s.rttP95);
       if (s.fpsMed) p.fps.push(s.fpsMed);
       p.rttWorst = Math.max(p.rttWorst, s.rttMax || 0);
+      if (log.at >= p.last || !p.country) {
+        p.country = s.country || p.country;
+        p.edge = s.edge || p.edge;
+      }
       if (log.at > p.last) p.last = log.at;
     }
   }

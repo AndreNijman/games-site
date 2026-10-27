@@ -1,4 +1,4 @@
-import { WorkerEntrypoint } from "cloudflare:workers";
+import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
 import { NET_GAMES, netHealth, netPlayers, netRecent, netSince, netSummary, storeNetLog } from "./netlog.js";
 
 const DEVICE_COOKIE = "games_device";
@@ -228,6 +228,29 @@ export class NetLog extends WorkerEntrypoint {
   }
 }
 
+// One Durable Object per Cloudflare location hint. Game clients time a request
+// to each (shared/net/netprobe.js) to learn their ping to every region, which
+// relays use to show a room's ping in the lobby and to move a mixed group's
+// room somewhere fairer (shared/net/netplace.js).
+const PROBE_REGIONS = new Set(["wnam", "enam", "sam", "weur", "eeur", "apac", "oc", "afr", "me"]);
+
+export class Probe extends DurableObject {
+  /** The Cloudflare colo this probe runs in. */
+  async where() {
+    this.colo ||= await fetch("https://cloudflare.com/cdn-cgi/trace")
+      .then((r) => r.text()).then((t) => /colo=([A-Z]{3})/.exec(t)?.[1] || "").catch(() => "");
+    return { colo: this.colo };
+  }
+}
+
+async function probeRegion(env, url) {
+  const region = url.pathname.slice("/_guard/probe/".length);
+  const headers = { "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" };
+  if (!PROBE_REGIONS.has(region)) return new Response("unknown region", { status: 404, headers });
+  const { colo } = await env.PROBES.get(env.PROBES.idFromName(region), { locationHint: region }).where();
+  return Response.json({ region, colo }, { headers });
+}
+
 export default {
   async fetch(request, env, ctx) {
     try {
@@ -348,6 +371,7 @@ async function handleGuardRoute(request, env, url) {
   }
   if (url.pathname === "/_guard/version") return contentVersion(request, url);
   if (url.pathname === "/_guard/popular") return popularGames(env);
+  if (url.pathname.startsWith("/_guard/probe/")) return probeRegion(env, url);
   if (url.pathname === "/_guard/lag-health") {
     return Response.json({ games: await netHealth(env.DB) }, { headers: { "Cache-Control": "no-store" } });
   }
@@ -682,6 +706,9 @@ async function tungSocket(request, env, url, identity) {
   upstream.headers.set("Origin", "https://tung.andrenijman.com");
   upstream.headers.set("X-Tung-Proxy-Authorization", `Bearer ${env.TUNG_PROXY_SECRET}`);
   upstream.headers.set("X-Tung-Proxy-Admin-Name", TUNG_ADMINS.has(username) ? username : "");
+  // The relay sees this proxy's hop, not the player: pass on where they are.
+  upstream.headers.set("X-Games-Country", String(request.cf?.country || ""));
+  upstream.headers.set("X-Games-Edge", String(request.cf?.colo || ""));
   upstream.headers.delete("Cookie");
   return fetch(upstream);
 }
@@ -1687,12 +1714,19 @@ function lagPanel(net, players) {
   const laggers = (players || []).filter((p) => p.laggy).slice(0, 8);
   const who = laggers.length
     ? `<div class="visit-hosts"><span class="visit-label">Players who lagged, last 7 days · <a href="/_guard/admin/lag#players">all players</a></span><ul>${laggers.map((p) =>
-        `<li><a href="${escapeHtml(lagHref(p.game, false, p.name))}">${escapeHtml(p.name)} <small class="lag-ok">${escapeHtml(p.game)}</small></a><span><b class="lag-bad">${p.laggy}/${p.games} laggy</b> · ping p95 ${Math.round(p.rttP95)} ms${p.fpsMed ? ` · ${p.fpsMed} fps` : ""}</span></li>`).join("")}</ul></div>`
+        `<li><a href="${escapeHtml(lagHref(p.game, false, p.name))}">${escapeHtml(p.name)} <small class="lag-ok">${escapeHtml([p.game, p.country].filter(Boolean).join(" · "))}</small></a><span><b class="lag-bad">${p.laggy}/${p.games} laggy</b> · ping p95 ${Math.round(p.rttP95)} ms${p.fpsMed ? ` · ${p.fpsMed} fps` : ""}</span></li>`).join("")}</ul></div>`
     : "";
   return `<section class="visits lag-panel" aria-label="Multiplayer lag">
     <div class="visit-hosts"><span class="visit-label">Multiplayer lag, last 7 days · <a href="/_guard/admin/lag">full log</a> · <a href="/_guard/admin/lag?laggy=1">laggy only</a></span>${rows}</div>
     ${who}
   </section>`;
+}
+
+// " (BR via GRU)": the player's country and the Cloudflare colo they came in
+// through, when the relay reported them.
+function lagWhere(seat) {
+  const where = [seat.country, seat.edge && `via ${seat.edge}`].filter(Boolean).join(" ");
+  return where ? ` <small class="lag-ok">(${escapeHtml(where)})</small>` : "";
 }
 
 function lagHref(game, laggy, player = "") {
@@ -1721,7 +1755,7 @@ async function lagAdminPage(env, url, email) {
     .map(([value, label]) => `<a href="${escapeHtml(href(value, laggy))}"${game === value ? ` aria-current="page"` : ""}>${escapeHtml(label)}<span>${value ? summary.find((row) => row.game === value)?.games ?? 0 : summary.reduce((n, row) => n + row.games, 0)}</span></a>`).join("");
   const players = netPlayers(game ? month.filter((log) => log.game === game) : month);
   const playerRows = players.map((p) => `<tr class="${p.laggy ? "lag-row-bad" : ""}">
-      <td><a href="${escapeHtml(href(p.game, false, p.name))}">${escapeHtml(p.name)}</a><small>${escapeHtml(p.game)}</small></td>
+      <td><a href="${escapeHtml(href(p.game, false, p.name))}">${escapeHtml(p.name)}</a><small>${escapeHtml(p.game)}${lagWhere(p)}</small></td>
       <td>${p.games}</td>
       <td>${p.laggy ? `<b class="lag-bad">${p.laggy}</b>` : "0"}</td>
       <td>${Math.round(p.rttP95)} ms<small>worst ${Math.round(p.rttWorst)} ms</small></td>
@@ -1730,8 +1764,9 @@ async function lagAdminPage(env, url, email) {
     </tr>`).join("");
   const ms = (v) => `${Math.round(Number(v) || 0)}`;
   const rows = logs.map((log) => {
-    const seats = log.seats.map((seat) => `<li><b>${escapeHtml(seat.name)}</b> ping ${ms(seat.rttMed)}/${ms(seat.rttP95)}/${ms(seat.rttMax)} ms${seat.gapP95 ? ` · gaps p95 ${ms(seat.gapP95)} ms` : ""}${seat.fpsMed ? ` · ${seat.fpsMed} fps (worst frame ${ms(seat.frameMax)} ms)` : ""}${seat.reconnects ? ` · ${seat.reconnects} reconnect${seat.reconnects === 1 ? "" : "s"}` : ""}</li>`).join("");
-    const server = log.server ? ` · server ${escapeHtml(log.colo || "?")} sim ${Math.round(log.server.simSpeed * 100)}%, worst tick ${ms(log.server.tickGapMax)} ms` : (log.colo ? ` · server ${escapeHtml(log.colo)}` : "");
+    const seats = log.seats.map((seat) => `<li><b>${escapeHtml(seat.name)}</b>${lagWhere(seat)} ping ${ms(seat.rttMed)}/${ms(seat.rttP95)}/${ms(seat.rttMax)} ms${seat.gapP95 ? ` · gaps p95 ${ms(seat.gapP95)} ms` : ""}${seat.fpsMed ? ` · ${seat.fpsMed} fps (worst frame ${ms(seat.frameMax)} ms)` : ""}${seat.reconnects ? ` · ${seat.reconnects} reconnect${seat.reconnects === 1 ? "" : "s"}` : ""}</li>`).join("");
+    const moved = log.moved ? ` (moved ${escapeHtml(log.moved.from)} → ${escapeHtml(log.moved.to)})` : "";
+    const server = log.server ? ` · server ${escapeHtml(log.colo || "?")}${moved} sim ${Math.round(log.server.simSpeed * 100)}%, worst tick ${ms(log.server.tickGapMax)} ms` : (log.colo ? ` · server ${escapeHtml(log.colo)}${moved}` : "");
     return `<tr class="${log.lag.length ? "lag-row-bad" : ""}">
       <td>${escapeHtml(formatAdminTime(log.at.replace("T", " ").replace(/\.\d+Z$/, "")))}<small>${escapeHtml(log.game)}${log.code ? ` · ${escapeHtml(log.code)}` : ""}</small></td>
       <td>${escapeHtml([log.mode, log.outcome].filter(Boolean).join(" · ")) || "&mdash;"}<small>${Math.round(log.runTime)} s${server}</small></td>

@@ -31,6 +31,9 @@
       "database_id": "70dd6bf0-302b-4800-88dc-9fbd814e1157"
     }
   ],
+  // Region probes for game clients (/_guard/probe/<region>).
+  "durable_objects": { "bindings": [{ "name": "PROBES", "class_name": "Probe" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Probe"] }],
   // What rime-secretd deploys: `rime secret use cloudflare
   // cloudflare.wrangler.deploy games-guard` runs `wrangler deploy --env
   // production`. The same Worker, not a games-guard-production beside it, so
@@ -52,7 +55,8 @@
           "database_name": "games-guard",
           "database_id": "70dd6bf0-302b-4800-88dc-9fbd814e1157"
         }
-      ]
+      ],
+      "durable_objects": { "bindings": [{ "name": "PROBES", "class_name": "Probe" }] }
     }
   }
 }
