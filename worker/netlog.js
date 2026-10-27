@@ -134,3 +134,37 @@ export async function netHealth(db) {
   const rows = await db.prepare(`SELECT game, SUM(CASE WHEN at >= ? THEN 1 ELSE 0 END) AS day, MAX(at) AS last FROM net_games GROUP BY game`).bind(since).all();
   return Object.fromEntries((rows?.results || []).map((r) => [r.game, { lastDay: Number(r.day || 0), last: r.last }]));
 }
+
+/**
+ * Every player in `logs`, laggiest first: matches played,
+ * how many looked laggy for them, their typical and worst ping p95 and their
+ * typical frame rate. Players are told apart by name only, per game.
+ */
+export function netPlayers(logs) {
+  const by = new Map();
+  for (const log of logs) {
+    for (const s of log.seats || []) {
+      const key = `${log.game}\u0000${s.name}`;
+      let p = by.get(key);
+      if (!p) by.set(key, p = { game: log.game, name: s.name, games: 0, laggy: 0, rtt: [], fps: [], rttWorst: 0, last: log.at });
+      p.games++;
+      if ((log.lag || []).some((l) => l.startsWith(`${s.name}: `))) p.laggy++;
+      if (s.rttP95) p.rtt.push(s.rttP95);
+      if (s.fpsMed) p.fps.push(s.fpsMed);
+      p.rttWorst = Math.max(p.rttWorst, s.rttMax || 0);
+      if (log.at > p.last) p.last = log.at;
+    }
+  }
+  const mid = (a) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : 0);
+  return [...by.values()]
+    .map(({ rtt, fps, ...p }) => ({ ...p, rttP95: mid(rtt), fpsMed: mid(fps) }))
+    .sort((a, b) => b.laggy - a.laggy || b.rttP95 - a.rttP95 || b.games - a.games);
+}
+
+/** Records from the last `days` days, newest first, for summaries. */
+export async function netSince(db, days = 7, limit = 2000) {
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  await ensureNetTable(db);
+  const rows = await db.prepare(`SELECT record FROM net_games WHERE at >= ? ORDER BY at DESC LIMIT ${Math.max(1, Math.min(5000, limit | 0))}`).bind(since).all();
+  return (rows?.results || []).map((r) => { try { return JSON.parse(r.record); } catch { return null; } }).filter(Boolean);
+}

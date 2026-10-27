@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { judgeNetLog, normalizeNetLog, NET_GAMES } from "../../worker/netlog.js";
+import { judgeNetLog, netPlayers, normalizeNetLog, NET_GAMES } from "../../worker/netlog.js";
 
 const seat = (o = {}) => ({ name: "A", rttMed: 40, rttP95: 60, rttMax: 90, fpsMed: 60, fpsMin: 55, frameMax: 30, reconnects: 0, ...o });
 
@@ -38,5 +38,17 @@ describe("multiplayer lag logs", () => {
     expect(Number.isFinite(Date.parse(log.at))).toBe(true);
     expect(() => normalizeNetLog("evil", {})).toThrow();
     expect(NET_GAMES.has("topout")).toBe(true);
+  });
+
+  it("sums players per game, laggiest first, counting only their own lag", () => {
+    const logs = [
+      normalizeNetLog("fart", { at: "2026-10-26T10:00:00Z", seats: [seat({ name: "victor", rttP95: 320, rttMax: 900 }), seat({ name: "mo" })] }),
+      normalizeNetLog("fart", { at: "2026-10-26T11:00:00Z", seats: [seat({ name: "victor", rttP95: 80 }), seat({ name: "mo" })] }),
+      normalizeNetLog("bop", { at: "2026-10-26T12:00:00Z", seats: [seat({ name: "mo", fpsMed: 20 })] }),
+    ];
+    const players = netPlayers(logs);
+    expect(players.map((p) => `${p.game}:${p.name}`)).toEqual(["fart:victor", "bop:mo", "fart:mo"]);
+    expect(players[0]).toMatchObject({ games: 2, laggy: 1, rttWorst: 900, last: "2026-10-26T11:00:00.000Z" });
+    expect(players[2]).toMatchObject({ games: 2, laggy: 0 });
   });
 });
