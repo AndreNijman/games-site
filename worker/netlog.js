@@ -69,9 +69,28 @@ export function judgeNetLog(log, extra = []) {
   return lag;
 }
 
+// The same statements as migrations/2026-10-27-net-games.sql. The deploy
+// token cannot run D1 migrations, so the Worker creates the table itself the
+// first time an isolate touches it.
+const NET_TABLE = [
+  `CREATE TABLE IF NOT EXISTS net_games (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, at TEXT NOT NULL,
+    code TEXT NOT NULL DEFAULT '', mode TEXT NOT NULL DEFAULT '', outcome TEXT NOT NULL DEFAULT '',
+    colo TEXT NOT NULL DEFAULT '', run_s REAL NOT NULL DEFAULT 0, players INTEGER NOT NULL DEFAULT 0,
+    laggy INTEGER NOT NULL DEFAULT 0, lag TEXT NOT NULL DEFAULT '[]', record TEXT NOT NULL)`,
+  "CREATE INDEX IF NOT EXISTS net_games_game_at ON net_games(game, at DESC)",
+  "CREATE INDEX IF NOT EXISTS net_games_at ON net_games(at DESC)",
+];
+let tableReady = null;
+function ensureNetTable(db) {
+  tableReady ||= db.batch(NET_TABLE.map((sql) => db.prepare(sql))).catch((error) => { tableReady = null; throw error; });
+  return tableReady;
+}
+
 /** Store one record and trim that game's history. */
 export async function storeNetLog(db, game, raw) {
   const log = normalizeNetLog(game, raw);
+  await ensureNetTable(db);
   await db.batch([
     db.prepare(`INSERT INTO net_games (game, at, code, mode, outcome, colo, run_s, players, laggy, lag, record)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
@@ -86,6 +105,7 @@ export async function storeNetLog(db, game, raw) {
 /** Per-game summary over the last `days` days, busiest first. */
 export async function netSummary(db, days = 7) {
   const since = new Date(Date.now() - days * 86400000).toISOString();
+  await ensureNetTable(db);
   const rows = await db.prepare(`
     SELECT game, COUNT(*) AS games, SUM(laggy) AS laggy, SUM(players) AS seats, MAX(at) AS last
     FROM net_games WHERE at >= ? GROUP BY game ORDER BY games DESC
@@ -101,6 +121,7 @@ export async function netRecent(db, { game = "", laggy = false, limit = 100 } = 
   const args = [];
   if (game) { where.push("game = ?"); args.push(game); }
   if (laggy) where.push("laggy = 1");
+  await ensureNetTable(db);
   const rows = await db.prepare(`SELECT record FROM net_games ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
     ORDER BY at DESC LIMIT ${Math.max(1, Math.min(500, limit | 0))}`).bind(...args).all();
   return (rows?.results || []).map((r) => { try { return JSON.parse(r.record); } catch { return null; } }).filter(Boolean);
