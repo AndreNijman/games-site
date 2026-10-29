@@ -126,7 +126,8 @@ export const BEHIND_THE_SCENES = "Behind-the-scenes fixes and tidying.";
  */
 export const OTHER_GAMES = /\b(terraria|bloons|btd\d*|chimps|minecraft|repentance|binding of isaac|plants vs\.? zombies|tetris|vanilla)\b/i;
 
-const BANNED = new RegExp(`${OTHER_GAMES.source}|\\b(commit messages?|the commits?)\\b`, "i");
+// "Isaac-style" names the game ISUCK is modelled on, though isaac is its host
+const BANNED = new RegExp(`${OTHER_GAMES.source}|\\b(commit messages?|the commits?|isaac[- ](style|like))\\b`, "i");
 
 /** A summary is kept only if it reads like one: some words, no markdown, not an essay, nothing banned. */
 export function validSummary(s) {
