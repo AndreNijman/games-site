@@ -1,0 +1,20 @@
+# SNACKARANG. Andre's half: see schema/registry.schema.json.
+slug: snackarang
+host: snackarang.andrenijman.com
+kind: pages
+repo: AndreNijman/snackarang
+owners:
+  - AndreNijman
+manifest: manifests/snackarang.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+crawlerFiles: true
+netlog: true
+relay:
+  managed: false
+  worker: snackarang-relay
+  domain: snackarang-relay.andrenijman.com
+  workersDev: true

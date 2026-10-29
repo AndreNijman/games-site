@@ -577,6 +577,40 @@
       },
       "requiresAccount": false,
       "relay": null
+    },
+    {
+      "slug": "snackarang",
+      "host": "snackarang.andrenijman.com",
+      "kind": "pages",
+      "repo": "AndreNijman/snackarang",
+      "live": true,
+      "enabled": true,
+      "publish": true,
+      "listed": true,
+      "guard": true,
+      "crawlerFiles": true,
+      "netlog": true,
+      "origin": "original",
+      "name": "SNACKARANG",
+      "description": "A free 3D party brawler for 1 to 6 players, on one screen or in online rooms: snacks throw, curve, recall and slash with boomerangs, one hit and you're sliced, across 12 arenas with power-up books, bushes to hide in and edges to fall off. Keyboards, gamepads and bots.",
+      "meta": "Party brawler · 1–6 players · local and online · boomerangs · one-hit knockouts · 14 power-ups · 12 arenas · bots",
+      "genre": [
+        "Party",
+        "Action",
+        "Multiplayer"
+      ],
+      "image": "snackarang.png",
+      "imageWidth": 2000,
+      "imageHeight": 1050,
+      "alt": "SNACKARANG in play: snacks with boomerangs on sandy islands joined by wooden bridges over the sea, a lemon sliced in half beside a pickle mid-throw",
+      "label": "Play SNACKARANG, a free party brawler where snacks fight with boomerangs, on one screen or online",
+      "requiresAccount": false,
+      "relay": {
+        "managed": false,
+        "worker": "snackarang-relay",
+        "domain": "snackarang-relay.andrenijman.com",
+        "declared": true
+      }
     }
   ]
 }
