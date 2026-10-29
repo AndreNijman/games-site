@@ -48,7 +48,9 @@ jobs:
       # others, so the commit below still runs and the failure still shows
       - name: Fetch and summarise
         id: sync
-        run: node scripts/changelog.mjs
+        run: |
+          [ -n "$GITHUB_TOKEN" ] || { echo "::notice::CHANGELOG_TOKEN is not set; nothing recorded"; exit 0; }
+          node scripts/changelog.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.CHANGELOG_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
