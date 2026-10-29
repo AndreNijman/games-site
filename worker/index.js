@@ -192,8 +192,8 @@ const GAMES = {
   },
   "memoryburn.andrenijman.com": {
     name: "Memory Burn",
-    description: "A free browser wave-survival shooter: somebody burned out your memory and is selling it as shards, so you fight 15 contracts across seven cyberpunk districts, spend your eddies in a back-alley market between waves, and face three named bosses before an endless Afterburn mode.",
-    genre: ["Action", "Shooter", "Survival"],
+    description: "A free browser wave-survival shooter, solo or in online co-op for up to four: somebody burned out your memory and is selling it as shards, so you fight 15 contracts across seven cyberpunk districts, spend your eddies in a back-alley market between waves, and face three named bosses before an endless Afterburn mode.",
+    genre: ["Action", "Shooter", "Co-op"],
     image: "memoryburn.png",
     imageWidth: 2000,
     imageHeight: 1050,
