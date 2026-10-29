@@ -246,7 +246,7 @@ const GAMES = {
   },
   "chess.andrenijman.com": {
     name: "ROOK & ROLL",
-    description: "A free pixel-art chess game: play nine computer opponents from beginner to full-strength Stockfish with hints and takebacks, explore any position with the engine, and review your games move by move with accuracy scores.",
+    description: "A free pixel-art chess game: play rated games online or send a friend a link, take on nine bots up to full-strength Stockfish, solve rated puzzles and Puzzle Rush, and review your games move by move with accuracy scores.",
     genre: ["Board", "Strategy"],
     image: "chess.png",
     imageWidth: 2000,
@@ -465,6 +465,7 @@ async function handleGuardRoute(request, env, url) {
   }
   if (url.pathname === "/_guard/tung-lobbies") return tungLobbies(request, env, url, identity);
   if (url.pathname === "/_guard/tung-ws") return tungSocket(request, env, url, identity);
+  if (url.pathname === "/_guard/chess-ws") return chessSocket(request, env, url, identity);
   if (url.pathname === "/_guard/bop-lobbies") return bopLobbies(request, url, identity);
   if (url.pathname === "/_guard/bladehymn-runs") return bladeHymnRuns(request, env, url, identity);
   if (url.pathname.startsWith("/_guard/admin")) {
@@ -906,6 +907,24 @@ async function tungSocket(request, env, url, identity) {
   upstream.headers.set("X-Games-Edge", String(request.cf?.colo || ""));
   upstream.headers.delete("Cookie");
   return fetch(upstream);
+}
+
+// ROOK & ROLL's online games: the chess-relay Worker, reached only through this
+// service binding. The relay trusts X-Chess-Account and X-Chess-Name because
+// nothing else can reach it, so they are always set here, never passed on.
+// Guests bring their own ?guest= token, which the relay hashes.
+async function chessSocket(request, env, url, identity) {
+  if (url.hostname !== "chess.andrenijman.com" || request.method !== "GET" ||
+      request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+    return new Response("WebSocket upgrade required", { status: 426 });
+  }
+  const target = new URL("https://chess-relay/ws");
+  target.search = url.search;
+  const upstream = new Request(target, request);
+  upstream.headers.delete("Cookie");
+  upstream.headers.set("X-Chess-Account", identity.account ? String(identity.account.id) : "");
+  upstream.headers.set("X-Chess-Name", identity.account ? String(identity.account.username) : "");
+  return env.CHESS_RELAY.fetch(upstream);
 }
 
 async function gameProfile(request, env, url, identity) {

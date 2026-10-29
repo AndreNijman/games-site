@@ -37,6 +37,10 @@
   // Region probes for game clients (/_guard/probe/<region>).
   "durable_objects": { "bindings": [{ "name": "PROBES", "class_name": "Probe" }, { "name": "LIVE", "class_name": "Live" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Probe"] }, { "tag": "v2", "new_sqlite_classes": ["Live"] }],
+  // ROOK & ROLL's online relay (chess repo, src/worker). It has no route of its
+  // own: /_guard/chess-ws on chess.andrenijman.com is the only way in, which is
+  // why it trusts the account this guard names. Deploy chess-relay first.
+  "services": [{ "binding": "CHESS_RELAY", "service": "chess-relay" }],
   // What rime-secretd deploys: `rime secret use cloudflare
   // cloudflare.wrangler.deploy games-guard` runs `wrangler deploy --env
   // production`. The same Worker, not a games-guard-production beside it, so
@@ -44,8 +48,8 @@
   // routes is emptied on purpose (an environment would otherwise inherit it):
   // the broker's token cannot read the andrenijman.com zone's Worker routes,
   // and wrangler only touches the routes it is given, so these stay as they
-  // are. Change a route with a plain `npm run deploy`. d1_databases is
-  // repeated because wrangler does not carry bindings into an environment.
+  // are. Change a route with a plain `npm run deploy`. d1_databases and
+  // services are repeated because wrangler does not carry bindings into an environment.
   "env": {
     "production": {
       "name": "games-guard",
@@ -59,7 +63,8 @@
           "database_id": "70dd6bf0-302b-4800-88dc-9fbd814e1157"
         }
       ],
-      "durable_objects": { "bindings": [{ "name": "PROBES", "class_name": "Probe" }, { "name": "LIVE", "class_name": "Live" }] }
+      "durable_objects": { "bindings": [{ "name": "PROBES", "class_name": "Probe" }, { "name": "LIVE", "class_name": "Live" }] },
+      "services": [{ "binding": "CHESS_RELAY", "service": "chess-relay" }]
     }
   }
 }

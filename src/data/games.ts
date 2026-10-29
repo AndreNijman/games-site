@@ -251,11 +251,11 @@ export const GAMES: Game[] = [
     added: "2026-10-29",
     name: "ROOK & ROLL",
     genre: ["Board", "Strategy"],
-    description: "A free pixel-art chess game: play nine computer opponents from beginner to full-strength Stockfish with hints and takebacks, explore any position with the engine, and review your games move by move with accuracy scores.",
-    meta: "Chess · 1 player · 9 bots up to full-strength Stockfish · hints and takebacks · analysis board · game review with accuracy",
+    description: "A free pixel-art chess game: play rated games online or send a friend a link, take on nine bots up to full-strength Stockfish, solve rated puzzles and Puzzle Rush, and review your games move by move with accuracy scores.",
+    meta: "Chess · 1–2 players · rated online play · 9 bots up to full-strength Stockfish · rated puzzles · game review with accuracy",
     image: "chess.png",
     alt: "ROOK & ROLL in play: pixel-art chess pieces on a wooden board against the bot Nyx, a bishop selected with its moves dotted and the move list beside",
-    label: "Play ROOK & ROLL, a free pixel-art chess game against nine bots, with analysis and game review",
+    label: "Play ROOK & ROLL, a free pixel-art chess game online or against nine bots, with puzzles and game review",
   },
 ];
 
