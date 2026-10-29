@@ -130,7 +130,7 @@ const GAMES = {
   },
   "bop.andrenijman.com": {
     name: "BOP",
-    description: "A free browser physics brawler: draft one of three wild abilities every round, squish opponents off floating terrain, online multiplayer for eight, couch play and bots.",
+    description: "A free browser physics brawler: choose up to three of 29 wild abilities, cling to every side of floating terrain and squish your friends off it. Online multiplayer for four, couch play and practice bots.",
     genre: ["Action", "Fighting", "Multiplayer"],
     image: "bop.png",
     imageWidth: 2000,
