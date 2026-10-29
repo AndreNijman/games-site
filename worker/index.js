@@ -19,6 +19,13 @@ const HUB_HOST = "games.andrenijman.com";
 const HUB_ORIGIN = `https://${HUB_HOST}`;
 const MC_PAGES_ORIGIN = "https://andrenijman.github.io";
 const MC_PAGES_BASE = "/one-world";
+// Krillion is krillion.io's own live Next.js app, mirrored here so it loads on
+// networks that block krillion.io. Its party server is a second host the
+// client calls directly, so it is mirrored under a path of this one.
+const KRILLION_HOST = "krillion.andrenijman.com";
+const KRILLION_ORIGIN = "https://krillion.io";
+const KRILLION_PARTY_ORIGIN = "https://party.krillion.io";
+const KRILLION_PARTY_PATH = "/_party";
 // The admin view holds every returned row in memory to group and search it, so
 // the query is windowed rather than unbounded. Raise this if the device table
 // ever outgrows it; the page reports honestly when the window is full.
@@ -45,6 +52,7 @@ const HOSTS = new Set([
   "memoryburn.andrenijman.com",
   "fart.andrenijman.com",
   "scoops.andrenijman.com",
+  KRILLION_HOST,
   MC_HOST,
 ]);
 // Single source of truth for what each game is. Descriptions and genres are
@@ -219,6 +227,19 @@ const GAMES = {
     imageHeight: 1050,
     origin: "original",
   },
+  "krillion.andrenijman.com": {
+    name: "Krillion",
+    description: "A free daily word and trivia game: seven prompts a day, 25 seconds each, and the rarer your answer the deeper you dive. Endless mode, themed packs and party rooms with friends.",
+    genre: ["Word", "Trivia", "Daily"],
+    image: "krillion.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+    // Not Andre's game at all: krillion.io's live site, mirrored. The credit
+    // and author keep that visible on the card, the page and structured data.
+    credit: "by krillion.io",
+    author: { name: "Krillion", url: "https://krillion.io" },
+  },
   [MC_HOST]: {
     name: "ONE WORLD",
     description: "A persistent shared anarchy survival world where every signed-in player joins the same map using their games.andrenijman.com username, with a private local-world option and consent-based teleport requests.",
@@ -312,6 +333,11 @@ async function handleRequest(request, env, ctx) {
   const crawlerFile = crawlerFileResponse(url);
   if (crawlerFile) return crawlerFile;
 
+  // Krillion's chunks, API calls and party traffic go straight through: the
+  // page that holds them was already guarded, and they are per-player and
+  // live, so none of the Pages caching below applies.
+  if (url.hostname === KRILLION_HOST && !isNavigationRequest(request)) return krillionProxy(request, url);
+
   if (isAssetRequest(request)) return cachedAssetResponse(request);
 
   const identity = await identify(request, env, url.hostname);
@@ -339,14 +365,20 @@ async function handleRequest(request, env, ctx) {
 
 
 
-  const upstream = await fetchDocumentUpstream(request);
+  const upstream = url.hostname === KRILLION_HOST
+    ? await krillionProxy(request, url)
+    : await fetchDocumentUpstream(request);
   const response = new Response(upstream.body, upstream);
   response.headers.set("Cache-Control", "private, no-store, no-cache, must-revalidate, max-age=0");
   response.headers.set("Pragma", "no-cache");
   response.headers.set("Expires", "0");
   response.headers.set("X-Games-Guard", "active");
   response.headers.set("Accept-CH", ACCEPT_CH);
-  const contentVersion = upstream.headers.get("ETag") || upstream.headers.get("Last-Modified") || "";
+  // No version for Krillion: /_guard/version asks Pages, which would never
+  // match krillion.io's ETag and reload the game every minute.
+  const contentVersion = url.hostname === KRILLION_HOST
+    ? ""
+    : upstream.headers.get("ETag") || upstream.headers.get("Last-Modified") || "";
   const isHtml = response.headers.get("Content-Type")?.includes("text/html");
   const guardStatus = JSON.stringify({
     allowed: true,
@@ -565,6 +597,90 @@ async function cachedAssetResponse(request) {
     : "no-store");
   response.headers.set("X-Games-Guard", cacheable ? "asset" : "asset-error");
   return response;
+}
+
+// A plain reverse proxy, unlike the Pages hosts: the player's own cookies and
+// Authorization (Firebase ID tokens) go through, nothing is cached here, and
+// redirects come back to the browser. Absolute krillion.io URLs in text bodies
+// are pointed at this host so the client never calls the blocked one.
+async function krillionProxy(request, url) {
+  const party = url.pathname === KRILLION_PARTY_PATH || url.pathname.startsWith(`${KRILLION_PARTY_PATH}/`);
+  const target = new URL(party ? KRILLION_PARTY_ORIGIN : KRILLION_ORIGIN);
+  target.pathname = party ? url.pathname.slice(KRILLION_PARTY_PATH.length) || "/" : url.pathname;
+  const search = new URLSearchParams(url.search);
+  search.delete("_games_frame");
+  target.search = search.toString();
+
+  const headers = new Headers(request.headers);
+  headers.delete("Host");
+  // The party server answers any X-Forwarded-For with a 500, and Vercel
+  // overwrites it with its own anyway.
+  headers.delete("X-Forwarded-For");
+  headers.delete("X-Real-IP");
+  // The guard's own cookies are Domain=.andrenijman.com, so the browser sends
+  // them here too; they are not krillion.io's to see.
+  const cookies = (headers.get("Cookie") || "").split(";").map((part) => part.trim())
+    .filter((part) => part && ![DEVICE_COOKIE, SESSION_COOKIE].includes(part.split("=")[0]));
+  if (cookies.length) headers.set("Cookie", cookies.join("; "));
+  else headers.delete("Cookie");
+  // Next.js rejects a server action whose Origin is not its own host, and the
+  // party server answers krillion.io's pages, not ours.
+  if (headers.has("Origin")) headers.set("Origin", KRILLION_ORIGIN);
+  const referer = headers.get("Referer");
+  if (referer) headers.set("Referer", krillionUpstreamUrl(referer));
+
+  const upstream = await fetch(target, {
+    method: request.method,
+    headers,
+    body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
+    redirect: "manual",
+  });
+  if (upstream.status === 101) return upstream;
+
+  const responseHeaders = new Headers(upstream.headers);
+  responseHeaders.delete("X-Frame-Options");
+  responseHeaders.delete("Content-Security-Policy");
+  responseHeaders.delete("Strict-Transport-Security");
+  const location = responseHeaders.get("Location");
+  if (location) responseHeaders.set("Location", krillionLocalText(location, url.origin));
+  responseHeaders.delete("Set-Cookie");
+  for (const value of upstream.headers.getSetCookie()) {
+    responseHeaders.append("Set-Cookie", value.replace(/;\s*Domain=[^;]*/i, ""));
+  }
+  if (!url.pathname.startsWith("/_next/static/")) responseHeaders.set("Cache-Control", "private, no-store");
+
+  const type = responseHeaders.get("Content-Type") || "";
+  if (!/text\/html|javascript|json|text\/x-component|text\/css/i.test(type) || !upstream.body) {
+    return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers: responseHeaders });
+  }
+  responseHeaders.delete("Content-Length");
+  responseHeaders.delete("Content-Encoding");
+  responseHeaders.delete("ETag");
+  return new Response(krillionLocalText(await upstream.text(), url.origin), {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: responseHeaders,
+  });
+}
+
+function krillionLocalText(text, origin) {
+  return text
+    .replaceAll(KRILLION_PARTY_ORIGIN, `${origin}${KRILLION_PARTY_PATH}`)
+    .replaceAll(KRILLION_ORIGIN, origin);
+}
+
+function krillionUpstreamUrl(value) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.hostname !== KRILLION_HOST) return value;
+    const party = parsed.pathname.startsWith(`${KRILLION_PARTY_PATH}/`);
+    const upstream = new URL(party ? KRILLION_PARTY_ORIGIN : KRILLION_ORIGIN);
+    upstream.pathname = party ? parsed.pathname.slice(KRILLION_PARTY_PATH.length) : parsed.pathname;
+    upstream.search = parsed.search;
+    return upstream.toString();
+  } catch {
+    return value;
+  }
 }
 
 async function contentVersion(request, url) {
@@ -2198,6 +2314,8 @@ const GENERATED_CRAWLER_FILES = new Set([
   "rasists.andrenijman.com",
   "memoryburn.andrenijman.com",
   "scoops.andrenijman.com",
+  // Mirrored: krillion.io's own files would point crawlers at krillion.io.
+  KRILLION_HOST,
   MC_HOST,
 ]);
 

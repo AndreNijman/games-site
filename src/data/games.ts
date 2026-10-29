@@ -213,6 +213,18 @@ export const GAMES: Game[] = [
     alt: "SCOOP TROUBLE in play: vanilla, blueberry and strawberry scoops beside freshly built ice blocks in a snowy maze, bugs and lemons around them",
     label: "Play SCOOP TROUBLE, a free co-op arcade game where ice-cream scoops build ice to trap enemies",
   },
+  {
+    host: "krillion.andrenijman.com",
+    name: "Krillion",
+    genre: ["Word", "Trivia", "Daily"],
+    description: "A free daily word and trivia game: seven prompts a day, 25 seconds each, and the rarer your answer the deeper you dive. Endless mode, themed packs and party rooms with friends.",
+    meta: "Daily word dive · 7 prompts · rarer answers sink deeper · endless mode · party rooms",
+    credit: "by krillion.io",
+    image: "krillion.png",
+    alt: "Krillion's title screen: a pixel-art sky over dark water, The Daily Dive, a Puffer Party room and a Begin Descent button",
+    label: "Play Krillion, a free daily word dive by krillion.io",
+    author: { "@type": "Organization", name: "Krillion", url: "https://krillion.io" },
+  },
 ];
 
 // The picture beside the headline.
