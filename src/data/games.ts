@@ -235,6 +235,17 @@ export const GAMES: Game[] = [
     label: "Play Krillion, a free daily word dive by krillion.io",
     author: { "@type": "Organization", name: "Krillion", url: "https://krillion.io" },
   },
+  {
+    host: "snackarang.andrenijman.com",
+    added: "2026-10-29",
+    name: "SNACKARANG",
+    genre: ["Party", "Action", "Multiplayer"],
+    description: "A free 3D party brawler for 1 to 6 players, on one screen or in online rooms: snacks throw, curve, recall and slash with boomerangs, one hit and you're sliced, across 12 arenas with power-up books, bushes to hide in and edges to fall off. Keyboards, gamepads and bots.",
+    meta: "Party brawler · 1–6 players · local and online · boomerangs · one-hit knockouts · 14 power-ups · 12 arenas · bots",
+    image: "snackarang.png",
+    alt: "SNACKARANG in play: snacks with boomerangs on sandy islands joined by wooden bridges over the sea, a lemon sliced in half beside a pickle mid-throw",
+    label: "Play SNACKARANG, a free party brawler where snacks fight with boomerangs, on one screen or online",
+  },
 ];
 
 /** The game that joined the hub last; on a tie, the later one in the list. */

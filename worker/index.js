@@ -65,6 +65,7 @@ const HOSTS = new Set([
   "memoryburn.andrenijman.com",
   "fart.andrenijman.com",
   "scoops.andrenijman.com",
+  "snackarang.andrenijman.com",
   KRILLION_HOST,
   MC_HOST,
 ]);
@@ -229,6 +230,15 @@ const GAMES = {
     description: "A free co-op pixel-art arcade puzzle game for 1 to 4 players: ice-cream scoops build and break ice walls to trap enemies and collect every fruit across 120 levels in 12 worlds, on one keyboard or in online rooms.",
     genre: ["Co-op", "Arcade", "Multiplayer"],
     image: "scoops.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+  },
+  "snackarang.andrenijman.com": {
+    name: "SNACKARANG",
+    description: "A free 3D party brawler for 1 to 6 players, on one screen or in online rooms: snacks throw, curve, recall and slash with boomerangs, one hit and you're sliced, across 12 arenas with power-up books, bushes to hide in and edges to fall off. Keyboards, gamepads and bots.",
+    genre: ["Party", "Action", "Multiplayer"],
+    image: "snackarang.png",
     imageWidth: 2000,
     imageHeight: 1050,
     origin: "original",
@@ -2337,6 +2347,7 @@ const GENERATED_CRAWLER_FILES = new Set([
   "rasists.andrenijman.com",
   "memoryburn.andrenijman.com",
   "scoops.andrenijman.com",
+  "snackarang.andrenijman.com",
   // Mirrored: the upstream sites' own files would point crawlers at them.
   ...Object.keys(MIRRORS),
   MC_HOST,
