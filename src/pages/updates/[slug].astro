@@ -1,0 +1,56 @@
+---
+// One game's updates, newest first, each with the commits behind it when the
+// repository is public.
+import Base from "../../layouts/Base.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import Account from "../../components/Account.astro";
+import Update from "../../components/Update.astro";
+import { LOGS, formatDate, type GameLog } from "../../data/changelog";
+import { artPath, gameUrl } from "../../data/games";
+
+export function getStaticPaths() {
+  return LOGS.map((log) => ({ params: { slug: log.slug }, props: { log } }));
+}
+interface Props { log: GameLog }
+const { log } = Astro.props;
+const { game, updates } = log;
+const launch = updates.at(-1)!;
+const count = updates.length - 1;
+---
+<Base path={`/updates/${log.slug}`} title={`${game.name} updates · Games by Andre Nijman`} description={`Every update to ${game.name} since it launched on ${formatDate(launch.at)}, and what changed in each.`}>
+  <Fragment slot="head">
+    <link rel="alternate" type="application/rss+xml" title="Game updates" href="/updates.xml" />
+  </Fragment>
+  <Header />
+  <main id="main" tabindex="-1">
+    <div class="hero hero--short">
+      <div class="wrap hero__grid">
+        <div>
+          <p class="label">Changelog</p>
+          <h1>{game.name}</h1>
+          <p class="lede">
+            {count === 0
+              ? <>Launched {formatDate(launch.at)}. No updates since, yet.</>
+              : <>{count} {count === 1 ? "update" : "updates"} since it launched on {formatDate(launch.at)}. Last updated {formatDate(updates[0].at)}.</>}
+          </p>
+          <div class="btnrow">
+            <a class="btn" href={gameUrl(game)}>Play {game.name}</a>
+            <a class="btn btn--plain" href="/updates">Every game’s updates</a>
+          </div>
+        </div>
+        <a class="hero__art" href={gameUrl(game)} aria-hidden="true" tabindex="-1">
+          <img class="sticker" src={artPath(game.image)} width="1000" height="525" alt={game.alt} />
+        </a>
+      </div>
+    </div>
+    <section class="changelog" aria-labelledby="log-heading">
+      <div class="wrap">
+        <h2 class="visually-hidden" id="log-heading">Updates to {game.name}</h2>
+        {updates.map((u) => <Update update={u} log={log} />)}
+      </div>
+    </section>
+  </main>
+  <Footer />
+  <Account />
+</Base>

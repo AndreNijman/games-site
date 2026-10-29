@@ -3,10 +3,14 @@ import Base from "../layouts/Base.astro";
 import Header from "../components/Header.astro";
 import GameCard from "../components/GameCard.astro";
 import Ads from "../components/Ads.astro";
+import Update from "../components/Update.astro";
+import { ALL } from "../data/changelog";
 import { GAMES, gameUrl, artPath } from "../data/games";
 import { HERO, ORDERED, ORDER_SOURCE } from "../data/hub-order";
 
 const ORIGIN = "https://games.andrenijman.com/";
+// the newest updates players would notice, for the band under the games
+const LATEST = ALL.filter((u) => u.playerFacing !== false && u.summary).slice(0, 4);
 const title = "Games by Andre Nijman · free browser games";
 const description = "Free browser games by Andre Nijman: original games and credited open-source projects, including ONE WORLD, TOPOUT, OVERPOP, Wildbound.io, and more.";
 const ogDescription = "Free browser games spanning competitive puzzling, tower defense, survival, sandbox adventure, horror, and roguelikes. Nothing to download.";
@@ -148,6 +152,24 @@ const site = {
         <p class="games-none" id="games-none" hidden>Nothing matches that. <button type="button" class="nav-link" id="games-clear">Clear the search</button></p>
       </div>
     </section>
+
+    {LATEST.length > 0 && (
+      <section class="latest" id="updates" aria-labelledby="updates-heading">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="label">What’s new</p>
+            <h2 id="updates-heading">Fresh off the build.</h2>
+            <p>The newest changes across every game. Each game keeps its whole history.</p>
+          </div>
+          <div class="latest__list">
+            {LATEST.map((u) => <Update update={u} log={u.log} showGame />)}
+          </div>
+          <div class="btnrow">
+            <a class="btn" href="/updates">Every update</a>
+          </div>
+        </div>
+      </section>
+    )}
   </main>
 
   <footer>

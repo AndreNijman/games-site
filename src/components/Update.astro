@@ -1,0 +1,36 @@
+---
+// One update of one game: when it shipped, what players get from it, and,
+// for a public repository, the commits behind it. A deploy with nothing a
+// player would notice is drawn as a quiet one-liner.
+import { HEADINGS, commitUrl, countLine, formatDate, updateLabel, updatesPath, type GameLog, type Kind, type Update } from "../data/changelog";
+interface Props { update: Update & { n: number }; log: GameLog; showGame?: boolean; level?: "h2" | "h3" }
+const { update: u, log, showGame = false, level = "h3" } = Astro.props;
+const quiet = u.playerFacing === false;
+const summary = u.summary ?? (countLine(u) ? `Notes on the way: ${countLine(u)}.` : "Notes on the way.");
+const kinds: Kind[] = ["new", "improved", "fixed", "other"];
+const groups = kinds.map((k) => [k, u.commits.filter((c) => c.kind === k)] as const).filter(([, cs]) => cs.length);
+const counts = !log.public && !u.launch && !quiet ? countLine(u) : "";
+const Title = level;
+---
+<article class:list={["upd", quiet && "upd--quiet", u.launch && "upd--launch"]} id={`u-${u.id}`}>
+  <Title class="upd__head">
+    {showGame && <a class="upd__game" href={updatesPath(log.slug)}>{log.game.name}</a>}
+    <span class="upd__label">{updateLabel(u)}</span>
+    <time datetime={u.at}>{formatDate(u.at)}</time>
+  </Title>
+  <p class="upd__text">{summary}</p>
+  {groups.length > 0 && (
+    <details class="upd__more">
+      <summary>What went in: {u.commits.length} {u.commits.length === 1 ? "change" : "changes"}</summary>
+      {groups.map(([k, cs]) => (
+        <>
+          <p class="upd__kind">{HEADINGS[k]}</p>
+          <ul>
+            {cs.map((c) => <li><a href={commitUrl(log, c.sha)} rel="nofollow">{c.text}</a></li>)}
+          </ul>
+        </>
+      ))}
+    </details>
+  )}
+  {counts && <p class="upd__counts">{counts}</p>}
+</article>

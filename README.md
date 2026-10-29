@@ -35,6 +35,31 @@ Rime OS's default dark, stickers with a solid edge and a hard shadow,
 Fraunces and Hanken Grotesk served from `/fonts/`. `hub.css` adds only what
 the portfolio has no use for: the account controls and the advertising.
 
+## Updates
+
+`/updates` lists every update of every game, newest first, and
+`/updates/<game>` one game's, with an RSS feed at `/updates.xml`. An update
+is one successful GitHub Pages deploy of the game's repository (`repo` in
+`src/data/games.ts`); a game's first deploy is its launch.
+
+`scripts/changelog.mjs` brings `src/data/changelog.json` up to date: it reads
+each repository's deployments and the commits between them, and Claude Haiku
+writes the line players read. An update already in the file is never fetched
+or rewritten again, so a summary can be edited by hand and stays edited
+(`--resummarize <game>|all` writes them again, hand edits included). Commit
+subjects are kept for public repositories only; a private game's update shows
+its summary and a count of each kind of change.
+
+`.github/workflows/changelog.yml` runs it every half hour, commits the file
+and starts `site.yml` to deploy it. It needs two repository secrets:
+`CHANGELOG_TOKEN`, a fine-grained token with read-only Contents, Deployments
+and Metadata on every game repository, and `ANTHROPIC_API_KEY`. By hand:
+
+    GITHUB_TOKEN=… ANTHROPIC_API_KEY=… node scripts/changelog.mjs
+
+`tests/unit/changelog.test.ts` holds the file to its rules: a log for every
+game with a repository, no private commit on the site, no other game named.
+
 ## What the Worker needs from the hub
 
 The Worker fetches the hub from GitHub Pages and rewrites it on the way
