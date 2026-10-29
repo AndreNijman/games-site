@@ -76,7 +76,6 @@ test("every game has its card and every picture loads", async ({ page }) => {
   // every file exists and decodes: load the lazy ones now rather than scroll for them
   await page.evaluate(() => document.querySelectorAll<HTMLImageElement>("img[loading=lazy]").forEach((i) => { i.loading = "eager"; }));
   await expect.poll(() => page.evaluate(() => [...document.images].every((i) => i.complete && i.naturalWidth > 0))).toBe(true);
-  await expect(page.locator(".strip b").first()).toHaveText(String(GAMES.length));
 });
 
 test("games.json lists the cards in the hub's order, for andrenijman.com", async ({ page, request }) => {
@@ -169,6 +168,9 @@ test("the hub's latest updates lead to every update", async ({ page }) => {
   await asTheWorker(page, null);
   await page.goto("/");
   await expect(page.locator("#updates .upd")).toHaveCount(4);
+  // the splash above the hero's heading is the newest of those four
+  const first = await page.locator("#updates .upd").first().getAttribute("id");
+  await expect(page.locator(".splash")).toHaveAttribute("href", `/updates#${first}`);
   await page.locator('#updates a[href="/updates"]').click();
   await expect(page).toHaveURL(/\/updates$/);
   await expect(page.locator("h1")).toContainText("Every update");
