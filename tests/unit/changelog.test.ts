@@ -118,9 +118,12 @@ describe("changelog.json", () => {
       for (const u of e.updates) for (const c of u.commits) expect(c.text).not.toMatch(OTHER_GAMES);
     }
   });
-  it("has a valid summary on every update", () => {
+  // null is a summary Haiku has yet to write (the next run retries it); the
+  // page says "Notes on the way" until then, so it must not block a deploy
+  it("has a valid summary on every update that has one", () => {
     for (const [slug, e] of Object.entries(games)) {
       for (const u of e.updates) {
+        if (u.summary === null) continue;
         expect(validSummary(u.summary), `${slug} ${u.id}: ${u.summary}`).toBe(true);
         if (u.playerFacing === false) expect(u.summary).toBe(BEHIND_THE_SCENES);
       }

@@ -145,3 +145,31 @@ test("the games can be sorted and searched, and Popular puts them back", async (
   expect(await hrefs()).toEqual(built);
   expect(await classes()).toEqual(builtClasses);
 });
+
+test("the updates pages load clean, fit a phone and pass axe", async ({ page }) => {
+  // axe over /updates, every update of every game on one page, takes a while
+  test.setTimeout(120_000);
+  const problems: string[] = [];
+  page.on("pageerror", (e) => problems.push(e.message));
+  page.on("console", (m) => { if (m.type() === "error") problems.push(m.text()); });
+  await asTheWorker(page, null);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const path of ["/updates", "/updates/tree", "/updates/stink"]) {
+    await page.goto(path);
+    await expect(page.locator(".upd").first()).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth), path).toBeLessThanOrEqual(0);
+    const axe = await new AxeBuilder({ page }).exclude(".ad-sticky").exclude(".ad-rail").analyze();
+    const serious = axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+    expect(serious.map((v) => `${path} ${v.id}: ${v.nodes.length}`)).toEqual([]);
+  }
+  expect(problems).toEqual([]);
+});
+
+test("the hub's latest updates lead to every update", async ({ page }) => {
+  await asTheWorker(page, null);
+  await page.goto("/");
+  await expect(page.locator("#updates .upd")).toHaveCount(4);
+  await page.locator('#updates a[href="/updates"]').click();
+  await expect(page).toHaveURL(/\/updates$/);
+  await expect(page.locator("h1")).toContainText("Every update");
+});

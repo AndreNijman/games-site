@@ -2933,7 +2933,7 @@
             {
               "sha": "b54cc491d656224f99668fb07cf45c3cdf70172f",
               "kind": "fixed",
-              "text": "F2 reference-build 90/94 \u2192 94/94 \u2014 bot placement surgery"
+              "text": "F2 reference-build 90/94 → 94/94 — bot placement surgery"
             }
           ],
           "summary": "Behind-the-scenes fixes and tidying.",
@@ -6227,7 +6227,7 @@
             {
               "sha": "e072ea6d80d508fbec4d448d7aaa33f928afa583",
               "kind": "new",
-              "text": "Polish session phases 1-5 \u2014 baseline item audit (breastplate slots, fishing pole/warmth potion/goggles types), sky-exposed lighting without unconditional player glow, warm torch/lava halos, procedural pixel-art item icons, mining cracks/particles/screen shake, placement ghost preview, Guide contextual tips, expanded audio (20+ SFX, ambient biome-aware music), item material re-typing (drills/hooks/wings/armor/boots/shelf furniture), floating damage numbers, potion stub fixes, Rotten Chunk/Vertebra recipes, enhanced victory sequence, 136 playtest checks pass (+ hardmode-playtest tool)"
+              "text": "Polish session phases 1-5 — baseline item audit (breastplate slots, fishing pole/warmth potion/goggles types), sky-exposed lighting without unconditional player glow, warm torch/lava halos, procedural pixel-art item icons, mining cracks/particles/screen shake, placement ghost preview, Guide contextual tips, expanded audio (20+ SFX, ambient biome-aware music), item material re-typing (drills/hooks/wings/armor/boots/shelf furniture), floating damage numbers, potion stub fixes, Rotten Chunk/Vertebra recipes, enhanced victory sequence, 136 playtest checks pass (+ hardmode-playtest tool)"
             }
           ],
           "summary": "Items now have procedural pixel-art icons, and fishing poles, warmth potions and goggles have their own types. Mining shows cracks, particles and screen shake, and placing blocks shows a ghost preview before you commit. Lighting is brighter under open sky, torches and lava glow warmer, and there are 20+ new sound effects with ambient music that changes by biome, along with floating damage numbers, a Guide that offers contextual tips, new Rotten Chunk and Vertebra recipes, and a fuller victory sequence.",

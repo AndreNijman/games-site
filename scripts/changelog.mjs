@@ -241,10 +241,18 @@ async function pool(items, size, fn) {
 // ── run ──────────────────────────────────────────────────────────────────────
 const games = GAMES.filter((g) => g.repo && (!only || only.includes(slugOf(g))));
 const results = [];
+// one repository the token cannot read must not hold back the rest: it is
+// left as it was, and the run exits non-zero once the others are saved
+let unreachable = 0;
 await pool(games, 4, async (g) => {
-  const r = await syncGame(g);
-  results.push(r);
-  console.log(`${r.slug}: ${r.added} new, ${r.total} in all`);
+  try {
+    const r = await syncGame(g);
+    results.push(r);
+    console.log(`${r.slug}: ${r.added} new, ${r.total} in all`);
+  } catch (e) {
+    unreachable++;
+    console.error(`${slugOf(g)}: ${e.message}`);
+  }
 });
 // a game taken off the hub keeps no changelog
 for (const slug of Object.keys(data.games)) if (!GAMES.some((g) => g.repo && slugOf(g) === slug)) delete data.games[slug];
@@ -274,4 +282,5 @@ if (todo.length && summarise && anthropic) {
 } else if (todo.length) {
   console.log(`${todo.length} updates wait for a summary (${anthropic ? "--no-summaries" : "no ANTHROPIC_API_KEY"})`);
 }
+if (unreachable) process.exitCode = 1;
 console.log(`GitHub calls: ${calls}; Haiku tokens in/out: ${spent.input}/${spent.output}${failed ? `; ${failed} summaries failed, retried next run` : ""}`);
