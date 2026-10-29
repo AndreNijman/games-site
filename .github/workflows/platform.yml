@@ -1,0 +1,276 @@
+name: platform
+
+# Keeps the hub, the guard and the relays in step with registry/ and every
+# game's game.yaml. See PLATFORM.md.
+#
+#   sync    fetch each game.yaml at its repository's head, regenerate the
+#           catalog and routes, commit them, and rebuild the hub (site.yml)
+#   guard   deploy games-guard with the generated routes, and create any
+#           missing DNS records                     (environment: cloudflare)
+#   relay   build a game's relay with no secrets in reach, then upload the
+#           built bundle                            (environment: relays)
+#
+# Nothing here runs until the repository variable PLATFORM_ENABLED is "true".
+#
+# Secrets
+#   PLATFORM_READ_TOKEN        read-only Contents on the org's game repositories
+#                              (private ones; public ones need nothing)
+#   CLOUDFLARE_API_TOKEN       in the cloudflare and relays environments only:
+#                              Workers Scripts edit, Workers Routes edit and DNS
+#                              edit on the zone, D1 read for the guard's binding
+#   CLOUDFLARE_ACCOUNT_ID      same environments
+# Environments: give `cloudflare` and `relays` a required reviewer (Andre), so
+# a deploy waits for a click; `relays` is where someone else's code ships.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - registry/**
+      - manifests/**
+      - platform.yaml
+      - schema/**
+      - platform/**
+      - worker/**
+      - wrangler.jsonc
+      - .github/workflows/platform.yml
+  repository_dispatch:
+    types: [game-push]
+  schedule:
+    # The webhook is the fast path; this catches anything it missed.
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+    inputs:
+      relay:
+        description: "Also redeploy this game's relay (a slug), whatever changed"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync the catalog
+    if: vars.PLATFORM_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    outputs:
+      guard: ${{ steps.changes.outputs.guard }}
+      relay: ${{ steps.relay.outputs.deploy }}
+      slug: ${{ steps.target.outputs.slug }}
+      repo: ${{ steps.target.outputs.repo }}
+      sha: ${{ steps.target.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Data only: game.yaml files and the screenshots they name, pinned to
+      # each repository's head commit. Nothing from a game repository runs here.
+      - name: Fetch every game.yaml
+        run: node platform/fetch-manifests.mjs --out .platform-cache
+        env:
+          GH_TOKEN: ${{ secrets.PLATFORM_READ_TOKEN || github.token }}
+
+      - name: Generate the catalog and routes
+        run: node platform/generate.mjs --cache .platform-cache
+
+      - name: Card art for new screenshots
+        run: npm run art
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Commit what changed
+        id: changes
+        run: |
+          git add generated/ wrangler.jsonc public/
+          guard=false
+          if [ "$EVENT" = push ]; then
+            # A push of guard code or the registry itself deploys the guard.
+            if git diff --name-only "$BEFORE" HEAD | grep -qE '^(worker/|wrangler\.jsonc|registry/|platform\.yaml|generated/)'; then guard=true; fi
+          fi
+          if ! git diff --cached --quiet; then
+            git diff --cached --name-only | grep -qE '^(generated/|wrangler\.jsonc)' && guard=true
+            git -c user.name="games-platform" -c user.email="games-platform@users.noreply.github.com" \
+              commit -m "chore: sync the catalog from the games' manifests"
+            git push origin HEAD:main
+            # A push made with GITHUB_TOKEN starts no workflows, so ask for the
+            # hub's rebuild directly; workflow_dispatch is the exception.
+            gh workflow run site.yml --ref main
+          fi
+          echo "guard=$guard" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+
+      - name: Which game, if any
+        id: target
+        # Webhook values reach the shell through env, never pasted into a script.
+        env:
+          SLUG: ${{ github.event.client_payload.slug || inputs.relay }}
+        run: |
+          slug="$SLUG"
+          [ -z "$slug" ] && exit 0
+          node -e '
+            const shas = require("./.platform-cache/shas.json");
+            const catalog = require("./generated/catalog.json");
+            const g = catalog.games.find((x) => x.slug === process.argv[1]);
+            if (!g || !shas[g.slug]) process.exit(0);
+            console.log(`slug=${g.slug}\nrepo=${g.repo}\nsha=${shas[g.slug]}`);
+          ' "$slug" >> "$GITHUB_OUTPUT"
+
+      - name: Does its relay need deploying
+        id: relay
+        if: steps.target.outputs.slug != ''
+        env:
+          SLUG: ${{ steps.target.outputs.slug }}
+          FILES: ${{ github.event_name == 'repository_dispatch' && toJSON(github.event.client_payload.files) || 'null' }}
+        run: node platform/relay-plan.mjs --slug "$SLUG" --files "$FILES" --cache .platform-cache
+
+  guard:
+    name: Deploy the guard
+    needs: sync
+    if: needs.sync.outputs.guard == 'true'
+    runs-on: ubuntu-latest
+    environment: cloudflare
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run check
+
+      # The top-level config, routes included: the routes are the point.
+      - name: Deploy games-guard
+        run: npx wrangler deploy --env=""
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: DNS for new games
+        run: node platform/dns.mjs --apply
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Health
+        run: curl -fsS https://games.andrenijman.com/_guard/health
+
+  relay-build:
+    name: Build ${{ needs.sync.outputs.slug }}'s relay
+    needs: sync
+    if: needs.sync.outputs.relay == 'true'
+    runs-on: ubuntu-latest
+    # No secrets and a read-only token: the game's install scripts and build
+    # run here, so nothing worth stealing is in reach.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: platform
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ needs.sync.outputs.repo }}
+          ref: ${{ needs.sync.outputs.sha }}
+          path: game
+          token: ${{ secrets.PLATFORM_READ_TOKEN || github.token }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+        working-directory: platform
+
+      - name: Install the game's dependencies
+        working-directory: game
+        run: if [ -f package-lock.json ]; then npm ci; fi
+
+      - name: Bundle with the platform's wrangler and config
+        env:
+          SLUG: ${{ needs.sync.outputs.slug }}
+        run: |
+          node platform/platform/relay-config.mjs "$SLUG" --manifest game/game.yaml --out game/.platform-build.jsonc
+          cd game
+          ../platform/node_modules/.bin/wrangler deploy --dry-run -c .platform-build.jsonc --outdir ../bundle
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relay-bundle
+          path: |
+            bundle/
+            game/game.yaml
+          retention-days: 3
+
+  relay-deploy:
+    name: Deploy ${{ needs.sync.outputs.slug }}'s relay
+    needs: [sync, relay-build]
+    runs-on: ubuntu-latest
+    environment: relays
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: platform
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+        working-directory: platform
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: relay-bundle
+          path: relay
+
+      # Only the platform's own code and the finished bundle: nothing from the
+      # game repository is installed or run in a job that holds the token.
+      - name: Upload the bundle
+        id: config
+        working-directory: relay
+        run: |
+          main=$(cd bundle && find . -maxdepth 1 -name "*.js" -printf "%f\n" | head -1)
+          node ../platform/platform/relay-config.mjs "$SLUG" \
+            --manifest game/game.yaml --bundle "bundle/$main" --out deploy.jsonc
+          ../platform/node_modules/.bin/wrangler deploy -c deploy.jsonc
+        env:
+          SLUG: ${{ needs.sync.outputs.slug }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Health
+        if: steps.config.outputs.health != ''
+        env:
+          HEALTH: ${{ steps.config.outputs.health }}
+        run: |
+          sleep 5
+          curl -fsS "$HEALTH"

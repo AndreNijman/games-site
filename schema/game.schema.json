@@ -155,6 +155,11 @@
           "propertyNames": { "pattern": "^[A-Z][A-Z0-9_]*$", "not": { "enum": ["ALLOWED_ORIGINS"] } },
           "description": "Plain settings. Secrets are never in this file; ask Andre."
         },
+        "watch": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Paths (with * and **) whose changes mean the relay must be redeployed. Defaults to the folder of `main`, package.json, package-lock.json and game.yaml."
+        },
         "health": {
           "type": "string",
           "pattern": "^/",

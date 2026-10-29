@@ -205,3 +205,47 @@ describe("the platform webhook", () => {
     }
   });
 });
+
+describe("relay deploys", async () => {
+  const { globToRegExp, shouldDeployRelay } = await import("../../platform/relay-plan.mjs");
+  const managed = { slug: "scoops", enabled: true, relay: { managed: true } };
+  const game = readYaml("manifests/scoops.yaml");
+  it("matches globs the way the watch list means them", () => {
+    expect(globToRegExp("src/worker/**").test("src/worker/rooms/a.ts")).toBe(true);
+    expect(globToRegExp("src/worker/**").test("src/client/a.ts")).toBe(false);
+    expect(globToRegExp("*.json").test("package.json")).toBe(true);
+    expect(globToRegExp("*.json").test("a/package.json")).toBe(false);
+  });
+  it("redeploy only when the relay's own files changed", () => {
+    expect(shouldDeployRelay(managed, game, ["src/client/main.ts", "README.md"])).toBe(false);
+    expect(shouldDeployRelay(managed, game, ["src/worker/index.ts"])).toBe(true);
+    expect(shouldDeployRelay(managed, game, ["package-lock.json"])).toBe(true);
+    expect(shouldDeployRelay(managed, game, null)).toBe(true);
+  });
+  it("never for a relay that is not managed, a game switched off, or one not published", () => {
+    expect(shouldDeployRelay({ ...managed, relay: { managed: false } }, game, null)).toBe(false);
+    expect(shouldDeployRelay({ ...managed, enabled: false }, game, null)).toBe(false);
+    expect(shouldDeployRelay(managed, { ...game, publish: false }, null)).toBe(false);
+  });
+});
+
+describe("check-game, as a game repository's workflow runs it", async () => {
+  const { checkGame } = await import("../../platform/check-game.mjs");
+  const schema = JSON.parse(readFileSync("schema/game.schema.json", "utf8"));
+  const catalog = JSON.parse(readFileSync("generated/catalog.json", "utf8"));
+  const text = readFileSync("manifests/scoops.yaml", "utf8");
+  it("publishes a registered, enabled game and hands over its build", () => {
+    const r = checkGame({ manifestText: text, schema, catalog, repo: "AndreNijman/scoop-trouble" });
+    expect(r.problems).toEqual([]);
+    expect(r.outputs).toMatchObject({ publish: "true", slug: "scoops", node: "22", install: "npm ci", command: "npm run build", output: "dist", checks: '["npm run check"]' });
+  });
+  it("builds an unregistered repository but does not publish it", () => {
+    const r = checkGame({ manifestText: text, schema, catalog, repo: "someone/new-game" });
+    expect(r.outputs).toMatchObject({ publish: "false" });
+    expect(r.notes.join()).toMatch(/not in the registry/);
+  });
+  it("names every schema problem at once", () => {
+    const r = checkGame({ manifestText: "schema: 1\npublish: yes-please\nname: ''\n", schema, catalog, repo: "x/y" });
+    expect(r.problems.length).toBeGreaterThan(3);
+  });
+});
