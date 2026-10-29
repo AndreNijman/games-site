@@ -1127,7 +1127,8 @@
         5788982231,
         5789051976,
         5789078379,
-        7414216889
+        7414216889,
+        7425852624
       ],
       "updates": [
         {
@@ -1440,6 +1441,88 @@
             }
           ],
           "summary": "Combat feels heavier, with knockback, hit flashes, death gibs, screen shake and brief hit-stop on impacts. Rocks and walls now block movement and tears, and enemies use telegraphed attacks with spawn grace. Floor layouts, room types, enemy behaviours, sprites, boss attacks, characters, items and curses were reworked, and two active item slots and the Schoolbag were added.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7425852624,
+          "at": "2026-10-29T22:34:47Z",
+          "sha": "40f6899b6597b58a99e49fd59c8fbf7110c3fc4b",
+          "counts": {
+            "new": 10,
+            "fixed": 3,
+            "improved": 0,
+            "other": 0,
+            "hidden": 9
+          },
+          "commits": [
+            {
+              "sha": "3938ac0f274d734391464211f77ef6bf08b80073",
+              "kind": "fixed",
+              "text": "Isaac key layout (E bomb, Space active, Ctrl drop/cycle, hold R restart), Esc closes pause, bombs drawn at body size"
+            },
+            {
+              "sha": "396ff7c29707a294a83a2bd11e5f2ca70e0e2998",
+              "kind": "fixed",
+              "text": "Drop on Shift, not Ctrl (Ctrl+W closes the browser tab)"
+            },
+            {
+              "sha": "ac325720df9262eb8004155f8ae1875a2bedec00",
+              "kind": "new",
+              "text": "HUD layout, streak strip, boss versus card, full map, room slide and ink outlines in the renderer"
+            },
+            {
+              "sha": "cb7cb473281efec62f99203d002ee913a840eeba",
+              "kind": "new",
+              "text": "Illustrated title, save slots, paper-page menus, carousel character select and restyled run screens"
+            },
+            {
+              "sha": "773ae5d95fceb1040451979216823219297d0c37",
+              "kind": "new",
+              "text": "Original looks for the second enemy family"
+            },
+            {
+              "sha": "ccc7d17c8ea42ed88f90c12b0add6101c1433e65",
+              "kind": "new",
+              "text": "Original looks for the first enemy family"
+            },
+            {
+              "sha": "5c6dcd7e8ef6555989e01801e5c35ea105e7b9f8",
+              "kind": "fixed",
+              "text": "Readable dark text on paper, arrow-key menu navigation, death portrait"
+            },
+            {
+              "sha": "c878521323157184a64aa63431c8f4aa634a9d75",
+              "kind": "new",
+              "text": "Door slide, item pickup pose, streak banner and boss intro card state with the simulation frozen for slide and card"
+            },
+            {
+              "sha": "935883f8066b61a3e9c0cc216b289a3bb43dfa50",
+              "kind": "new",
+              "text": "Tears drop to the floor in an accelerating arc and land at z=0"
+            },
+            {
+              "sha": "da6b508d2d766bb2f79487e66c68fde9a254583b",
+              "kind": "new",
+              "text": "Original boss designs"
+            },
+            {
+              "sha": "a2e939d9a04dabddc1973710e250e6f1deaac004",
+              "kind": "new",
+              "text": "Original protagonist and 34 character sprites with portraits"
+            },
+            {
+              "sha": "3afcc03dface73a86cce7a8edcfc0abd243ee9bc",
+              "kind": "new",
+              "text": "Continuous floors, lumpy grid objects, bomb fuse and explosion sprites"
+            },
+            {
+              "sha": "9aade3b843d572a8fd1d0ad9d68477d1b0be3750",
+              "kind": "new",
+              "text": "Big-head proportions for in-game characters; pause portrait clears the menu"
+            }
+          ],
+          "summary": "The title screen is illustrated, with save slots, paper-style menus and a carousel for picking characters. Playing the game brings a new HUD layout with a streak strip, a boss card before boss fights, a full map, sliding room transitions and ink-outlined visuals. Enemies, bosses, the protagonist and 34 characters have new original artwork, and in-game characters have bigger heads.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
