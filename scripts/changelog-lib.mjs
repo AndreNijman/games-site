@@ -124,10 +124,10 @@ export const BEHIND_THE_SCENES = "Behind-the-scenes fixes and tidying.";
  * The games ours are modelled on, and the words that point at them. Neither a
  * summary nor a commit subject the hub shows may carry one.
  */
-export const OTHER_GAMES = /\b(terraria|bloons|btd\d*|chimps|minecraft|repentance|binding of isaac|plants vs\.? zombies|tetris|vanilla)\b/i;
+// "Isaac-style" too: isaac is ISUCK's host, so the bare word is not enough
+export const OTHER_GAMES = /\b(terraria|bloons|btd\d*|chimps|minecraft|repentance|binding of isaac|isaac[- ](style|like)|plants vs\.? zombies|tetris|vanilla)\b/i;
 
-// "Isaac-style" names the game ISUCK is modelled on, though isaac is its host
-const BANNED = new RegExp(`${OTHER_GAMES.source}|\\b(commit messages?|the commits?|isaac[- ](style|like))\\b`, "i");
+const BANNED = new RegExp(`${OTHER_GAMES.source}|\\b(commit messages?|the commits?)\\b`, "i");
 
 /** A summary is kept only if it reads like one: some words, no markdown, not an essay, nothing banned. */
 export function validSummary(s) {

@@ -1266,22 +1266,17 @@
           "at": "2026-10-29T13:57:17Z",
           "sha": "6c2749cd62d3a24094836949708f2b5198888bff",
           "counts": {
-            "new": 23,
+            "new": 21,
             "fixed": 12,
             "improved": 0,
             "other": 0,
-            "hidden": 28
+            "hidden": 30
           },
           "commits": [
             {
               "sha": "d44fda6fac5779db2db0e4674715f2a583488969",
               "kind": "new",
               "text": "Rebuild combat feel on Isaac's rules"
-            },
-            {
-              "sha": "2f3929540ed55d4e0d02798e2a6fe50cf6c4ad25",
-              "kind": "new",
-              "text": "Hand-authored Isaac-style room layouts with door and reachability checks"
             },
             {
               "sha": "b453dd9ce927bdf4f09149332980fec73d255f65",
@@ -1352,11 +1347,6 @@
               "sha": "ef692454dbba1149820be2042596d546c827b2ac",
               "kind": "fixed",
               "text": "Limit Haunt and Turdlings minions, slow Haunt cooldown, drop unused trail helper"
-            },
-            {
-              "sha": "d55f17d1b93be87ecfc41fc6b401634351c3a08c",
-              "kind": "new",
-              "text": "Bespoke procedural boss sprites and Isaac-style player art"
             },
             {
               "sha": "047dcb8370d6045e205eb5eb6c90eae76ff75d48",
