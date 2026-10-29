@@ -7416,7 +7416,8 @@
         7350232856,
         7406326067,
         7408348596,
-        7412441305
+        7412441305,
+        7414546065
       ],
       "updates": [
         {
@@ -7786,6 +7787,28 @@
             }
           ],
           "summary": "The world is now a 3x3 grid of fixed biome squares with forest in the middle, replacing the timed season cycle. Each biome has its own resources, wildlife and a boss that sleeps until someone strikes it, throws thorn rings while awake, and returns 240 seconds after it dies. Aging up is faster: the first age takes a few seconds and later ages about half a minute with kills, gathering gives double xp, and wild kills pay gold.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7414546065,
+          "at": "2026-10-29T14:10:31Z",
+          "sha": "079aab439c9761662a2b381fa20c60e7ccf9f11d",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [
+            {
+              "sha": "079aab439c9761662a2b381fa20c60e7ccf9f11d",
+              "kind": "new",
+              "text": "Compact HUD, top-centre age pick and lighter node density"
+            }
+          ],
+          "summary": "The on-screen HUD is more compact: the leaderboard is smaller, the food, wood and stone counters are smaller while gold is larger, and the XP bar is thinner. The hotbar tiles are slightly larger and the selected slot is dark red. The age pick is now a compact strip of icons at the top centre, and resource nodes appear at a lower density.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
