@@ -609,7 +609,8 @@
       "seen": [
         7406532850,
         7406557968,
-        7408890828
+        7408890828,
+        7412465925
       ],
       "updates": [
         {
@@ -670,6 +671,33 @@
             }
           ],
           "summary": "New rated puzzles drawn from about 5,000 positions, sorted into 26 rating bands and matched near your own rating. Each puzzle comes with hints, solution playback, a handoff to analysis, and themes shown afterward. Puzzle Rush is also new: solve as many as you can in three minutes, with three strikes ending the run.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7412465925,
+          "at": "2026-10-29T12:41:34Z",
+          "sha": "4b2db467441540e04d1bced9b5421a83a3376606",
+          "counts": {
+            "new": 1,
+            "fixed": 1,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [
+            {
+              "sha": "8f1886b4ffb64a787925900627e7b348fb51be67",
+              "kind": "new",
+              "text": "Online play with quick matches, friend links and ratings"
+            },
+            {
+              "sha": "4b2db467441540e04d1bced9b5421a83a3376606",
+              "kind": "fixed",
+              "text": "Share friend games as ?game= links so they survive the hub frame"
+            }
+          ],
+          "summary": "Online play is new: quick matches against other players, friend games through a shareable link, and rated games with ratings tracked by category. Clocks run on the server, with flag-fall and draw offers, claims and rematches supported. Friend links now open the game directly instead of the home screen.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
@@ -1098,7 +1126,8 @@
         5788870392,
         5788982231,
         5789051976,
-        5789078379
+        5789078379,
+        7414216889
       ],
       "updates": [
         {
@@ -1230,6 +1259,198 @@
           "commits": [],
           "summary": "Behind-the-scenes fixes and tidying.",
           "playerFacing": false,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7414216889,
+          "at": "2026-10-29T13:57:17Z",
+          "sha": "6c2749cd62d3a24094836949708f2b5198888bff",
+          "counts": {
+            "new": 23,
+            "fixed": 12,
+            "improved": 0,
+            "other": 0,
+            "hidden": 28
+          },
+          "commits": [
+            {
+              "sha": "d44fda6fac5779db2db0e4674715f2a583488969",
+              "kind": "new",
+              "text": "Rebuild combat feel on Isaac's rules"
+            },
+            {
+              "sha": "2f3929540ed55d4e0d02798e2a6fe50cf6c4ad25",
+              "kind": "new",
+              "text": "Hand-authored Isaac-style room layouts with door and reachability checks"
+            },
+            {
+              "sha": "b453dd9ce927bdf4f09149332980fec73d255f65",
+              "kind": "new",
+              "text": "Isaac attack patterns for Basement bosses, Mom and worms"
+            },
+            {
+              "sha": "6e0edae250ff7845a62d8a386c741e65d13716d3",
+              "kind": "new",
+              "text": "Isaac behaviour and sprites per enemy"
+            },
+            {
+              "sha": "b1bb680fa609d17f81e79adfd6a262da1947d4d5",
+              "kind": "new",
+              "text": "Isaac floor layouts with dead-end specials, secret rooms and big rooms"
+            },
+            {
+              "sha": "16fcf1318772da19edf1aff9390092ecde9bae4f",
+              "kind": "fixed",
+              "text": "Tame Dingle charge pace and Haunt drift for the bot"
+            },
+            {
+              "sha": "d4e69cf6afd269998bc1a42a85e4f556793b7c36",
+              "kind": "new",
+              "text": "Isaac knights, Husk and Loki, boss colours and worm sprites"
+            },
+            {
+              "sha": "7d294fd4efc5d6a8dd2707ce684175e3c94a0d7f",
+              "kind": "new",
+              "text": "Bespoke sprites for the enemy long tail"
+            },
+            {
+              "sha": "80176752bc3685bc14ae7292b39eac3d3ddf280f",
+              "kind": "new",
+              "text": "Real familiar behaviours, revive priority, battery overcharge and item-check harness"
+            },
+            {
+              "sha": "f6ce1a1d81ad8ee08499f714162aeb4682fd2386",
+              "kind": "new",
+              "text": "Player status timers and invincibility"
+            },
+            {
+              "sha": "036f30f740b8004ab1f973a79bd037df90284ec5",
+              "kind": "new",
+              "text": "Fire onRemove and onBombExplode hooks"
+            },
+            {
+              "sha": "8b3b0a1bbee7626896a265a0d608d6ca4874e454",
+              "kind": "new",
+              "text": "Isaac boss roster scripts, floor boss pools, Gemini tether and visible holes"
+            },
+            {
+              "sha": "0dc53f0bd9eca1fab006c403171133fed503ea79",
+              "kind": "new",
+              "text": "Basement pit rooms, Pooters in the Basement pool, bot paths round pits"
+            },
+            {
+              "sha": "79cfde64db06d26e7d77fdb0e00b29f1dfa52666",
+              "kind": "new",
+              "text": "Isaac behaviour for every regular enemy, real champions, faithful spawn timing"
+            },
+            {
+              "sha": "7383449c56c0cf6ae3ef9061559a5c849a690c7f",
+              "kind": "new",
+              "text": "Implement all effectless items with item-check coverage and validator guard"
+            },
+            {
+              "sha": "ef692454dbba1149820be2042596d546c827b2ac",
+              "kind": "fixed",
+              "text": "Limit Haunt and Turdlings minions, slow Haunt cooldown, drop unused trail helper"
+            },
+            {
+              "sha": "d55f17d1b93be87ecfc41fc6b401634351c3a08c",
+              "kind": "new",
+              "text": "Bespoke procedural boss sprites and Isaac-style player art"
+            },
+            {
+              "sha": "047dcb8370d6045e205eb5eb6c90eae76ff75d48",
+              "kind": "new",
+              "text": "Floor-family backdrops and per-type door art"
+            },
+            {
+              "sha": "d2c45a17b9935ddf5547d15eacfcf0fdc25431be",
+              "kind": "new",
+              "text": "Audit hook items and replace stub effects with real behaviour"
+            },
+            {
+              "sha": "f741f5b3ecc494b656fe4a2d69d6439a17fbecc4",
+              "kind": "fixed",
+              "text": "Own sprite names for bosses and enemies that share a character or pickup id"
+            },
+            {
+              "sha": "1433f17b8837fe676f87d97357cab206b29cf892",
+              "kind": "new",
+              "text": "Enemy statuses, overlays and the chain, pop, light, holy and status tear flags"
+            },
+            {
+              "sha": "9fdf7b38e4fafe46d1346576924203aa4dad77d1",
+              "kind": "new",
+              "text": "Audit items-2, 4, 8 and items-5 leftovers, replace stub effects"
+            },
+            {
+              "sha": "c05cd92c388760bb6a0ba019c392091dd0d5de71",
+              "kind": "new",
+              "text": "Curses, map flags, devil/angel doors, ascent route, red rooms, crawlspace and trapdoor portals"
+            },
+            {
+              "sha": "4838a652a0a742b3801d4065246475307b6361a3",
+              "kind": "new",
+              "text": "Two active slots with Schoolbag and pocketSwap"
+            },
+            {
+              "sha": "94739c5c480bd955d862c8eb32284f76d4899425",
+              "kind": "new",
+              "text": "Pricing, chests, hearts, beggars and machines with procedural pickup art"
+            },
+            {
+              "sha": "1ea27b531a2af4ba8eb4efc93ac2f0d8e097f2e4",
+              "kind": "fixed",
+              "text": "Azazel beam reach, Incubus aim convergence; readable character select details"
+            },
+            {
+              "sha": "801fa17eb18fd79c32193c65bcd4e685fae8edd3",
+              "kind": "fixed",
+              "text": "Permanent familiars, active removal, broken hearts, noRoomCharge, flight, decoys, rock tears, Bag of Crafting, Satanic Bible and range units"
+            },
+            {
+              "sha": "f3adce47ad5132b428477a337f2ef89c8ea869e1",
+              "kind": "new",
+              "text": "Script endgame bosses after their Isaac fights"
+            },
+            {
+              "sha": "d62aacd02470249b3501d2a2363c046db4f66698",
+              "kind": "fixed",
+              "text": "Give pin and wormwood longer pop-ups so the dig-in fights stay winnable"
+            },
+            {
+              "sha": "423cf01733e20b382fe877ea803784ce9e9f9730",
+              "kind": "fixed",
+              "text": "Reconcile character death hooks, Lazarus' Rags and Keeper coin healing with item/systems merges"
+            },
+            {
+              "sha": "823ebd11616836e1860ee39421eab69a12f1704a",
+              "kind": "fixed",
+              "text": "Azazel brimstone fires on release; playtest bot releases charge weapons and closes in for melee"
+            },
+            {
+              "sha": "0879b1e3f676972d33acf7cc64ca80421d3a0e33",
+              "kind": "fixed",
+              "text": "Entering from a side without a door arrives at a real door, not mid-room on the enemies"
+            },
+            {
+              "sha": "d456da520d09e61928aeceb980090fe7171b484e",
+              "kind": "fixed",
+              "text": "Drifting flies turn back at the room edge instead of pinning themselves to the wall"
+            },
+            {
+              "sha": "28fcacb6686537c2b7fcf2cc11cc50dae56842d8",
+              "kind": "fixed",
+              "text": "Rag Mega stays in the fight instead of blinking like Rag Man; Wormwood surfaces for longer"
+            },
+            {
+              "sha": "589b691cfc523916632649f76c46a6b3630f4e4e",
+              "kind": "fixed",
+              "text": "Simulate takes only the pedestals present on arrival so a swapped active can't loop forever"
+            }
+          ],
+          "summary": "Combat feels heavier, with knockback, hit flashes, death gibs, screen shake and brief hit-stop on impacts. Rocks and walls now block movement and tears, and enemies use telegraphed attacks with spawn grace. Floor layouts, room types, enemy behaviours, sprites, boss attacks, characters, items and curses were reworked to follow the Isaac-style rules, and the two active item slots and Schoolbag were added.",
+          "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
       ]
@@ -7204,7 +7425,8 @@
         7350183643,
         7350232856,
         7406326067,
-        7408348596
+        7408348596,
+        7412441305
       ],
       "updates": [
         {
@@ -7547,6 +7769,33 @@
             }
           ],
           "summary": "Your own tamer now moves immediately when you press a direction online, instead of waiting for the server to respond, so movement feels more responsive on a shared world.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7412441305,
+          "at": "2026-10-29T12:40:27Z",
+          "sha": "3671e7db5a3437df3851f7de3f51fc8c269aa3fb",
+          "counts": {
+            "new": 2,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [
+            {
+              "sha": "d2193fdf17a859d3b0ff470d77de5a7a5b8de57a",
+              "kind": "new",
+              "text": "Spatial biomes, sleeping bosses, food-cost taming and pet levels"
+            },
+            {
+              "sha": "3671e7db5a3437df3851f7de3f51fc8c269aa3fb",
+              "kind": "new",
+              "text": "Pace ages like the reference footage"
+            }
+          ],
+          "summary": "The world is now a 3x3 grid of fixed biome squares with forest in the middle, replacing the timed season cycle. Each biome has its own resources, wildlife and a boss that sleeps until someone strikes it, throws thorn rings while awake, and returns 240 seconds after it dies. Aging up is faster: the first age takes a few seconds and later ages about half a minute with kills, gathering gives double xp, and wild kills pay gold.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
