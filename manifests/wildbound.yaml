@@ -4,14 +4,14 @@
 schema: 1
 publish: true
 name: Wildbound.io
-description: A free multiplayer survival game with gathering, age upgrades, base building, rotating seasons, bosses, CPU rivals and 60 tameable companion species.
-meta: Online survival · 60 tameable species · 6 seasons · bosses · base building · CPU rivals
+description: "A free multiplayer survival game: gather, age up, build a base and tame sleeping animals across six biomes, from snowfields to a volcano, where each boss sleeps until someone strikes it."
+meta: Online survival · 32 tameable species · 6 biomes · sleeping bosses · base building · CPU rivals
 genre:
   - Survival
   - Action
   - Multiplayer
 screenshot: wildbound.png
-alt: "Wildbound.io in play: a tamer exploring a forest among wild creatures, resources, rivals and a survival HUD"
+alt: "Wildbound.io in play: a tamer with an arctic fox, a lynx and a polar bear beside a sleeping frost golem in the winter biome"
 label: Play Wildbound.io, a free online survival and creature-taming game
 build:
   install: null
