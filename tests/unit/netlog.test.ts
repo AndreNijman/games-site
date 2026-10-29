@@ -24,7 +24,7 @@ describe("multiplayer lag logs", () => {
   });
 
   it("judges by its own limits, not the relay's say-so, but keeps extra notes", () => {
-    const log = normalizeNetLog("scrap", { seats: [seat()], lag: ["relay: room rebuilt"] });
+    const log = normalizeNetLog("tree", { seats: [seat()], lag: ["relay: room rebuilt"] });
     expect(log.lag).toEqual(["relay: room rebuilt"]);
     expect(judgeNetLog({ seats: [seat({ rttP95: 201 })], server: null, runTime: 0 })).toEqual(["A: ping p95 201 ms"]);
   });

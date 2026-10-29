@@ -89,16 +89,6 @@ export const GAMES: Game[] = [
     label: "Play OVERPOP, a free browser round-based tower defense game",
   },
   {
-    host: "scrap.andrenijman.com",
-    name: "SCRAP AND STEEL",
-    genre: ["Sandbox", "Action", "Physics"],
-    description: "A free browser physics robot-building sandbox and 1v1 arena fighter: assemble a robot from a modular parts catalog, wire its power grid, bind its controls, test it with real physics, then fight online. Breakable welds, heat, traction and battery endurance decide fights — no hidden health bars.",
-    meta: "Robot builder & arena fighter · wire your own power grid · breakable welds · heat & mass physics · 1v1 online",
-    image: "scrap.png",
-    alt: "SCRAP AND STEEL in play: two built robots fighting in an arena, one wrecked, with power and heat HUD bars",
-    label: "Play SCRAP AND STEEL, a free physics robot-building sandbox and 1v1 arena fighter",
-  },
-  {
     host: "slingwreck.andrenijman.com",
     name: "SLINGWRECK",
     genre: ["Action", "Puzzle", "Physics"],

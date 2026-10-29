@@ -48,7 +48,6 @@ const HOSTS = new Set([
   "celeste.andrenijman.com",
   "stink.andrenijman.com",
   "rasists.andrenijman.com",
-  "scrap.andrenijman.com",
   "memoryburn.andrenijman.com",
   "fart.andrenijman.com",
   "scoops.andrenijman.com",
@@ -189,15 +188,6 @@ const GAMES = {
     image: "rasists.png",
     imageWidth: 2000,
     imageHeight: 1050,
-    origin: "original",
-  },
-  "scrap.andrenijman.com": {
-    name: "SCRAP AND STEEL",
-    description: "A free browser physics robot-building sandbox and 1v1 arena fighter: assemble a robot from a modular parts catalog, wire its power grid, bind its controls, test it with real physics, then fight online. Breakable welds, heat, traction and battery endurance decide fights — no hidden health bars.",
-    genre: ["Sandbox", "Action", "Physics"],
-    image: "scrap.png",
-    imageWidth: 1000,
-    imageHeight: 525,
     origin: "original",
   },
   "memoryburn.andrenijman.com": {
