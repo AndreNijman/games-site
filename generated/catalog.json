@@ -184,40 +184,6 @@
       "relay": null
     },
     {
-      "slug": "scrap",
-      "host": "scrap.andrenijman.com",
-      "kind": "pages",
-      "repo": "AndreNijman/scrap-and-steel",
-      "live": true,
-      "enabled": true,
-      "publish": true,
-      "listed": true,
-      "guard": true,
-      "crawlerFiles": false,
-      "netlog": true,
-      "origin": "original",
-      "name": "SCRAP AND STEEL",
-      "description": "A free browser physics robot-building sandbox and 1v1 arena fighter: assemble a robot from a modular parts catalog, wire its power grid, bind its controls, test it with real physics, then fight online. Breakable welds, heat, traction and battery endurance decide fights — no hidden health bars.",
-      "meta": "Robot builder & arena fighter · wire your own power grid · breakable welds · heat & mass physics · 1v1 online",
-      "genre": [
-        "Sandbox",
-        "Action",
-        "Physics"
-      ],
-      "image": "scrap.png",
-      "imageWidth": 1000,
-      "imageHeight": 525,
-      "alt": "SCRAP AND STEEL in play: two built robots fighting in an arena, one wrecked, with power and heat HUD bars",
-      "label": "Play SCRAP AND STEEL, a free physics robot-building sandbox and 1v1 arena fighter",
-      "requiresAccount": false,
-      "relay": {
-        "managed": false,
-        "worker": "scrap-and-steel-relay",
-        "domain": "relay.scrap.andrenijman.com",
-        "declared": false
-      }
-    },
-    {
       "slug": "slingwreck",
       "host": "slingwreck.andrenijman.com",
       "kind": "pages",
