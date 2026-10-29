@@ -5,12 +5,15 @@ import GameCard from "../components/GameCard.astro";
 import Ads from "../components/Ads.astro";
 import Update from "../components/Update.astro";
 import { ALL } from "../data/changelog";
-import { GAMES, gameUrl, artPath } from "../data/games";
+import { gameUrl, artPath } from "../data/games";
 import { HERO, ORDERED, ORDER_SOURCE } from "../data/hub-order";
 
 const ORIGIN = "https://games.andrenijman.com/";
 // the newest updates players would notice, for the band under the games
 const LATEST = ALL.filter((u) => u.playerFacing !== false && u.summary).slice(0, 4);
+// the newest of them, flagged at the top of the hero: its first sentence
+const NEWEST = LATEST[0];
+const newestLine = NEWEST?.summary!.split(/(?<=[.!?])\s/)[0].replace(/\.$/, "");
 const title = "Games by Andre Nijman · free browser games";
 const description = "Free browser games by Andre Nijman: original games and credited open-source projects, including ONE WORLD, TOPOUT, OVERPOP, Wildbound.io, and more.";
 const ogDescription = "Free browser games spanning competitive puzzling, tower defense, survival, sandbox adventure, horror, and roguelikes. Nothing to download.";
@@ -88,6 +91,13 @@ const site = {
     <div class="hero">
       <div class="wrap hero__grid">
         <div>
+          {NEWEST && (
+            <a class="splash sticker" href={`/updates#u-${NEWEST.id}`}>
+              <span class="splash__tag"><span class="splash__dot" aria-hidden="true"></span>New update</span>
+              <span class="splash__text"><b>{NEWEST.log.game.name}</b> {newestLine}</span>
+              <span class="splash__go" aria-hidden="true">→</span>
+            </a>
+          )}
           <p class="label">The browser is your playground</p>
           <h1>Hop on<br /><em>the games.</em></h1>
           <p class="lede">A little collection of big distractions. Original games, friends’ creations, and credited open-source projects. All free. Pick one and play.</p>
@@ -115,12 +125,6 @@ const site = {
           )}
         </div>
       </div>
-    </div>
-
-    <div class="strip strip--three">
-      <div><b>{GAMES.length}</b><span>games to get lost in</span></div>
-      <div><b>$0</b><span>to play</span></div>
-      <div><b>0</b><span>things to install</span></div>
     </div>
 
     <aside class="ad-inline" id="ad-leaderboard" aria-label="Advertisement" hidden>
