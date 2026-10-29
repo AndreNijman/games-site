@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for Stinkwater. It moves into AndreNijman/stinkwater when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: Stinkwater
+description: "A free pixel-art story roguelike in the browser: a year in a fen town as Rax Pu, seven backgrounds, about 250 branching stories played out where they happen, trades and magic to learn, a real-time dungeon under the old well, and a kingdom that falls and changes around you."
+meta: Story roguelike · a year in a fen town · 250 branching stories · dungeon fights · trades and magic · four save slots
+genre:
+  - Roguelike
+  - RPG
+  - Life sim
+screenshot: stink.png
+alt: "Stinkwater in play: Rax, purple-haired, in the cobbled town square by the well, townsfolk at a fruit stall, a statue and a timber cottage"
+label: Play Stinkwater, a free story roguelike set in a pixel-art fen town
+build:
+  node: 22
+  checks:
+    - npm run check
+  command: mkdir -p _site && cp -r index.html style.css js robots.txt sitemap.xml stink-card.png _site/
+  output: _site

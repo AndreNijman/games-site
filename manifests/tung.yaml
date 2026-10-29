@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for Tung Tung Tung Sahorror. It moves into AndreNijman/tung-tung-tung-sahur when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: Tung Tung Tung Sahorror
+description: A free first-person raycaster horror game in a single HTML file. Gather six offerings in the dark and carry them home before the call to Subuh, while a drumming creature hunts by sight, sound and your own panic. Originally by tim.
+meta: First-person horror · gather six offerings and get home before dawn
+genre:
+  - Horror
+  - Survival
+screenshot: tung.png
+alt: "Tung Tung Tung Sahorror in play: the drumming creature waiting in a torchlit corridor, with the offerings, torch, stamina and nerve HUD"
+label: Play Tung Tung Tung Sahorror, a free browser first-person horror game
+credit: originally by tim
+build:
+  install: null
+  command: null
+  output: .

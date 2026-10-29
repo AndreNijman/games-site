@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for Celeste. It moves into AndreNijman/celeste when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: Celeste
+description: "A free browser platformer homage: 46 curated rooms across 14 chapters, precision physics, dashes, wall climbing, collectibles, achievements, and synthesized WebAudio."
+meta: Precision platformer · 46 curated rooms · 14 chapters · 18 achievements
+genre:
+  - Platformer
+  - Precision
+  - Action
+screenshot: celeste.png
+alt: "Celeste in play: Madeline mid-dash towards a winged strawberry in a snowy twilight mountain peak"
+label: Play Celeste, a free browser platformer homage to Maddy Makes Games
+credit: homage to Maddy Makes Games
+author:
+  type: Organization
+  name: Maddy Makes Games (homage)
+  url: https://www.celestegame.com
+build:
+  install: null
+  command: null
+  output: .

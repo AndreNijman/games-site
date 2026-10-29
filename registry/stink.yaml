@@ -1,0 +1,13 @@
+# Stinkwater. Andre's half: see schema/registry.schema.json.
+slug: stink
+host: stink.andrenijman.com
+kind: pages
+repo: AndreNijman/stinkwater
+owners:
+  - AndreNijman
+manifest: manifests/stink.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original

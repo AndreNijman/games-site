@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for tree. It moves into AndreNijman/tree when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: tree
+description: A full-progression procedural browser sandbox with mining, crafting, building, towns, fishing, invasions, events, and bosses through the Moon Lord.
+meta: Procedural sandbox · mining and crafting · towns · events · full boss progression
+genre:
+  - Sandbox
+  - Adventure
+  - Action
+screenshot: tree.png
+alt: tree gameplay at night in the Hallow during a fight against the Twins
+label: Play tree, a free full-progression browser sandbox game
+build:
+  install: null
+  command: null
+  output: .

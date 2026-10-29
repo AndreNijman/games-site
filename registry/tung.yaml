@@ -1,0 +1,20 @@
+# Tung Tung Tung Sahorror. Andre's half: see schema/registry.schema.json.
+slug: tung
+host: tung.andrenijman.com
+kind: pages
+repo: AndreNijman/tung-tung-tung-sahur
+owners:
+  - AndreNijman
+manifest: manifests/tung.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+crawlerFiles: true
+netlog: true
+relay:
+  managed: false
+  worker: tung-relay
+  domain: relay.tung.andrenijman.com
+  workersDev: true

@@ -1,0 +1,18 @@
+# SLINGWRECK. Andre's half: see schema/registry.schema.json.
+slug: slingwreck
+host: slingwreck.andrenijman.com
+kind: pages
+repo: AndreNijman/slingwreck
+owners:
+  - AndreNijman
+manifest: manifests/slingwreck.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+netlog: true
+relay:
+  managed: false
+  worker: slingwreck-relay
+  domain: null

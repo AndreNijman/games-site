@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for TOPOUT. It moves into AndreNijman/topout when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: TOPOUT
+description: A free competitive block-stacking game with modern mechanics, online versus multiplayer, CPU battles, replays and a global leaderboard.
+meta: Competitive block stacker · online VS · CPU battles · replays · global leaderboard
+genre:
+  - Puzzle
+  - Action
+screenshot: topout.png
+alt: TOPOUT title screen with solo, multiplayer, leaderboard and replays menu
+label: Play TOPOUT, a free online block-stacking game
+build:
+  install: null
+  command: null
+  output: .

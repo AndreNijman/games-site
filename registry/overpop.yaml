@@ -1,0 +1,13 @@
+# OVERPOP. Andre's half: see schema/registry.schema.json.
+slug: overpop
+host: overpop.andrenijman.com
+kind: pages
+repo: AndreNijman/overpop
+owners:
+  - AndreNijman
+manifest: manifests/overpop.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original

@@ -1,0 +1,15 @@
+# ONE WORLD. Andre's half: see schema/registry.schema.json.
+slug: mc
+host: mc.andrenijman.com
+kind: external
+repo: AndreNijman/one-world
+owners:
+  - AndreNijman
+manifest: manifests/mc.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: curated
+crawlerFiles: true
+notes: Served from andrenijman.github.io/one-world through a special path in the guard; its relay runs on the Orange Pi. Not built by the shared workflow.

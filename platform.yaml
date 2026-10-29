@@ -1,0 +1,50 @@
+# The platform's own settings. Everything per game lives in registry/.
+#
+# `org` is a placeholder until the GitHub organisation exists: change it here,
+# in the org's .github repository, and in template-game's caller workflow.
+
+org: andrenijman-games
+# The repository that holds this file: the registry, the hub and the guard.
+platformRepo: andrenijman-games/platform
+
+hub:
+  host: games.andrenijman.com
+  # Cards with no visit data fall back to this order (src/data/order.ts), and
+  # the guard's cross-links and llms.txt list the games in it. Registered games
+  # missing from the list follow in slug order.
+  order:
+    - stink
+    - rasists
+    - mc
+    - topout
+    - defenders
+    - overpop
+    - scrap
+    - slingwreck
+    - bop
+    - memoryburn
+    - wildbound
+    - tree
+    - tung
+    - bladehymn
+    - isaac
+    - celeste
+    - fart
+    - scoops
+    - krillion
+
+cloudflare:
+  zone: andrenijman.com
+  # Every game host and relay domain must sit under the zone.
+  hostSuffix: .andrenijman.com
+  # The guard fetches game pages from GitHub Pages by name; Pages answers by
+  # the Host header, so any *.github.io name of ours reaches every repo.
+  pagesHost: andrenijman.github.io
+  # Where a new game's proxied DNS record points.
+  dnsTarget: andrenijman-games.github.io
+  # The Worker every game relay may report finished matches to.
+  netlogService: games-guard
+
+relays:
+  # For a relay whose game.yaml gives no compatibilityDate.
+  compatibilityDate: "2026-08-28"

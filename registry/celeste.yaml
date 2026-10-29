@@ -1,0 +1,13 @@
+# Celeste. Andre's half: see schema/registry.schema.json.
+slug: celeste
+host: celeste.andrenijman.com
+kind: pages
+repo: AndreNijman/celeste
+owners:
+  - AndreNijman
+manifest: manifests/celeste.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original

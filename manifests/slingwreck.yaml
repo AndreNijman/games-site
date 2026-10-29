@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for SLINGWRECK. It moves into AndreNijman/slingwreck when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: SLINGWRECK
+description: "A free browser slingshot demolition game: fling nine kinds of critter at pig fortresses across a 52-level campaign, build your own fortress in the workshop, then defend it in a 1v1 online siege. Hand-written rigid-body physics, no engine."
+meta: Slingshot demolition · 52 levels · 9 critters · fortress workshop · 1v1 online siege
+genre:
+  - Action
+  - Puzzle
+  - Physics
+screenshot: slingwreck.png
+alt: "SLINGWRECK in play: a wooden and glass pig fortress coming apart mid-shot, debris in the air"
+label: Play SLINGWRECK, a free slingshot demolition game with a 52-level campaign and 1v1 online siege
+build:
+  node: 22
+  setup:
+    - npx playwright install --with-deps chromium
+  checks:
+    - npm run check
+    - npm test
+    - npm run test:audio
+  command: null
+  output: .

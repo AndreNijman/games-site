@@ -1,0 +1,155 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://games.andrenijman.com/schema/registry.schema.json",
+  "title": "registry/<slug>.yaml",
+  "description": "Andre's half of a game: where it is served, who may change it, and what the platform does for it. Only the platform repository's owners can merge these.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "slug",
+    "host",
+    "kind",
+    "enabled",
+    "listed",
+    "guard",
+    "byAndre",
+    "origin"
+  ],
+  "properties": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,30}$",
+      "description": "Must match the file name. Names the game in netlog, the relay and the screenshot."
+    },
+    "host": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+(\\.[a-z0-9-]+)+$"
+    },
+    "kind": {
+      "enum": [
+        "pages",
+        "external"
+      ],
+      "description": "pages: built from `repo` by the shared workflow and served by GitHub Pages. external: served from somewhere else; the platform only guards and lists it."
+    },
+    "repo": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9-]+$"
+      },
+      "description": "GitHub logins who maintain the game. Informational, and used for CODEOWNERS in the game repo."
+    },
+    "manifest": {
+      "type": "string",
+      "pattern": "^manifests/[a-z0-9-]+\\.yaml$",
+      "description": "A game.yaml kept here, for a game whose repository has none yet or for an external game. A game.yaml in the repository replaces it."
+    },
+    "enabled": {
+      "type": "boolean",
+      "description": "Andre's switch. false takes the game off the hub, stops its deploys and makes the guard show it as offline."
+    },
+    "listed": {
+      "type": "boolean",
+      "description": "A card on the hub."
+    },
+    "guard": {
+      "type": "boolean",
+      "description": "The games-guard Worker sits in front of the host."
+    },
+    "byAndre": {
+      "type": "boolean",
+      "description": "true credits Andre by default. false requires the manifest to name its author."
+    },
+    "origin": {
+      "enum": [
+        "original",
+        "curated",
+        "hosted"
+      ],
+      "description": "Attribution class used by the guard's pages and llms.txt."
+    },
+    "image": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+\\.png$",
+      "description": "The screenshot's file name at the hub root. Defaults to <slug>.png."
+    },
+    "crawlerFiles": {
+      "type": "boolean",
+      "default": false,
+      "description": "The guard generates robots.txt and sitemap.xml for the host. Leave false when the game ships its own."
+    },
+    "netlog": {
+      "type": "boolean",
+      "default": false,
+      "description": "The game's relay may report finished matches to games-guard."
+    },
+    "relay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "managed"
+      ],
+      "description": "Present when the game has a relay. Without it, a relay in game.yaml is refused.",
+      "properties": {
+        "managed": {
+          "type": "boolean",
+          "description": "true: the platform deploys it from game.yaml. false: it exists but is still deployed by hand."
+        },
+        "worker": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "The Worker's name. Defaults to <slug>-relay. Never rename a deployed relay: its Durable Objects belong to the name."
+        },
+        "domain": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Its custom domain. Defaults to <slug>-relay.<zone>; null means workers.dev only."
+        },
+        "workersDev": {
+          "type": "boolean",
+          "description": "Keep the workers.dev address too. Defaults to true only when there is no custom domain; set it for a relay whose clients still call workers.dev."
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "pages"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "repo"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "external"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "manifest"
+        ]
+      }
+    }
+  ]
+}

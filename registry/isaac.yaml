@@ -1,0 +1,15 @@
+# ISUCK. Andre's half: see schema/registry.schema.json.
+slug: isaac
+host: isaac.andrenijman.com
+kind: pages
+repo: AndreNijman/isuck
+owners:
+  - AndreNijman
+manifest: manifests/isaac.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+image: isuck.png
+notes: Pages currently deploys the master branch.

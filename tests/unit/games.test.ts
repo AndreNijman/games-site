@@ -1,38 +1,23 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import catalog from "../../generated/catalog.json";
 import { GAMES, FEATURED, artPath, type Game } from "../../src/data/games";
 import { holes, layout, orderGames } from "../../src/data/order";
 
-// The Worker's own table, read out of worker/index.js without running the
-// Worker: the object literal between `const GAMES = {` and the next `};`.
-function workerGames(): Record<string, { name: string; image: string; credit?: string }> {
-  const src = readFileSync("worker/index.js", "utf8");
-  const start = src.indexOf("const GAMES = {");
-  const end = src.indexOf("\n};\n", start);
-  const literal = src.slice(start + "const GAMES = ".length, end + 2);
-  const mcHost = src.match(/const MC_HOST = "([^"]+)"/)![1];
-  return new Function("MC_HOST", `return ${literal}`)(mcHost);
-}
-
-// On the hub but not behind the Worker, served by its own host: none at present.
-const OUTSIDE_WORKER = new Set<string>();
-
-describe("the hub and the Worker agree", () => {
-  const worker = workerGames();
-  it("every game the Worker frames is on the hub", () => {
-    const hub = new Set(GAMES.map((g) => g.host));
-    for (const host of Object.keys(worker)) expect(hub.has(host), host).toBe(true);
-  });
-  it("every game on the hub is framed by the Worker, or known not to be", () => {
-    for (const g of GAMES) if (!OUTSIDE_WORKER.has(g.host)) expect(worker[g.host], g.host).toBeDefined();
+// The hub and the Worker both read generated/catalog.json; these hold the hub
+// to the part of it that should be on the cards (tests/unit/platform.test.ts
+// covers the generator itself).
+describe("the hub and the catalog agree", () => {
+  const shown = catalog.games.filter((g) => g.live && g.listed);
+  it("every live, listed game has a card, in catalog order", () => {
+    expect(GAMES.map((g) => g.host)).toEqual(shown.map((g) => g.host));
   });
   it("on names, screenshots and credits", () => {
     for (const g of GAMES) {
-      const w = worker[g.host];
-      if (!w) continue;
-      expect(g.name, g.host).toBe(w.name);
-      expect(g.image, g.host).toBe(w.image);
-      expect(g.credit, g.host).toBe(w.credit);
+      const c = catalog.games.find((x) => x.host === g.host)! as (typeof catalog.games)[number] & { credit?: string };
+      expect(g.name, g.host).toBe(c.name);
+      expect(g.image, g.host).toBe(c.image);
+      expect(g.credit, g.host).toBe(c.credit);
     }
   });
 });

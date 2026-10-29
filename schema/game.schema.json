@@ -1,0 +1,167 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://games.andrenijman.com/schema/game.schema.json",
+  "title": "game.yaml",
+  "description": "What a game repository tells the platform about itself. The registry entry in the platform repository decides where it is served and whether it may run a relay.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "publish", "name", "description", "meta", "genre", "screenshot", "alt", "label", "build"],
+  "properties": {
+    "schema": { "const": 1 },
+    "publish": {
+      "type": "boolean",
+      "description": "The developer's switch. false keeps the site off GitHub Pages and off the hub, whatever the registry says."
+    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 60 },
+    "description": {
+      "type": "string",
+      "minLength": 50,
+      "maxLength": 400,
+      "description": "One or two sentences for search engines and the game's page. Facts only: what it is and what is in it."
+    },
+    "meta": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 140,
+      "description": "The short line on the hub card, its parts separated by ' · '."
+    },
+    "genre": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 2, "maxLength": 24 },
+      "description": "Include \"Multiplayer\" when the game has online play: the game's FAQ says so."
+    },
+    "screenshot": {
+      "type": "string",
+      "pattern": "^[^/][^:]*\\.png$",
+      "description": "A PNG in this repository, 1000x525 or 2000x1050. Used for the hub card and as the social card."
+    },
+    "alt": { "type": "string", "minLength": 21, "maxLength": 300 },
+    "label": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 160,
+      "description": "The card link's accessible name, e.g. \"Play X, a free co-op raft game\"."
+    },
+    "credit": {
+      "type": "string",
+      "maxLength": 60,
+      "description": "Shown on the card and the game's page, e.g. \"made by Eason\"."
+    },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name"],
+      "properties": {
+        "type": { "enum": ["Person", "Organization"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "url": { "type": "string", "pattern": "^https://" }
+      },
+      "description": "Who made the game. Required unless the registry marks the game as Andre's."
+    },
+    "basedOn": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^https://" },
+      "description": "Upstream projects this game is built from (structured data isBasedOn)."
+    },
+    "account": {
+      "enum": ["none", "optional", "required"],
+      "default": "optional",
+      "description": "required makes the guard send visitors to sign in before the game loads."
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["output"],
+      "properties": {
+        "node": { "type": "integer", "minimum": 20, "maximum": 30, "default": 22 },
+        "install": {
+          "type": ["string", "null"],
+          "default": "npm ci",
+          "description": "null for a repository with no package.json."
+        },
+        "setup": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Commands run after install and before checks, e.g. [\"npx playwright install --with-deps chromium\"]."
+        },
+        "checks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Commands that must pass before a deploy, e.g. [\"npm run check\", \"npm test\"]."
+        },
+        "command": {
+          "type": ["string", "null"],
+          "description": "The build. null publishes `output` as it is."
+        },
+        "output": {
+          "type": "string",
+          "pattern": "^(\\.|[^/.][^:]*)$",
+          "description": "The folder to publish, relative to the repository root. \".\" for a plain static site."
+        }
+      }
+    },
+    "relay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["main", "durableObjects", "migrations"],
+      "description": "A Cloudflare Worker with Durable Objects for online play. The platform writes its wrangler config; the registry must allow it.",
+      "properties": {
+        "main": { "type": "string", "pattern": "^[^/][^:]*\\.(js|ts|mjs)$" },
+        "compatibilityDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "durableObjects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["binding", "class"],
+            "properties": {
+              "binding": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+              "class": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" }
+            }
+          }
+        },
+        "migrations": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Append-only, exactly as wrangler takes them. Never edit or remove a tag that has been deployed.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tag"],
+            "properties": {
+              "tag": { "type": "string", "pattern": "^v[0-9]+$" },
+              "new_sqlite_classes": { "type": "array", "items": { "type": "string" } },
+              "renamed_classes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["from", "to"],
+                  "properties": { "from": { "type": "string" }, "to": { "type": "string" } }
+                }
+              },
+              "deleted_classes": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "vars": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "propertyNames": { "pattern": "^[A-Z][A-Z0-9_]*$", "not": { "enum": ["ALLOWED_ORIGINS"] } },
+          "description": "Plain settings. Secrets are never in this file; ask Andre."
+        },
+        "health": {
+          "type": "string",
+          "pattern": "^/",
+          "default": "/health",
+          "description": "A path that answers 200 when the relay is up. Checked after every deploy."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+# tree. Andre's half: see schema/registry.schema.json.
+slug: tree
+host: tree.andrenijman.com
+kind: pages
+repo: AndreNijman/tree
+owners:
+  - AndreNijman
+manifest: manifests/tree.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+netlog: true
+relay:
+  managed: false
+  worker: tree-relay
+  domain: relay.tree.andrenijman.com
+  workersDev: true

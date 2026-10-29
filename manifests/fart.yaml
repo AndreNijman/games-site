@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for FART TOGETHER. It moves into AndreNijman/fart-together when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: FART TOGETHER
+description: "A free co-op pixel-art raft game for 1 to 4 players: hippos ride a round raft down procedurally generated water flumes in the sky and steer by farting, each from their own share of the rim, past spike walls, hammers and open drops."
+meta: Co-op raft game · 1–4 players · steer by farting · online rooms · a new seeded course every run
+genre:
+  - Co-op
+  - Party
+  - Multiplayer
+screenshot: fart.png
+alt: "FART TOGETHER in play: four hippos on a round wooden raft rounding a bend in a sky-high water flume, a green gas cloud behind them"
+label: Play FART TOGETHER, a free co-op raft game where hippos steer by farting
+build:
+  node: 22
+  checks:
+    - npm run check
+  command: npm run build
+  output: dist

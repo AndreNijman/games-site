@@ -1,0 +1,14 @@
+# Blade Hymn. Andre's half: see schema/registry.schema.json.
+slug: bladehymn
+host: bladehymn.andrenijman.com
+kind: pages
+repo: AndreNijman/blade-hymn
+owners:
+  - AndreNijman
+  - Eason-F
+manifest: manifests/bladehymn.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: false
+origin: original

@@ -2,6 +2,8 @@ import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
 import { NET_GAMES, netHealth, netPlayers, netRecent, netSince, netSummary, storeNetLog } from "./netlog.js";
 import { cleanBeat, liveDevices } from "./live.js";
 import { cleanDevName, signDevPass } from "../shared/net/netdev.js";
+import CATALOG from "../generated/catalog.json";
+import { HOOK_PATH, platformHook } from "./platform-hook.js";
 
 export { Live } from "./live.js";
 
@@ -33,225 +35,32 @@ const ADMIN_ROW_WINDOW = 25000;
 // Visits before this date were reconstructed from device first/last seen times
 // by worker/migrations/2026-08-24-visit-backfill.sql and undercount.
 const VISITS_MEASURED_FROM = "24 August 2026";
-const HOSTS = new Set([
-  "games.andrenijman.com",
-  "topout.andrenijman.com",
-  "defenders.andrenijman.com",
-  "overpop.andrenijman.com",
-  "wildbound.andrenijman.com",
-  "tree.andrenijman.com",
-  "tung.andrenijman.com",
-  "isaac.andrenijman.com",
-  "bop.andrenijman.com",
-  "slingwreck.andrenijman.com",
-  "bladehymn.andrenijman.com",
-  "celeste.andrenijman.com",
-  "stink.andrenijman.com",
-  "rasists.andrenijman.com",
-  "scrap.andrenijman.com",
-  "memoryburn.andrenijman.com",
-  "fart.andrenijman.com",
-  "scoops.andrenijman.com",
-  KRILLION_HOST,
-  MC_HOST,
-]);
-// Single source of truth for what each game is. Descriptions and genres are
-// lifted from the hub's own structured data so the two cannot drift, and the
-// hub had no entry at all for Slope or Moto X3M until this table existed.
+// Every game comes from generated/catalog.json, which `npm run
+// platform:generate` draws from registry/ and each game's game.yaml; see
+// PLATFORM.md. Nothing per game is listed by hand here any more.
 //
 // `origin` drives attribution, not decoration. The hub states outright that the
 // hosted games are not Andre's work, so their pages must not credit him as the
-// author and must not claim authorship in structured data.
-const GAMES = {
-  "topout.andrenijman.com": {
-    name: "TOPOUT",
-    description: "A free competitive block-stacking game with modern mechanics, online versus multiplayer, CPU battles, replays and a global leaderboard.",
-    genre: ["Puzzle", "Action"],
-    image: "topout.png",
-    imageWidth: 1000,
-    imageHeight: 525,
-    origin: "original",
-  },
-  "defenders.andrenijman.com": {
-    name: "Garden Defenders 2",
-    description: "A free, original fan-made lane-defense tower defense game: five worlds, 40 levels, boss fights, endless mode, installable as a PWA.",
-    genre: ["Tower defense", "Strategy"],
-    image: "defenders.png",
-    imageWidth: 1000,
-    imageHeight: 525,
-    origin: "original",
-  },
-  "overpop.andrenijman.com": {
-    name: "OVERPOP",
-    description: "A free, original round-based tower defense game: 25 woodland-critter towers with three-branch upgrade trees, 100 rounds, 16 maps, levelling heroes, paragons and eleven game modes. Installable as a PWA and playable offline.",
-    genre: ["Tower defense", "Strategy"],
-    image: "overpop.png",
-    imageWidth: 1000,
-    imageHeight: 525,
-    origin: "original",
-  },
-  "wildbound.andrenijman.com": {
-    name: "Wildbound.io",
-    description: "A free multiplayer survival game with gathering, age upgrades, base building, rotating seasons, bosses, CPU rivals and 60 tameable companion species.",
-    genre: ["Survival", "Action", "Multiplayer"],
-    image: "wildbound.png",
-    imageWidth: 1000,
-    imageHeight: 525,
-    origin: "original",
-  },
-  "tree.andrenijman.com": {
-    name: "tree",
-    description: "A full-progression procedural browser sandbox with mining, crafting, building, towns, fishing, invasions, events, and bosses through the Moon Lord.",
-    genre: ["Sandbox", "Adventure", "Action"],
-    image: "tree.png",
-    imageWidth: 1000,
-    imageHeight: 525,
-    origin: "original",
-  },
-  "tung.andrenijman.com": {
-    name: "Tung Tung Tung Sahorror",
-    description: "A free first-person raycaster horror game in a single HTML file. Gather six offerings in the dark and carry them home before the call to Subuh, while a drumming creature hunts by sight, sound and your own panic. Originally by tim.",
-    genre: ["Horror", "Survival"],
-    image: "tung.png",
-    imageWidth: 1000,
-    imageHeight: 525,
-    origin: "original",
-    // The hub carries this credit visibly on the card and it is the only
-    // original-section game that does, so the game's own page must carry it too.
-    credit: "originally by tim",
-  },
-  "isaac.andrenijman.com": {
-    name: "ISUCK",
-    description: "A free, from-scratch browser roguelike with seeded floors, 732 collectibles, 34 playable characters, alternate paths, 208 enemies and 80 bosses.",
-    genre: ["Roguelike", "Action", "Shooter"],
-    image: "isuck.png",
-    imageWidth: 1000,
-    imageHeight: 525,
-    origin: "original",
-  },
-  "bop.andrenijman.com": {
-    name: "BOP",
-    description: "A free browser physics brawler: draft one of three wild abilities every round, squish opponents off floating terrain, online multiplayer for eight, couch play and bots.",
-    genre: ["Action", "Fighting", "Multiplayer"],
-    image: "bop.png",
-    imageWidth: 2000,
-    imageHeight: 1050,
-    origin: "original",
-  },
-  "slingwreck.andrenijman.com": {
-    name: "SLINGWRECK",
-    description: "A free browser slingshot demolition game: fling nine kinds of critter at pig fortresses across a 52-level campaign, with a hand-written rigid-body physics engine and a fortress workshop for building your own.",
-    genre: ["Action", "Puzzle", "Physics"],
-    image: "slingwreck.png",
-    imageWidth: 2000,
-    imageHeight: 1050,
-    origin: "original",
-  },
-  "bladehymn.andrenijman.com": {
-    name: "Blade Hymn",
-    description: "A free sword-fighting platformer made by Eason: three hand-crafted stages, three bosses, dash combos and per-stage speedrun leaderboards.",
-    genre: ["Platformer", "Action"],
-    image: "bladehymn.png",
-    imageWidth: 1000,
-    imageHeight: 525,
-    origin: "original",
-    // The whole game is Eason's work; the hub and the game's own page both
-    // carry that credit visibly. `author` overrides the default Andre
-    // authorship everywhere it is generated (JSON-LD, llms.txt, FAQ,
-    // cross-links).
-    credit: "made by Eason",
-    author: { name: "Eason", url: "https://github.com/Eason-F" },
-  },
-  "celeste.andrenijman.com": {
-    name: "Celeste",
-    description: "A free browser platformer homage: 46 curated rooms across 14 chapters, precision physics, dashes, wall climbing, collectibles, achievements, and synthesized WebAudio.",
-    genre: ["Platformer", "Precision", "Action"],
-    image: "celeste.png",
-    imageWidth: 1000,
-    imageHeight: 525,
-    origin: "original",
-    credit: "homage to Maddy Makes Games",
-    author: { name: "Maddy Makes Games (homage)", url: "https://www.celestegame.com" },
-  },
-  "stink.andrenijman.com": {
-    name: "Stinkwater",
-    description: "A free pixel-art story roguelike in the browser: a year in a fen town as Rax Pu, seven backgrounds, about 250 branching stories played out where they happen, trades and magic to learn, a real-time dungeon under the old well, and a kingdom that falls and changes around you.",
-    genre: ["Roguelike", "RPG", "Life sim"],
-    image: "stink.png",
-    imageWidth: 2000,
-    imageHeight: 1050,
-    origin: "original",
-  },
-  "rasists.andrenijman.com": {
-    name: "Rasists",
-    description: "A free 3D browser racing game: a new procedurally generated track every race, online rooms with friends, solo events with AI rivals, time trials with ghosts, replays, and a garage of cars to unlock, paint and upgrade.",
-    genre: ["Racing", "Multiplayer"],
-    image: "rasists.png",
-    imageWidth: 2000,
-    imageHeight: 1050,
-    origin: "original",
-  },
-  "scrap.andrenijman.com": {
-    name: "SCRAP AND STEEL",
-    description: "A free browser physics robot-building sandbox and 1v1 arena fighter: assemble a robot from a modular parts catalog, wire its power grid, bind its controls, test it with real physics, then fight online. Breakable welds, heat, traction and battery endurance decide fights — no hidden health bars.",
-    genre: ["Sandbox", "Action", "Physics"],
-    image: "scrap.png",
-    imageWidth: 1000,
-    imageHeight: 525,
-    origin: "original",
-  },
-  "memoryburn.andrenijman.com": {
-    name: "Memory Burn",
-    description: "A free browser wave-survival shooter: somebody burned out your memory and is selling it as shards, so you fight 15 contracts across seven cyberpunk districts, spend your eddies in a back-alley market between waves, and face three named bosses before an endless Afterburn mode.",
-    genre: ["Action", "Shooter", "Survival"],
-    image: "memoryburn.png",
-    imageWidth: 2000,
-    imageHeight: 1050,
-    origin: "original",
-  },
-  "fart.andrenijman.com": {
-    name: "FART TOGETHER",
-    description: "A free co-op pixel-art raft game for 1 to 4 players: hippos ride a round raft down procedurally generated water flumes in the sky and steer by farting, each from their own share of the rim, past spike walls, hammers and open drops.",
-    genre: ["Co-op", "Party", "Multiplayer"],
-    image: "fart.png",
-    imageWidth: 2000,
-    imageHeight: 1050,
-    origin: "original",
-  },
-  "scoops.andrenijman.com": {
-    name: "SCOOP TROUBLE",
-    description: "A free co-op pixel-art arcade puzzle game for 1 to 4 players: ice-cream scoops build and break ice walls to trap enemies and collect every fruit across 120 levels in 12 worlds, on one keyboard or in online rooms.",
-    genre: ["Co-op", "Arcade", "Multiplayer"],
-    image: "scoops.png",
-    imageWidth: 2000,
-    imageHeight: 1050,
-    origin: "original",
-  },
-  "krillion.andrenijman.com": {
-    name: "Krillion",
-    description: "A free daily word and trivia game: seven prompts a day, 25 seconds each, and the rarer your answer the deeper you dive. Endless mode, themed packs and party rooms with friends.",
-    genre: ["Word", "Trivia", "Daily"],
-    image: "krillion.png",
-    imageWidth: 2000,
-    imageHeight: 1050,
-    origin: "original",
-    // Not Andre's game at all: krillion.io's live site, mirrored. The credit
-    // and author keep that visible on the card, the page and structured data.
-    credit: "by krillion.io",
-    author: { name: "Krillion", url: "https://krillion.io" },
-  },
-  [MC_HOST]: {
-    name: "ONE WORLD",
-    description: "A persistent shared anarchy survival world where every signed-in player joins the same map using their games.andrenijman.com username, with a private local-world option and consent-based teleport requests.",
-    genre: ["Sandbox", "Survival", "Multiplayer"],
-    image: "mc.png",
-    imageWidth: 1000,
-    imageHeight: 525,
-    origin: "curated",
-    // The one game that needs an account: the username is the in-world name.
-    requiresAccount: true,
-  },
-};
+// author and must not claim authorship in structured data. A game with an
+// `author` is a guest's, and its author replaces Andre everywhere.
+const GUARDED = CATALOG.games.filter((game) => game.guard);
+const HOSTS = new Set([HUB_HOST, ...GUARDED.map((game) => game.host)]);
+// Registered and guarded, but switched off by Andre (registry `enabled`) or by
+// its developer (game.yaml `publish`): the host answers with an offline page.
+const OFFLINE = new Map(GUARDED.filter((game) => !game.live).map((game) => [game.host, game.name]));
+const GAMES = Object.fromEntries(GUARDED.filter((game) => game.live).map((game) => [game.host, {
+  name: game.name,
+  description: game.description,
+  genre: game.genre,
+  image: game.image,
+  imageWidth: game.imageWidth,
+  imageHeight: game.imageHeight,
+  origin: game.origin,
+  ...(game.credit ? { credit: game.credit } : {}),
+  ...(game.author ? { author: game.author } : {}),
+  // ONE WORLD at present: the account username is the in-world name.
+  ...(game.requiresAccount ? { requiresAccount: true } : {}),
+}]));
 
 const GAME_TITLES = Object.fromEntries(
   Object.entries(GAMES).map(([host, game]) => [host, game.name]));
@@ -315,6 +124,15 @@ export default {
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
   if (!HOSTS.has(url.hostname)) return new Response("Unknown host", { status: 404 });
+  // GitHub's webhook: signed, so it skips the device check like a crawler file.
+  if (url.hostname === HUB_HOST && url.pathname === HOOK_PATH) return platformHook(request, env, CATALOG);
+  if (OFFLINE.has(url.hostname)) {
+    const response = htmlPage(`${OFFLINE.get(url.hostname)} is offline`,
+      `This game is switched off for now. <a href="${HUB_ORIGIN}/">Play something else</a>.`, 503);
+    response.headers.set("Retry-After", "3600");
+    response.headers.set("X-Robots-Tag", "noindex");
+    return response;
+  }
 
   if (/\/(?:sw|service-worker)\.js$/i.test(url.pathname)) {
     return new Response(RETIRED_SERVICE_WORKER, {
@@ -2303,21 +2121,13 @@ function shell(title, content, status = 200, head = "") {
   });
 }
 
-// These five hosts ship no robots.txt of their own, so Cloudflare answers with
-// its managed default: no rules, and no sitemap pointer either. The others
+// Hosts whose registry entry sets crawlerFiles ship no robots.txt of their own,
+// so Cloudflare would answer with its managed default: no rules, and no sitemap
+// pointer either. The others
 // serve real files from their own repositories and are deliberately NOT handled
 // here — shadowing them would silently override a file edited elsewhere, and
 // topout's `Disallow: /server/` would be the first casualty.
-const GENERATED_CRAWLER_FILES = new Set([
-  "wildbound.andrenijman.com",
-  "tung.andrenijman.com",
-  "rasists.andrenijman.com",
-  "memoryburn.andrenijman.com",
-  "scoops.andrenijman.com",
-  // Mirrored: krillion.io's own files would point crawlers at krillion.io.
-  KRILLION_HOST,
-  MC_HOST,
-]);
+const GENERATED_CRAWLER_FILES = new Set(GUARDED.filter((game) => game.crawlerFiles).map((game) => game.host));
 
 function crawlerFileResponse(url) {
   if (url.hostname === HUB_HOST && url.pathname === "/llms.txt") return llmsTxt();
@@ -2395,12 +2205,18 @@ ${section("curated")}
 ## Notes
 
 - Author of the original games: Andre Nijman, ${"https://andrenijman.com/"}
-- Guest games are the work of their credited authors; Blade Hymn is made by
-  Eason, https://github.com/Eason-F
+- Guest games are the work of their credited authors:
+${guestAuthors()}
 - All games are free and require no account, except ONE WORLD, which uses a
   site account as the in-world player name.
 - Canonical hub page: ${HUB_ORIGIN}/
 `, "text/plain");
+}
+
+function guestAuthors() {
+  return Object.values(GAMES).filter((game) => game.author)
+    .map((game) => `  ${game.name} is made by ${game.author.name}${game.author.url ? `, ${game.author.url}` : ""}`)
+    .join("\n");
 }
 
 // Embeds JSON-LD safely: the only sequence that can break out of a script
@@ -2445,7 +2261,7 @@ function gameStructuredData(url, game) {
       // A guest author owns this game; never resolve them onto Andre's
       // person node.
       entity.author = {
-        "@type": "Person",
+        "@type": game.author.type || "Person",
         name: game.author.name,
         ...(game.author.url ? { url: game.author.url } : {}),
       };

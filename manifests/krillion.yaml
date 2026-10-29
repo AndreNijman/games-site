@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Krillion has no repository: this staged game.yaml is its only one, and the
+# screenshot is public/krillion.png.
+schema: 1
+publish: true
+name: Krillion
+description: "A free daily word and trivia game: seven prompts a day, 25 seconds each, and the rarer your answer the deeper you dive. Endless mode, themed packs and party rooms with friends."
+meta: Daily word dive · 7 prompts · rarer answers sink deeper · endless mode · party rooms
+genre:
+  - Word
+  - Trivia
+  - Daily
+screenshot: krillion.png
+alt: "Krillion's title screen: a pixel-art sky over dark water, The Daily Dive, a Puffer Party room and a Begin Descent button"
+label: Play Krillion, a free daily word dive by krillion.io
+credit: by krillion.io
+author:
+  type: Organization
+  name: Krillion
+  url: https://krillion.io
+build:
+  install: null
+  command: null
+  output: .

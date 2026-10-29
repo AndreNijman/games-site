@@ -1,0 +1,14 @@
+# Memory Burn. Andre's half: see schema/registry.schema.json.
+slug: memoryburn
+host: memoryburn.andrenijman.com
+kind: pages
+repo: AndreNijman/memoryburn
+owners:
+  - AndreNijman
+manifest: manifests/memoryburn.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+crawlerFiles: true

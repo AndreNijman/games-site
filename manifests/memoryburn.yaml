@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for Memory Burn. It moves into AndreNijman/memoryburn when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: Memory Burn
+description: "A free browser wave-survival shooter: somebody burned out your memory and is selling it as shards, so you fight 15 contracts across seven cyberpunk districts, spend your eddies in a back-alley market between waves, and face three named bosses before an endless Afterburn mode."
+meta: Wave-survival shooter · 15-contract story · 8 characters · 42 items · 3 bosses · endless Afterburn
+genre:
+  - Action
+  - Shooter
+  - Survival
+screenshot: memoryburn.png
+alt: "Memory Burn in play: a potato gunslinger surrounded by blob robots on a neon grid floor, with a wave timer and side-job HUD"
+label: Play Memory Burn, a free cyberpunk wave-survival shooter with a 15-contract story
+build:
+  install: null
+  command: null
+  output: .

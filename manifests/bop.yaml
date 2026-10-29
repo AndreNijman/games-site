@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for BOP. It moves into AndreNijman/bop when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: BOP
+description: "A free browser physics brawler: draft one of three wild abilities every round, squish opponents off floating terrain, online multiplayer for eight, couch play and bots."
+meta: Online physics brawler · 29 drafted abilities · 15 arenas · 8 players · couch play
+genre:
+  - Action
+  - Fighting
+  - Multiplayer
+screenshot: bop.png
+alt: "BOP in play: coloured blobs fighting on floating platforms above water with an ability HUD"
+label: Play BOP, a free online physics brawler with drafted abilities
+build:
+  install: null
+  command: null
+  output: .

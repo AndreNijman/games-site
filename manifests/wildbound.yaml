@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for Wildbound.io. It moves into AndreNijman/taming when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: Wildbound.io
+description: A free multiplayer survival game with gathering, age upgrades, base building, rotating seasons, bosses, CPU rivals and 60 tameable companion species.
+meta: Online survival · 60 tameable species · 6 seasons · bosses · base building · CPU rivals
+genre:
+  - Survival
+  - Action
+  - Multiplayer
+screenshot: wildbound.png
+alt: "Wildbound.io in play: a tamer exploring a forest among wild creatures, resources, rivals and a survival HUD"
+label: Play Wildbound.io, a free online survival and creature-taming game
+build:
+  install: null
+  command: null
+  output: .

@@ -1,0 +1,12 @@
+# Krillion. Andre's half: see schema/registry.schema.json.
+slug: krillion
+host: krillion.andrenijman.com
+kind: external
+manifest: manifests/krillion.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: false
+origin: original
+crawlerFiles: true
+notes: Not Andre's game. krillion.io's live site, reverse-proxied (and its party server under /_party) through a special path in the guard so it loads where krillion.io is blocked. There is no repository; nothing is built.

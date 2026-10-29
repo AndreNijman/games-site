@@ -1,0 +1,15 @@
+# BOP. Andre's half: see schema/registry.schema.json.
+slug: bop
+host: bop.andrenijman.com
+kind: pages
+repo: AndreNijman/bop
+owners:
+  - AndreNijman
+manifest: manifests/bop.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+netlog: true
+notes: Its lobbies are served by bop-relay on another workers.dev subdomain; the guard proxies /lobbies.

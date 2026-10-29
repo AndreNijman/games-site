@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for Rasists. It moves into AndreNijman/rasists when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: Rasists
+description: "A free 3D browser racing game: a new procedurally generated track every race, online rooms with friends, solo events with AI rivals, time trials with ghosts, replays, and a garage of cars to unlock, paint and upgrade."
+meta: 3D racing · a new track every race · online rooms · AI rivals · ghosts and replays · car garage
+genre:
+  - Racing
+  - Multiplayer
+screenshot: rasists.png
+alt: "Rasists in play: a red car on a winding forest road below red rock hills and pine trees"
+label: Play Rasists, a free 3D browser racing game with online races
+build:
+  node: 22
+  checks:
+    - npm test
+  command: npm run build
+  output: dist

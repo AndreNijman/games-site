@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for Garden Defenders 2. It moves into AndreNijman/pvz when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: Garden Defenders 2
+description: "A free, original fan-made lane-defense tower defense game: five worlds, 40 levels, boss fights, endless mode, installable as a PWA."
+meta: Lane-defense tower game · 5 worlds · 40 levels · endless mode · works offline
+genre:
+  - Tower defense
+  - Strategy
+screenshot: defenders.png
+alt: Garden Defenders 2 title screen with the classic campaign and GD 2.5 Remixed modes
+label: Play Garden Defenders 2, a free browser tower defense game
+build:
+  install: null
+  command: null
+  output: .

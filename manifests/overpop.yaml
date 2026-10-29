@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for OVERPOP. It moves into AndreNijman/overpop when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: OVERPOP
+description: "A free, original round-based tower defense game: 25 woodland-critter towers with three-branch upgrade trees, 100 rounds, 16 maps, levelling heroes, paragons and eleven game modes. Installable as a PWA and playable offline."
+meta: Round-based tower defense · 25 towers · 100 rounds · 16 maps · heroes · works offline
+genre:
+  - Tower defense
+  - Strategy
+screenshot: overpop.png
+alt: "OVERPOP in play: critter towers along a winding track, with the tower shop and round HUD"
+label: Play OVERPOP, a free browser round-based tower defense game
+build:
+  install: null
+  command: null
+  output: .

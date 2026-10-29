@@ -1,0 +1,19 @@
+# FART TOGETHER. Andre's half: see schema/registry.schema.json.
+slug: fart
+host: fart.andrenijman.com
+kind: pages
+repo: AndreNijman/fart-together
+owners:
+  - AndreNijman
+manifest: manifests/fart.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+netlog: true
+relay:
+  managed: false
+  worker: fart-together-relay
+  domain: fart-relay.andrenijman.com
+  workersDev: true

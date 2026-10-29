@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for ONE WORLD. It moves into AndreNijman/one-world when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: ONE WORLD
+description: A persistent shared anarchy survival world where every signed-in player joins the same map using their games.andrenijman.com username, with a private local-world option and consent-based teleport requests.
+meta: Persistent anarchy survival · one shared map · account usernames · private local mode · open source
+genre:
+  - Sandbox
+  - Survival
+  - Multiplayer
+screenshot: mc.png
+alt: ONE WORLD browser survival game menu with shared-world and private local-world choices
+label: Play ONE WORLD, a persistent shared anarchy survival world that requires a games.andrenijman.com account
+basedOn:
+  - https://github.com/zardoy/minecraft-web-client
+  - https://github.com/MultiPaper/MultiPaper
+account: required
+build:
+  install: null
+  command: null
+  output: .

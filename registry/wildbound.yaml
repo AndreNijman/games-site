@@ -1,0 +1,19 @@
+# Wildbound.io. Andre's half: see schema/registry.schema.json.
+slug: wildbound
+host: wildbound.andrenijman.com
+kind: pages
+repo: AndreNijman/taming
+owners:
+  - AndreNijman
+manifest: manifests/wildbound.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+crawlerFiles: true
+netlog: true
+relay:
+  managed: false
+  worker: wildbound-relay
+  domain: null

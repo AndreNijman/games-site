@@ -15,14 +15,16 @@
 // relocation at match start (netplace.js), `country` the player's ISO code and
 // `edge` the Cloudflare colo they connected through.
 
+import CATALOG from "../generated/catalog.json";
+
 /** What counts as laggy, shared with FART TOGETHER's own log. */
 export const LAG_LIMITS = { rttP95: 200, gapP95: 150, fpsMed: 40, tickGap: 250, simSpeed: 0.97 };
 
 /** Rows kept per game; older ones are dropped as new ones arrive. */
 export const NET_GAMES_KEEP = 2000;
 
-/** Relays allowed to write, by the short name each uses (its hub host's first label). */
-export const NET_GAMES = new Set(["fart", "topout", "tung", "bop", "wildbound", "tree", "slingwreck", "scrap", "rasists", "scoops"]);
+/** Relays allowed to write, by slug: the games whose registry entry sets netlog. */
+export const NET_GAMES = new Set(CATALOG.games.filter((game) => game.netlog).map((game) => game.slug));
 
 const num = (v, max = 1e7) => {
   const n = Number(v);

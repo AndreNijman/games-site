@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../schema/game.schema.json
+# Staged game.yaml for ISUCK. It moves into AndreNijman/isuck when that repository joins the org;
+# until then the generator reads it from here, and the screenshot from public/.
+schema: 1
+publish: true
+name: ISUCK
+description: A free, from-scratch browser roguelike with seeded floors, 732 collectibles, 34 playable characters, alternate paths, 208 enemies and 80 bosses.
+meta: Browser roguelike · 732 collectibles · 34 characters · alternate paths · 80 bosses
+genre:
+  - Roguelike
+  - Action
+  - Shooter
+screenshot: isuck.png
+alt: "ISUCK in play: Isaac fighting enemies in a procedurally generated Basement room"
+label: Play ISUCK, a free browser roguelike
+build:
+  install: null
+  command: null
+  output: .

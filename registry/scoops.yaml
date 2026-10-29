@@ -1,0 +1,20 @@
+# SCOOP TROUBLE. Andre's half: see schema/registry.schema.json.
+slug: scoops
+host: scoops.andrenijman.com
+kind: pages
+repo: AndreNijman/scoop-trouble
+owners:
+  - AndreNijman
+manifest: manifests/scoops.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+crawlerFiles: true
+netlog: true
+relay:
+  managed: false
+  worker: scoops-relay
+  domain: scoops-relay.andrenijman.com
+  workersDev: true

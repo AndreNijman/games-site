@@ -1,0 +1,15 @@
+# TOPOUT. Andre's half: see schema/registry.schema.json.
+slug: topout
+host: topout.andrenijman.com
+kind: pages
+repo: AndreNijman/topout
+owners:
+  - AndreNijman
+manifest: manifests/topout.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+netlog: true
+notes: Its server runs from render.yaml / Docker, not as a Worker relay.

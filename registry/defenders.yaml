@@ -1,0 +1,14 @@
+# Garden Defenders 2. Andre's half: see schema/registry.schema.json.
+slug: defenders
+host: defenders.andrenijman.com
+kind: pages
+repo: AndreNijman/pvz
+owners:
+  - AndreNijman
+manifest: manifests/defenders.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+notes: Pages currently deploys the gh-pages branch.

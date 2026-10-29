@@ -1,0 +1,20 @@
+# Rasists. Andre's half: see schema/registry.schema.json.
+slug: rasists
+host: rasists.andrenijman.com
+kind: pages
+repo: AndreNijman/rasists
+owners:
+  - AndreNijman
+manifest: manifests/rasists.yaml
+enabled: true
+listed: true
+guard: true
+byAndre: true
+origin: original
+crawlerFiles: true
+netlog: true
+relay:
+  managed: false
+  worker: rasists-relay
+  domain: rasists-relay.andrenijman.com
+  workersDev: true
