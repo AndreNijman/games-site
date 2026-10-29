@@ -30,6 +30,7 @@ describe("classify", () => {
     expect(classify("feat: Terraria-style hotbar").kind).toBe("hidden");
     expect(classify("BTD6 parity for camo").kind).toBe("hidden");
     expect(classify("fix: match vanilla jump height").kind).toBe("hidden");
+    expect(classify("feat: Isaac-style room layouts").kind).toBe("hidden");
   });
   it("shows a plain, non-conventional subject as other", () => {
     expect(classify("Add a second boss").kind).toBe("other");
