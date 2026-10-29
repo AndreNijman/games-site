@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { GAMES, FEATURED, artPath, type Game } from "../../src/data/games";
+import { GAMES, artPath, newestGame, type Game } from "../../src/data/games";
 import { holes, layout, orderGames } from "../../src/data/order";
 
 // The Worker's own table, read out of worker/index.js without running the
@@ -41,9 +41,8 @@ describe("pictures", () => {
   it("every screenshot the Worker's social cards use is published", () => {
     for (const g of GAMES) expect(existsSync(`public/${g.image}`), g.image).toBe(true);
   });
-  it("every card and the hero have their WebP (npm run art)", () => {
+  it("every card has its WebP (npm run art), which the hero uses too", () => {
     for (const g of GAMES) expect(existsSync(`public${artPath(g.image)}`), g.image).toBe(true);
-    expect(existsSync(`public${artPath(FEATURED.image)}`)).toBe(true);
   });
   it("say what they show", () => {
     for (const g of GAMES) expect(g.alt.length, g.host).toBeGreaterThan(20);
@@ -54,8 +53,16 @@ describe("the gallery", () => {
   it("has no game twice", () => {
     expect(new Set(GAMES.map((g) => g.host)).size).toBe(GAMES.length);
   });
-  it("features a game that is on the hub", () => {
-    expect(GAMES.some((g) => g.host === FEATURED.host)).toBe(true);
+  it("dates every game, none in the future", () => {
+    for (const g of GAMES) {
+      expect(g.added, g.host).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(Number.isNaN(Date.parse(g.added)), g.host).toBe(false);
+    }
+  });
+  it("advertises the newest game, the later one on a tie", () => {
+    const g = (host: string, added: string) => ({ ...GAMES[0], host, added });
+    expect(newestGame([g("a", "2026-01-02"), g("b", "2026-03-01"), g("c", "2026-02-01")]).host).toBe("b");
+    expect(newestGame([g("a", "2026-03-01"), g("b", "2026-03-01")]).host).toBe("b");
   });
 });
 

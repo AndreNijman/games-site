@@ -3,8 +3,8 @@ import Base from "../layouts/Base.astro";
 import Header from "../components/Header.astro";
 import GameCard from "../components/GameCard.astro";
 import Ads from "../components/Ads.astro";
-import { GAMES, FEATURED, gameUrl, artPath } from "../data/games";
-import { ORDERED, ORDER_SOURCE } from "../data/hub-order";
+import { GAMES, gameUrl, artPath } from "../data/games";
+import { HERO, ORDERED, ORDER_SOURCE } from "../data/hub-order";
 
 const ORIGIN = "https://games.andrenijman.com/";
 const title = "Games by Andre Nijman · free browser games";
@@ -91,10 +91,25 @@ const site = {
             <a class="btn" href="#games">Find your next game ↓</a>
           </div>
         </div>
-        <a class="hero__art" href={gameUrl(FEATURED)} aria-label={FEATURED.label}>
-          <img class="sticker" src={artPath(FEATURED.image)} width="1400" height="735" fetchpriority="high" alt={FEATURED.alt} />
-          <span class="hero__cap">{FEATURED.cap}</span>
-        </a>
+        <div class="reel" id="reel" role="region" aria-roledescription="carousel" aria-label="Featured games">
+          <div class="reel__track" id="reel-track">
+            {HERO.map((slide, i) => (
+              <a class="hero__art reel__slide" href={gameUrl(slide.game)} aria-label={`${slide.tag}: ${slide.game.label}`}
+                aria-roledescription="slide" aria-hidden={i > 0 ? "true" : undefined} tabindex={i > 0 ? -1 : undefined}>
+                <img class="sticker" src={artPath(slide.game.image)} width="1400" height="735"
+                  fetchpriority={i === 0 ? "high" : undefined} loading={i === 0 ? undefined : "lazy"} alt={slide.game.alt} />
+                <span class="hero__cap">{slide.tag} · {slide.game.name}</span>
+              </a>
+            ))}
+          </div>
+          {HERO.length > 1 && (
+            <div class="reel__dots" id="reel-dots">
+              {HERO.map((slide, i) => (
+                <button type="button" aria-label={`Show ${slide.tag.toLowerCase()}: ${slide.game.name}`} aria-pressed={i === 0 ? "true" : "false"}></button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
 
@@ -143,6 +158,59 @@ const site = {
   </footer>
 
   <Ads />
+
+  <script>
+    // The hero reel: the most played game, then across to the newest one and
+    // back, every few seconds. It holds still while the pointer or focus is on
+    // it, while the tab is hidden, and for good once the visitor picks a slide
+    // or scrolls it themselves. Reduced motion: no autoplay, no smooth scroll.
+    const reel = document.getElementById("reel");
+    const track = document.getElementById("reel-track");
+    const dots = [...(document.getElementById("reel-dots")?.querySelectorAll("button") ?? [])];
+    if (reel && track && dots.length > 1) {
+      const slides = [...track.querySelectorAll<HTMLElement>(".reel__slide")];
+      const still = matchMedia("(prefers-reduced-motion: reduce)");
+      let current = 0;
+      let held = false;
+      let stopped = still.matches;
+      let auto = false;
+
+      const mark = (i: number) => {
+        current = i;
+        slides.forEach((s, k) => {
+          if (k === i) { s.removeAttribute("aria-hidden"); s.removeAttribute("tabindex"); }
+          else { s.setAttribute("aria-hidden", "true"); s.tabIndex = -1; }
+        });
+        dots.forEach((d, k) => d.setAttribute("aria-pressed", String(k === i)));
+      };
+      const show = (i: number) => {
+        auto = true;
+        track.scrollTo({ left: slides[i].offsetLeft - slides[0].offsetLeft, behavior: still.matches ? "auto" : "smooth" });
+        mark(i);
+      };
+
+      dots.forEach((d, i) => d.addEventListener("click", () => { stopped = true; show(i); }));
+      // A swipe or trackpad scroll is the visitor's own choice: follow it, then
+      // stay. (A settle timer rather than scrollend, which older Safari lacks.)
+      let settle = 0;
+      track.addEventListener("scroll", () => {
+        clearTimeout(settle);
+        settle = window.setTimeout(() => {
+          const i = Math.round(track.scrollLeft / (slides[1].offsetLeft - slides[0].offsetLeft));
+          if (!auto) stopped = true;
+          auto = false;
+          if (i !== current) mark(i);
+        }, 150);
+      }, { passive: true });
+      for (const [on, off] of [["pointerenter", "pointerleave"], ["focusin", "focusout"]] as const) {
+        reel.addEventListener(on, () => { held = true; });
+        reel.addEventListener(off, () => { held = false; });
+      }
+      setInterval(() => {
+        if (!stopped && !held && !document.hidden) show((current + 1) % slides.length);
+      }, 5500);
+    }
+  </script>
 
   <script>
     // Sort and search the cards. The build's order is "Popular"; a different

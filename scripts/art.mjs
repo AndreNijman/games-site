@@ -13,7 +13,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import { GAMES, FEATURED } from "../src/data/games.ts";
+import { GAMES } from "../src/data/games.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PUBLIC = join(ROOT, "public");
@@ -21,7 +21,6 @@ mkdirSync(join(PUBLIC, "art"), { recursive: true });
 
 const jobs = new Map();
 for (const g of GAMES) jobs.set(g.image, 1400);
-jobs.set(FEATURED.image, 1400);
 
 for (const [png, width] of jobs) {
   const out = join(PUBLIC, "art", png.replace(/\.png$/, ".webp"));

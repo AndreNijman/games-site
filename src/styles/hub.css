@@ -122,3 +122,29 @@
 }
 .ad-close:hover { color: var(--text-primary); transform: translate(2px, calc(-50% + 2px)); box-shadow: 0 0 0 var(--outline-strong); }
 @media (max-width: 560px) { .ad-sticky-inner { min-height: 58px; padding: 4px 60px 4px 8px; } }
+
+/* ── the hero reel: the most played game, then the newest ─────────────────
+   Each slide is a .hero__art, so it presses in like before. The track scrolls
+   sideways and snaps; its padding is room for the sticker's shadow and the
+   caption that hangs off the bottom-left corner, which would otherwise be
+   clipped by the scroll box. */
+.reel { min-width: 0; }
+.reel__track {
+  display: flex; gap: 40px; overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory; scrollbar-width: none;
+  padding: 4px 8px 26px 16px; margin: -4px -8px 0 -16px;
+}
+.reel__track::-webkit-scrollbar { display: none; }
+.reel__slide { flex: 0 0 100%; scroll-snap-align: start; scroll-margin-left: 16px; }
+.reel__dots { display: flex; justify-content: center; gap: 4px; margin-top: 2px; }
+.reel__dots button {
+  display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
+  background: none; border: 0; cursor: pointer;
+}
+.reel__dots button::before {
+  content: ""; width: 11px; height: 11px;
+  background: var(--surface-base); border: 2px solid var(--outline-strong);
+  transition: background var(--dur-micro);
+}
+.reel__dots button[aria-pressed="true"]::before { background: var(--accent); }
+.reel__dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }

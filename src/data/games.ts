@@ -9,6 +9,8 @@
 
 export type Game = {
   host: string;
+  /** the day it joined the hub, YYYY-MM-DD: the newest is advertised in the hero */
+  added: string;
   name: string;
   genre: string[];
   /** the structured-data description */
@@ -29,6 +31,7 @@ export type Game = {
 export const GAMES: Game[] = [
   {
     host: "stink.andrenijman.com",
+    added: "2026-10-26",
     name: "Stinkwater",
     genre: ["Roguelike", "RPG", "Life sim"],
     description: "A free pixel-art story roguelike in the browser: a year in a fen town as Rax Pu, seven backgrounds, about 250 branching stories played out where they happen, trades and magic to learn, a real-time dungeon under the old well, and a kingdom that falls and changes around you.",
@@ -39,6 +42,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "rasists.andrenijman.com",
+    added: "2026-10-26",
     name: "Rasists",
     genre: ["Racing", "Multiplayer"],
     description: "A free 3D browser racing game: a new procedurally generated track every race, online rooms with friends, solo events with AI rivals, time trials with ghosts, replays, and a garage of cars to unlock, paint and upgrade.",
@@ -49,6 +53,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "mc.andrenijman.com",
+    added: "2026-08-28",
     name: "ONE WORLD",
     genre: ["Sandbox", "Survival", "Multiplayer"],
     description: "A persistent shared anarchy survival world where every signed-in player joins the same map using their games.andrenijman.com username, with a private local-world option and consent-based teleport requests.",
@@ -60,6 +65,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "topout.andrenijman.com",
+    added: "2026-08-18",
     name: "TOPOUT",
     genre: ["Puzzle", "Action"],
     description: "A free competitive block-stacking game with modern mechanics, online versus multiplayer, CPU battles, replays and a global leaderboard.",
@@ -70,6 +76,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "defenders.andrenijman.com",
+    added: "2026-08-18",
     name: "Garden Defenders 2",
     genre: ["Tower defense", "Strategy"],
     description: "A free, original fan-made lane-defense tower defense game: five worlds, 40 levels, boss fights, endless mode, installable as a PWA.",
@@ -80,6 +87,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "overpop.andrenijman.com",
+    added: "2026-08-18",
     name: "OVERPOP",
     genre: ["Tower defense", "Strategy"],
     description: "A free, original round-based tower defense game: 25 woodland-critter towers with three-branch upgrade trees, 100 rounds, 16 maps, levelling heroes, paragons and eleven game modes. Installable as a PWA and playable offline.",
@@ -90,6 +98,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "slingwreck.andrenijman.com",
+    added: "2026-08-23",
     name: "SLINGWRECK",
     genre: ["Action", "Puzzle", "Physics"],
     description: "A free browser slingshot demolition game: fling nine kinds of critter at pig fortresses across a 52-level campaign, build your own fortress in the workshop, then defend it in a 1v1 online siege. Hand-written rigid-body physics, no engine.",
@@ -100,6 +109,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "bop.andrenijman.com",
+    added: "2026-08-20",
     name: "BOP",
     genre: ["Action", "Fighting", "Multiplayer"],
     description: "A free browser physics brawler: draft one of three wild abilities every round, squish opponents off floating terrain, online multiplayer for eight, couch play and bots.",
@@ -110,6 +120,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "memoryburn.andrenijman.com",
+    added: "2026-10-22",
     name: "Memory Burn",
     genre: ["Action", "Shooter", "Survival"],
     description: "A free browser wave-survival shooter: somebody burned out your memory and is selling it as shards, so you fight 15 contracts across seven cyberpunk districts, spend your eddies in a back-alley market between waves, and face three named bosses before an endless Afterburn mode.",
@@ -120,6 +131,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "wildbound.andrenijman.com",
+    added: "2026-08-20",
     name: "Wildbound.io",
     genre: ["Survival", "Action", "Multiplayer"],
     description: "A free multiplayer survival game with gathering, age upgrades, base building, rotating seasons, bosses, CPU rivals and 60 tameable companion species.",
@@ -130,6 +142,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "tree.andrenijman.com",
+    added: "2026-08-20",
     name: "tree",
     genre: ["Sandbox", "Adventure", "Action"],
     description: "A full-progression procedural browser sandbox with mining, crafting, building, towns, fishing, invasions, events, and bosses through the Moon Lord.",
@@ -140,6 +153,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "tung.andrenijman.com",
+    added: "2026-08-18",
     name: "Tung Tung Tung Sahorror",
     genre: ["Horror", "Survival"],
     description: "A free first-person raycaster horror game in a single HTML file. Gather six offerings in the dark and carry them home before the call to Subuh, while a drumming creature hunts by sight, sound and your own panic. Originally by tim.",
@@ -151,6 +165,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "bladehymn.andrenijman.com",
+    added: "2026-09-04",
     name: "Blade Hymn",
     genre: ["Platformer", "Action"],
     description: "A free sword-fighting platformer made by Eason: three hand-crafted stages, three bosses, dash combos and per-stage speedrun leaderboards.",
@@ -163,6 +178,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "isaac.andrenijman.com",
+    added: "2026-08-18",
     name: "ISUCK",
     genre: ["Roguelike", "Action", "Shooter"],
     description: "A free, from-scratch browser roguelike with seeded floors, 732 collectibles, 34 playable characters, alternate paths, 208 enemies and 80 bosses.",
@@ -173,6 +189,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "celeste.andrenijman.com",
+    added: "2026-09-08",
     name: "Celeste",
     genre: ["Platformer", "Precision", "Action"],
     description: "A free browser platformer homage: 46 curated rooms across 14 chapters, precision physics, dashes, wall climbing, collectibles, achievements, and synthesized WebAudio.",
@@ -185,6 +202,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "fart.andrenijman.com",
+    added: "2026-10-26",
     name: "FART TOGETHER",
     genre: ["Co-op", "Party", "Multiplayer"],
     description: "A free co-op pixel-art raft game for 1 to 4 players: hippos ride a round raft down procedurally generated water flumes in the sky and steer by farting, each from their own share of the rim, past spike walls, hammers and open drops.",
@@ -195,6 +213,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "scoops.andrenijman.com",
+    added: "2026-10-27",
     name: "SCOOP TROUBLE",
     genre: ["Co-op", "Arcade", "Multiplayer"],
     description: "A free co-op pixel-art arcade puzzle game for 1 to 4 players: ice-cream scoops build and break ice walls to trap enemies and collect every fruit across 120 levels in 12 worlds, on one keyboard or in online rooms.",
@@ -205,6 +224,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "krillion.andrenijman.com",
+    added: "2026-10-29",
     name: "Krillion",
     genre: ["Word", "Trivia", "Daily"],
     description: "A free daily word and trivia game: seven prompts a day, 25 seconds each, and the rarer your answer the deeper you dive. Endless mode, themed packs and party rooms with friends.",
@@ -217,16 +237,8 @@ export const GAMES: Game[] = [
   },
 ];
 
-// The picture beside the headline.
-export const FEATURED = {
-  host: "slingwreck.andrenijman.com",
-  image: "slingwreck.png",
-  width: 2000,
-  height: 1050,
-  alt: "SLINGWRECK: a wooden and glass fortress collapsing across green hills",
-  label: "Play SLINGWRECK, a slingshot demolition game",
-  cap: "SLINGWRECK · a little good destruction",
-};
+/** The game that joined the hub last; on a tie, the later one in the list. */
+export const newestGame = (games: Game[]) => games.reduce((a, b) => (b.added >= a.added ? b : a));
 
 export const gameUrl = (g: { host: string }) => `https://${g.host}/`;
 export const artPath = (image: string) => `/art/${image.replace(/\.png$/, ".webp")}`;
