@@ -108,8 +108,10 @@ config to compare.
 3. Set the registry entry's `repo` to the new name and delete its `manifest:`
    line.
 
-`mc` is external (served from andrenijman.github.io/one-world through a
-special path in the guard, relay on the Orange Pi) and stays as it is.
+Two games are `kind: external` and stay as they are: `mc` (served from
+andrenijman.github.io/one-world through a special path in the guard, relay on
+the Orange Pi) and `krillion` (krillion.io reverse-proxied by the guard; no
+repository, so `manifests/krillion.yaml` is its only game.yaml).
 
 ## Switching it on
 

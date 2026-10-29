@@ -12,7 +12,7 @@ describe("the guard reads the catalog", () => {
   it("generates crawler files for exactly the hosts that ask for them", async () => {
     // The rest pass through to their own files upstream, which a unit test cannot reach.
     const generated = catalog.games.filter((g) => g.guard && g.crawlerFiles);
-    expect(generated.map((g) => g.slug).sort()).toEqual(["mc", "memoryburn", "rasists", "scoops", "tung", "wildbound"]);
+    expect(generated.map((g) => g.slug).sort()).toEqual(["krillion", "mc", "memoryburn", "rasists", "scoops", "tung", "wildbound"]);
     for (const game of generated) {
       const res = await get(`https://${game.host}/robots.txt`);
       expect(res.status, game.host).toBe(200);
