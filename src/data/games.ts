@@ -26,11 +26,15 @@ export type Game = {
   label: string;
   author?: { "@type": "Person" | "Organization"; name: string; url: string };
   isBasedOn?: string[];
+  /** the GitHub repository Pages publishes the game from: the changelog reads
+   * its deployments (scripts/changelog.mjs). None for a game hosted elsewhere. */
+  repo?: string;
 };
 
 export const GAMES: Game[] = [
   {
     host: "stink.andrenijman.com",
+    repo: "AndreNijman/stinkwater",
     added: "2026-10-26",
     name: "Stinkwater",
     genre: ["Roguelike", "RPG", "Life sim"],
@@ -42,6 +46,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "rasists.andrenijman.com",
+    repo: "AndreNijman/rasists",
     added: "2026-10-26",
     name: "Rasists",
     genre: ["Racing", "Multiplayer"],
@@ -53,6 +58,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "mc.andrenijman.com",
+    repo: "AndreNijman/one-world",
     added: "2026-08-28",
     name: "ONE WORLD",
     genre: ["Sandbox", "Survival", "Multiplayer"],
@@ -65,6 +71,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "topout.andrenijman.com",
+    repo: "AndreNijman/topout",
     added: "2026-08-18",
     name: "TOPOUT",
     genre: ["Puzzle", "Action"],
@@ -76,6 +83,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "defenders.andrenijman.com",
+    repo: "AndreNijman/pvz",
     added: "2026-08-18",
     name: "Garden Defenders 2",
     genre: ["Tower defense", "Strategy"],
@@ -87,6 +95,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "overpop.andrenijman.com",
+    repo: "AndreNijman/overpop",
     added: "2026-08-18",
     name: "OVERPOP",
     genre: ["Tower defense", "Strategy"],
@@ -98,6 +107,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "slingwreck.andrenijman.com",
+    repo: "AndreNijman/slingwreck",
     added: "2026-08-23",
     name: "SLINGWRECK",
     genre: ["Action", "Puzzle", "Physics"],
@@ -109,6 +119,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "bop.andrenijman.com",
+    repo: "AndreNijman/bop",
     added: "2026-08-20",
     name: "BOP",
     genre: ["Action", "Fighting", "Multiplayer"],
@@ -120,6 +131,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "memoryburn.andrenijman.com",
+    repo: "AndreNijman/memoryburn",
     added: "2026-10-22",
     name: "Memory Burn",
     genre: ["Action", "Shooter", "Co-op"],
@@ -131,6 +143,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "wildbound.andrenijman.com",
+    repo: "AndreNijman/taming",
     added: "2026-08-20",
     name: "Wildbound.io",
     genre: ["Survival", "Action", "Multiplayer"],
@@ -142,6 +155,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "tree.andrenijman.com",
+    repo: "AndreNijman/tree",
     added: "2026-08-20",
     name: "tree",
     genre: ["Sandbox", "Adventure", "Action"],
@@ -153,6 +167,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "tung.andrenijman.com",
+    repo: "AndreNijman/tung-tung-tung-sahur",
     added: "2026-08-18",
     name: "Tung Tung Tung Sahorror",
     genre: ["Horror", "Survival"],
@@ -165,6 +180,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "bladehymn.andrenijman.com",
+    repo: "AndreNijman/blade-hymn",
     added: "2026-09-04",
     name: "Blade Hymn",
     genre: ["Platformer", "Action"],
@@ -178,6 +194,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "isaac.andrenijman.com",
+    repo: "AndreNijman/isuck",
     added: "2026-08-18",
     name: "ISUCK",
     genre: ["Roguelike", "Action", "Shooter"],
@@ -189,6 +206,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "celeste.andrenijman.com",
+    repo: "AndreNijman/celeste",
     added: "2026-09-08",
     name: "Celeste",
     genre: ["Platformer", "Precision", "Action"],
@@ -202,6 +220,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "fart.andrenijman.com",
+    repo: "AndreNijman/fart-together",
     added: "2026-10-26",
     name: "FART TOGETHER",
     genre: ["Co-op", "Party", "Multiplayer"],
@@ -213,6 +232,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "scoops.andrenijman.com",
+    repo: "AndreNijman/scoop-trouble",
     added: "2026-10-27",
     name: "SCOOP TROUBLE",
     genre: ["Co-op", "Arcade", "Multiplayer"],
@@ -237,6 +257,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "snackarang.andrenijman.com",
+    repo: "AndreNijman/snackarang",
     added: "2026-10-29",
     name: "SNACKARANG",
     genre: ["Party", "Action", "Multiplayer"],
@@ -248,6 +269,7 @@ export const GAMES: Game[] = [
   },
   {
     host: "chess.andrenijman.com",
+    repo: "AndreNijman/rook-and-roll",
     added: "2026-10-29",
     name: "ROOK & ROLL",
     genre: ["Board", "Strategy"],

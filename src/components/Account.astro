@@ -1,0 +1,16 @@
+---
+// Shows one half of the header's account controls from the games-guard status
+// the Worker puts in <head>, as the hub and the 404 page do.
+---
+<script is:inline>
+  (function () {
+    var s = document.querySelector('meta[name="games-guard-status"]');
+    try { s = s && JSON.parse(s.content); } catch (e) { s = null; }
+    if (s && s.signedIn && s.username) {
+      document.getElementById('account-name').textContent = s.username;
+      document.getElementById('account').hidden = false;
+    } else if (s) {
+      document.getElementById('nav-signin').hidden = false;
+    }
+  }());
+</script>

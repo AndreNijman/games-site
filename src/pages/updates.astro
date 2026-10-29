@@ -1,0 +1,57 @@
+---
+// Every update of every game, newest first, by month. Each game's own page
+// (updates/[slug].astro) adds the commits behind its updates.
+import Base from "../layouts/Base.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import Account from "../components/Account.astro";
+import Update from "../components/Update.astro";
+import { ALL, LOGS, formatDate, formatMonth, updatesPath } from "../data/changelog";
+
+const months: [string, typeof ALL][] = [];
+for (const u of ALL) {
+  const m = formatMonth(u.at);
+  if (months.at(-1)?.[0] !== m) months.push([m, []]);
+  months.at(-1)![1].push(u);
+}
+const first = ALL.at(-1);
+const games = [...LOGS].sort((a, b) => b.updates[0].at.localeCompare(a.updates[0].at));
+---
+<Base path="/updates" title="Updates · Games by Andre Nijman" description={`Every update to every game on games.andrenijman.com and what changed in it: ${ALL.length} updates across ${LOGS.length} games, newest first.`}>
+  <Fragment slot="head">
+    <link rel="alternate" type="application/rss+xml" title="Game updates" href="/updates.xml" />
+  </Fragment>
+  <Header />
+  <main id="main" tabindex="-1">
+    <div class="hero hero--short">
+      <div class="wrap">
+        <p class="label">Changelog</p>
+        <h1>Every update,<br /><em>every game.</em></h1>
+        <p class="lede">Each time a game goes live with a new version it lands here, with what changed. {ALL.length} updates across {LOGS.length} games{first && <> since {formatDate(first.at)}</>}.</p>
+        <div class="btnrow">
+          <a class="btn" href="/">Play something</a>
+          <a class="btn btn--plain" href="/updates.xml">RSS feed</a>
+        </div>
+      </div>
+    </div>
+
+    <section class="changelog" aria-labelledby="by-game">
+      <div class="wrap">
+        <h2 class="visually-hidden" id="by-game">By game</h2>
+        <ul class="log-games">
+          {games.map((log) => (
+            <li><a href={updatesPath(log.slug)}>{log.game.name} <span>{log.updates.length} · {formatDate(log.updates[0].at)}</span></a></li>
+          ))}
+        </ul>
+        {months.map(([month, ups]) => (
+          <div class="log-month">
+            <h2>{month}</h2>
+            {ups.map((u) => <Update update={u} log={u.log} showGame />)}
+          </div>
+        ))}
+      </div>
+    </section>
+  </main>
+  <Footer />
+  <Account />
+</Base>
