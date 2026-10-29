@@ -663,10 +663,12 @@ async function krillionProxy(request, url) {
   });
 }
 
+// The party lobby also prints its invite as bare `krillion.io/party/CODE`.
 function krillionLocalText(text, origin) {
   return text
     .replaceAll(KRILLION_PARTY_ORIGIN, `${origin}${KRILLION_PARTY_PATH}`)
-    .replaceAll(KRILLION_ORIGIN, origin);
+    .replaceAll(KRILLION_ORIGIN, origin)
+    .replaceAll("krillion.io/party/", `${new URL(origin).host}/party/`);
 }
 
 function krillionUpstreamUrl(value) {
