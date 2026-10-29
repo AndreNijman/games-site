@@ -235,6 +235,19 @@ export const GAMES: Game[] = [
     label: "Play Krillion, a free daily word dive by krillion.io",
     author: { "@type": "Organization", name: "Krillion", url: "https://krillion.io" },
   },
+  {
+    host: "chess.andrenijman.com",
+    added: "2026-10-29",
+    name: "Chess.com",
+    genre: ["Chess", "Board", "Strategy"],
+    description: "Free online chess: play against computer bots at every level, solve puzzles and study openings and lessons, on chess.com's own site.",
+    meta: "Play the computer · bots at every level · puzzles · lessons",
+    credit: "by chess.com",
+    image: "chess.png",
+    alt: "Chess.com's play page: a chessboard beside the list of computer bots to play against",
+    label: "Play chess on Chess.com against computer bots, puzzles and lessons",
+    author: { "@type": "Organization", name: "Chess.com", url: "https://www.chess.com" },
+  },
 ];
 
 /** The game that joined the hub last; on a tie, the later one in the list. */

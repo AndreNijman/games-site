@@ -19,13 +19,62 @@ const HUB_HOST = "games.andrenijman.com";
 const HUB_ORIGIN = `https://${HUB_HOST}`;
 const MC_PAGES_ORIGIN = "https://andrenijman.github.io";
 const MC_PAGES_BASE = "/one-world";
-// Krillion is krillion.io's own live Next.js app, mirrored here so it loads on
-// networks that block krillion.io. Its party server is a second host the
-// client calls directly, so it is mirrored under a path of this one.
+// Other people's live sites, mirrored here so they load on networks that block
+// their own domains. Each is a plain reverse proxy of `origin`. The other hosts
+// its client calls directly are mirrored under paths of the same host, and
+// `text` lists the swaps that point upstream URLs in text bodies back here.
+// `immutable` paths are content-hashed and keep upstream's caching.
 const KRILLION_HOST = "krillion.andrenijman.com";
-const KRILLION_ORIGIN = "https://krillion.io";
-const KRILLION_PARTY_ORIGIN = "https://party.krillion.io";
-const KRILLION_PARTY_PATH = "/_party";
+const CHESS_HOST = "chess.andrenijman.com";
+const CHESS_PATHS = {
+  "/_api": "https://api.chess.com",
+  "/_ds": "https://assets-ds.chess.com",
+  "/_themes": "https://assets-themes.chess.com",
+  "/_speech": "https://speech-assets.chess.com",
+  "/_bots": "https://assets-bots.chess.com",
+  "/_tts": "https://text-and-audio.chess.com",
+  "/_services": "https://services.chess.com",
+  "/_analysis": "https://analysis101.chess.com",
+  "/_metrics": "https://client-metrics-cf.chess.com",
+  "/_live": "https://live.chess.com",
+  "/_live2": "https://live2.chess.com",
+  "/_live3": "https://live3.chess.com",
+  "/_voice": "https://voice.chess.com",
+  "/_img": "https://images.chesscomfiles.com",
+  "/_files": "https://files.chesscomfiles.com",
+  "/_avatars": "https://avatars.chesscomfiles.com",
+  "/_cf": "https://www.chesscomfiles.com",
+};
+const MIRRORS = {
+  // krillion.io's Next.js app; its party server is the second host.
+  [KRILLION_HOST]: {
+    origin: "https://krillion.io",
+    paths: { "/_party": "https://party.krillion.io" },
+    // Whole origins only: bare krillion.io is also prose and cookie domains.
+    // The party lobby prints its invite as bare `krillion.io/party/CODE`.
+    text: (origin, host) => [
+      ["https://party.krillion.io", `${origin}/_party`],
+      ["https://krillion.io", origin],
+      ["krillion.io/party/", `${host}/party/`],
+    ],
+    immutable: /^\/_next\/static\//,
+  },
+  // chess.com; its live game servers and image hosts are the other hosts.
+  [CHESS_HOST]: {
+    origin: "https://www.chess.com",
+    paths: CHESS_PATHS,
+    // Hostnames, not origins: the live servers are configured as bare
+    // `//live2.chess.com` and the client adds the scheme. Bare chess.com is
+    // left alone for the same reason as krillion.io.
+    text: (_origin, host) => [
+      ...Object.entries(CHESS_PATHS).map(([path, upstream]) => [new URL(upstream).host, `${host}${path}`]),
+      ["www.chess.com", host],
+      // The page sets document.domain to this, which throws anywhere else.
+      ['"domain.root": "chess.com"', `"domain.root": "${host.split(":")[0]}"`],
+    ],
+    immutable: /^\/(?:bundles|r2)\/|^\/_(?:ds|themes|speech|bots|tts|img|files|avatars|cf)\//,
+  },
+};
 // The admin view holds every returned row in memory to group and search it, so
 // the query is windowed rather than unbounded. Raise this if the device table
 // ever outgrows it; the page reports honestly when the window is full.
@@ -52,6 +101,7 @@ const HOSTS = new Set([
   "fart.andrenijman.com",
   "scoops.andrenijman.com",
   KRILLION_HOST,
+  CHESS_HOST,
   MC_HOST,
 ]);
 // Single source of truth for what each game is. Descriptions and genres are
@@ -230,6 +280,18 @@ const GAMES = {
     credit: "by krillion.io",
     author: { name: "Krillion", url: "https://krillion.io" },
   },
+  "chess.andrenijman.com": {
+    name: "Chess.com",
+    description: "Free online chess: play against computer bots at every level, solve puzzles and study openings and lessons, on chess.com's own site.",
+    genre: ["Chess", "Board", "Strategy"],
+    image: "chess.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+    // chess.com's live site, mirrored, like Krillion.
+    credit: "by chess.com",
+    author: { name: "Chess.com", url: "https://www.chess.com" },
+  },
   [MC_HOST]: {
     name: "ONE WORLD",
     description: "A persistent shared anarchy survival world where every signed-in player joins the same map using their games.andrenijman.com username, with a private local-world option and consent-based teleport requests.",
@@ -323,10 +385,11 @@ async function handleRequest(request, env, ctx) {
   const crawlerFile = crawlerFileResponse(url);
   if (crawlerFile) return crawlerFile;
 
-  // Krillion's chunks, API calls and party traffic go straight through: the
+  // A mirror's chunks, API calls and live traffic go straight through: the
   // page that holds them was already guarded, and they are per-player and
   // live, so none of the Pages caching below applies.
-  if (url.hostname === KRILLION_HOST && !isNavigationRequest(request)) return krillionProxy(request, url);
+  const mirror = MIRRORS[url.hostname];
+  if (mirror && !isNavigationRequest(request)) return mirrorProxy(request, url, mirror);
 
   if (isAssetRequest(request)) return cachedAssetResponse(request);
 
@@ -355,8 +418,8 @@ async function handleRequest(request, env, ctx) {
 
 
 
-  const upstream = url.hostname === KRILLION_HOST
-    ? await krillionProxy(request, url)
+  const upstream = mirror
+    ? await mirrorProxy(request, url, mirror)
     : await fetchDocumentUpstream(request);
   const response = new Response(upstream.body, upstream);
   response.headers.set("Cache-Control", "private, no-store, no-cache, must-revalidate, max-age=0");
@@ -364,9 +427,9 @@ async function handleRequest(request, env, ctx) {
   response.headers.set("Expires", "0");
   response.headers.set("X-Games-Guard", "active");
   response.headers.set("Accept-CH", ACCEPT_CH);
-  // No version for Krillion: /_guard/version asks Pages, which would never
-  // match krillion.io's ETag and reload the game every minute.
-  const contentVersion = url.hostname === KRILLION_HOST
+  // No version for a mirror: /_guard/version asks Pages, which would never
+  // match the mirrored site's ETag and reload the game every minute.
+  const contentVersion = mirror
     ? ""
     : upstream.headers.get("ETag") || upstream.headers.get("Last-Modified") || "";
   const isHtml = response.headers.get("Content-Type")?.includes("text/html");
@@ -591,33 +654,32 @@ async function cachedAssetResponse(request) {
 
 // A plain reverse proxy, unlike the Pages hosts: the player's own cookies and
 // Authorization (Firebase ID tokens) go through, nothing is cached here, and
-// redirects come back to the browser. Absolute krillion.io URLs in text bodies
-// are pointed at this host so the client never calls the blocked one.
-async function krillionProxy(request, url) {
-  const party = url.pathname === KRILLION_PARTY_PATH || url.pathname.startsWith(`${KRILLION_PARTY_PATH}/`);
-  const target = new URL(party ? KRILLION_PARTY_ORIGIN : KRILLION_ORIGIN);
-  target.pathname = party ? url.pathname.slice(KRILLION_PARTY_PATH.length) || "/" : url.pathname;
+// redirects come back to the browser. Upstream URLs in text bodies are pointed
+// at this host so the client never calls the blocked one.
+async function mirrorProxy(request, url, mirror) {
+  const target = mirrorUpstreamUrl(url, mirror);
   const search = new URLSearchParams(url.search);
   search.delete("_games_frame");
-  target.search = search.toString();
+  // Return URLs carry this host; upstream only redirects to its own.
+  target.search = mirrorUpstreamText(search.toString(), url, mirror);
 
   const headers = new Headers(request.headers);
   headers.delete("Host");
-  // The party server answers any X-Forwarded-For with a 500, and Vercel
-  // overwrites it with its own anyway.
+  // Krillion's party server answers any X-Forwarded-For with a 500, and
+  // Vercel overwrites it with its own anyway.
   headers.delete("X-Forwarded-For");
   headers.delete("X-Real-IP");
   // The guard's own cookies are Domain=.andrenijman.com, so the browser sends
-  // them here too; they are not krillion.io's to see.
+  // them here too; they are not the mirrored site's to see.
   const cookies = (headers.get("Cookie") || "").split(";").map((part) => part.trim())
     .filter((part) => part && ![DEVICE_COOKIE, SESSION_COOKIE].includes(part.split("=")[0]));
   if (cookies.length) headers.set("Cookie", cookies.join("; "));
   else headers.delete("Cookie");
   // Next.js rejects a server action whose Origin is not its own host, and the
-  // party server answers krillion.io's pages, not ours.
-  if (headers.has("Origin")) headers.set("Origin", KRILLION_ORIGIN);
+  // other hosts answer the mirrored site's pages, not ours.
+  if (headers.has("Origin")) headers.set("Origin", mirror.origin);
   const referer = headers.get("Referer");
-  if (referer) headers.set("Referer", krillionUpstreamUrl(referer));
+  if (referer) headers.set("Referer", refererUpstream(referer, url.hostname, mirror));
 
   const upstream = await fetch(target, {
     method: request.method,
@@ -632,12 +694,12 @@ async function krillionProxy(request, url) {
   responseHeaders.delete("Content-Security-Policy");
   responseHeaders.delete("Strict-Transport-Security");
   const location = responseHeaders.get("Location");
-  if (location) responseHeaders.set("Location", krillionLocalText(location, url.origin));
+  if (location) responseHeaders.set("Location", mirrorLocalText(location, url, mirror));
   responseHeaders.delete("Set-Cookie");
   for (const value of upstream.headers.getSetCookie()) {
     responseHeaders.append("Set-Cookie", value.replace(/;\s*Domain=[^;]*/i, ""));
   }
-  if (!url.pathname.startsWith("/_next/static/")) responseHeaders.set("Cache-Control", "private, no-store");
+  if (!mirror.immutable.test(url.pathname)) responseHeaders.set("Cache-Control", "private, no-store");
 
   const type = responseHeaders.get("Content-Type") || "";
   if (!/text\/html|javascript|json|text\/x-component|text\/css/i.test(type) || !upstream.body) {
@@ -646,28 +708,43 @@ async function krillionProxy(request, url) {
   responseHeaders.delete("Content-Length");
   responseHeaders.delete("Content-Encoding");
   responseHeaders.delete("ETag");
-  return new Response(krillionLocalText(await upstream.text(), url.origin), {
+  return new Response(mirrorLocalText(await upstream.text(), url, mirror), {
     status: upstream.status,
     statusText: upstream.statusText,
     headers: responseHeaders,
   });
 }
 
-// The party lobby also prints its invite as bare `krillion.io/party/CODE`.
-function krillionLocalText(text, origin) {
-  return text
-    .replaceAll(KRILLION_PARTY_ORIGIN, `${origin}${KRILLION_PARTY_PATH}`)
-    .replaceAll(KRILLION_ORIGIN, origin)
-    .replaceAll("krillion.io/party/", `${new URL(origin).host}/party/`);
+function mirrorLocalText(text, url, mirror) {
+  return mirror.text(url.origin, url.host).reduce((out, [from, to]) => out.replaceAll(from, to), text);
 }
 
-function krillionUpstreamUrl(value) {
+// The same swaps backwards, longest first so `/_live2` is not read as `/_live`.
+function mirrorUpstreamText(text, url, mirror) {
+  return mirror.text(url.origin, url.host).sort((a, b) => b[1].length - a[1].length)
+    .reduce((out, [from, to]) => out.replaceAll(to, from), text);
+}
+
+// Which upstream a path of the mirror's host stands for: one of its other
+// hosts when the path starts with that host's prefix, otherwise `origin`.
+function mirrorUpstreamUrl(url, mirror) {
+  for (const [path, origin] of Object.entries(mirror.paths)) {
+    if (url.pathname === path || url.pathname.startsWith(`${path}/`)) {
+      const target = new URL(origin);
+      target.pathname = url.pathname.slice(path.length) || "/";
+      return target;
+    }
+  }
+  const target = new URL(mirror.origin);
+  target.pathname = url.pathname;
+  return target;
+}
+
+function refererUpstream(value, hostname, mirror) {
   try {
     const parsed = new URL(value);
-    if (parsed.hostname !== KRILLION_HOST) return value;
-    const party = parsed.pathname.startsWith(`${KRILLION_PARTY_PATH}/`);
-    const upstream = new URL(party ? KRILLION_PARTY_ORIGIN : KRILLION_ORIGIN);
-    upstream.pathname = party ? parsed.pathname.slice(KRILLION_PARTY_PATH.length) : parsed.pathname;
+    if (parsed.hostname !== hostname) return value;
+    const upstream = mirrorUpstreamUrl(parsed, mirror);
     upstream.search = parsed.search;
     return upstream.toString();
   } catch {
@@ -2306,8 +2383,8 @@ const GENERATED_CRAWLER_FILES = new Set([
   "rasists.andrenijman.com",
   "memoryburn.andrenijman.com",
   "scoops.andrenijman.com",
-  // Mirrored: krillion.io's own files would point crawlers at krillion.io.
-  KRILLION_HOST,
+  // Mirrored: the upstream sites' own files would point crawlers at them.
+  ...Object.keys(MIRRORS),
   MC_HOST,
 ]);
 
