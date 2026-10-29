@@ -55,6 +55,30 @@
   .game--wide-lg img { aspect-ratio: 2000 / 700; }
 }
 .game__body .game__credit { margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--accent); }
+.game[hidden] { display: none; }
+
+/* search and sort, above the gallery: shown once the script is running */
+.finder { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin-bottom: clamp(24px, 3vh, 36px); }
+.finder[hidden] { display: none; }
+.finder__q {
+  flex: 1 1 260px; min-width: 0; max-width: 440px;
+  font: 500 16px/1.2 var(--body); color: var(--text-primary);
+  padding: 12px 14px; background: var(--surface-raised);
+  border: var(--edge); box-shadow: var(--shadow-sm); border-radius: 0;
+}
+.finder__q::placeholder { color: var(--text-secondary); opacity: 1; }
+.finder__sort { display: flex; border: var(--edge); box-shadow: var(--shadow-sm); }
+.finder__sort button {
+  font: 600 14px/1 var(--body); color: var(--text-secondary);
+  padding: 13px 16px; background: var(--surface-raised); border: 0; cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-standard), background-color var(--dur-micro) var(--ease-standard);
+}
+.finder__sort button + button { border-left: var(--edge); }
+.finder__sort button:hover { color: var(--text-primary); }
+.finder__sort button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.finder__count { margin: 0; font-size: 14px; color: var(--text-secondary); }
+.games-none { margin: 0; font-size: 17px; color: var(--text-secondary); }
+.games-none button { padding: 0; margin-left: 6px; }
 
 /* ── advertising ──────────────────────────────────────────── */
 .ad-label {

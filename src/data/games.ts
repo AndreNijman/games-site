@@ -1,7 +1,7 @@
 // Every game on the hub. The cards, the count in the strip and the
 // CollectionPage structured data are all drawn from this list, so they cannot
-// disagree. The hub shows them in the order order.ts gives (pins, then the most
-// visited); this order is the fallback and places games with no visit data.
+// disagree. The hub shows them in the order order.ts gives (the most visited
+// first); this order is the fallback and places games with no visit data.
 //
 // The games-guard Worker keeps its own table (GAMES in worker/index.js) for
 // the pages it draws on each game's host; tests/unit/games.test.ts holds the

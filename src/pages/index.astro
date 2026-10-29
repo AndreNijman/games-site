@@ -118,9 +118,19 @@ const site = {
           <h2 id="games-heading">Pick your kind of chaos.</h2>
           <p>Solo adventures. Friendly competition. One more round.</p>
         </div>
+        <div class="finder" id="finder" role="search" aria-label="Find a game" hidden>
+          <input class="finder__q" id="games-q" type="search" placeholder="Search by name or genre" aria-label="Search the games" autocomplete="off" spellcheck="false" />
+          <div class="finder__sort" role="group" aria-label="Sort the games">
+            <button type="button" data-sort="popular" aria-pressed="true">Popular</button>
+            <button type="button" data-sort="name" aria-pressed="false">A–Z</button>
+            <button type="button" data-sort="genre" aria-pressed="false">Genre</button>
+          </div>
+          <p class="finder__count" id="games-count" role="status"></p>
+        </div>
         <div class="games" data-order={ORDER_SOURCE}>
           {ORDERED.map((game, i) => <GameCard game={game} eager={i < 3} />)}
         </div>
+        <p class="games-none" id="games-none" hidden>Nothing matches that. <button type="button" class="nav-link" id="games-clear">Clear the search</button></p>
       </div>
     </section>
   </main>
@@ -133,6 +143,62 @@ const site = {
   </footer>
 
   <Ads />
+
+  <script>
+    // Sort and search the cards. The build's order is "Popular"; a different
+    // order or a search moves and hides the cards, then lays out the wide ones
+    // again with the build's rule (layout() in order.ts) so no row is left open.
+    import { layout } from "../data/order";
+
+    const finder = document.getElementById("finder")!;
+    const grid = document.querySelector<HTMLElement>("#games .games")!;
+    const q = document.getElementById("games-q") as HTMLInputElement;
+    const count = document.getElementById("games-count")!;
+    const none = document.getElementById("games-none")!;
+    const buttons = [...finder.querySelectorAll<HTMLButtonElement>("[data-sort]")];
+    const cards = [...grid.querySelectorAll<HTMLElement>(".game")];
+    // lower case, no accents, words only: each search term has to start a word
+    const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    const name = new Map(cards.map((c) => [c, c.querySelector("h3")!.textContent!.trim()]));
+    const genre = new Map(cards.map((c) => [c, c.dataset.genre ?? ""]));
+    const text = new Map(cards.map((c) => [c, ` ${fold(c.textContent ?? "")}`]));
+    const byName = (a: HTMLElement, b: HTMLElement) => name.get(a)!.localeCompare(name.get(b)!, "en", { sensitivity: "base", numeric: true });
+    const sorts: Record<string, (a: HTMLElement, b: HTMLElement) => number> = {
+      name: byName,
+      genre: (a, b) => genre.get(a)!.localeCompare(genre.get(b)!, "en") || byName(a, b),
+    };
+    let sort = "popular";
+
+    function apply() {
+      const terms = fold(q.value).split(" ").filter(Boolean);
+      const ordered = sorts[sort] ? [...cards].sort(sorts[sort]) : cards;
+      const shown = ordered.filter((c) => terms.every((t) => text.get(c)!.includes(` ${t}`)));
+      const wides = layout(shown.map(() => ({})));
+      for (const c of ordered) {
+        c.hidden = !shown.includes(c);
+        c.classList.remove("game--wide", "game--wide-lg");
+        grid.append(c);
+      }
+      shown.forEach((c, i) => {
+        const w = wides[i].wide;
+        if (w) c.classList.add(w === "all" ? "game--wide" : "game--wide-lg");
+      });
+      none.hidden = shown.length > 0;
+      count.textContent = terms.length ? `${shown.length} of ${cards.length} games` : `${cards.length} games`;
+    }
+
+    for (const b of buttons) {
+      b.addEventListener("click", () => {
+        sort = b.dataset.sort!;
+        for (const o of buttons) o.setAttribute("aria-pressed", String(o === b));
+        apply();
+      });
+    }
+    q.addEventListener("input", apply);
+    document.getElementById("games-clear")!.addEventListener("click", () => { q.value = ""; apply(); q.focus(); });
+    count.textContent = `${cards.length} games`;
+    finder.hidden = false;
+  </script>
 
   <script is:inline>
     (function () {

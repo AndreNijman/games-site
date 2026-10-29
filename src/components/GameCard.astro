@@ -11,7 +11,7 @@ const size = game.wide ? { width: 1000, height: 525 } : { width: 800, height: 42
 // A line that wraps never starts with its separator: each · keeps to the word before it.
 const joined = (s: string) => s.replace(/ · /g, "\u00a0· ");
 ---
-<a class:list={["game", "sticker", wide]} href={gameUrl(game)} aria-label={game.label}>
+<a class:list={["game", "sticker", wide]} href={gameUrl(game)} aria-label={game.label} data-genre={game.genre[0]}>
   <img src={artPath(game.image)} width={size.width} height={size.height} loading={eager ? undefined : "lazy"} alt={game.alt} />
   <div class="game__body">
     <p class="game__kind">{joined(game.genre.join(" · "))}</p>

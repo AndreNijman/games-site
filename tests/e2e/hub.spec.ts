@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { GAMES } from "../../src/data/games";
-import { PINNED } from "../../src/data/order";
 
 // Stand in for the games-guard Worker and Google: the Worker's routes answer,
 // the AdSense loader is empty, and a hub page gets the status meta prepended
@@ -50,14 +49,13 @@ test("a signed-in player sees their name and can log out", async ({ page }) => {
   await expect(page.locator('form[action="/_guard/logout"] button')).toBeVisible();
 });
 
-test("every game has its card, the pins first, and every picture loads", async ({ page }) => {
+test("every game has its card and every picture loads", async ({ page }) => {
   await asTheWorker(page, null);
   await page.goto("/");
   const cards = page.locator("#games .game");
   await expect(cards).toHaveCount(GAMES.length);
-  // the rest follow the visit ranking the build fetched, so only the pins are fixed
+  // the order follows the visit ranking the build fetched, so only the set is fixed
   const hrefs = await cards.evaluateAll((els) => els.map((e) => e.getAttribute("href")));
-  expect(hrefs.slice(0, PINNED.length)).toEqual(PINNED.map((h) => `https://${h}/`));
   expect([...hrefs].sort()).toEqual(GAMES.map((g) => `https://${g.host}/`).sort());
   for (const g of GAMES) await expect(page.locator(`#games .game[href="https://${g.host}/"] h3`)).toHaveText(g.name);
   // no row left open at three columns or at two
@@ -89,4 +87,61 @@ test("games.json lists the cards in the hub's order, for andrenijman.com", async
   expect(["visits", "static"]).toContain(feed.source);
   expect(feed.games.map((g) => g.href)).toEqual(hrefs);
   for (const g of feed.games) expect((await request.get(g.art)).ok(), g.art).toBe(true);
+});
+
+// Rows left open in the grid at the current width: visible cards only.
+const openRows = (page: Page) => page.locator("#games .games").evaluate((grid) => {
+  const rows = new Map<number, number>();
+  for (const card of grid.children) {
+    if ((card as HTMLElement).hidden) continue;
+    const r = card.getBoundingClientRect();
+    rows.set(Math.round(r.top), (rows.get(Math.round(r.top)) ?? 0) + r.width);
+  }
+  const full = grid.getBoundingClientRect().width;
+  return [...rows.values()].filter((w) => w < full * 0.9).length;
+});
+
+test("the games can be sorted and searched, and Popular puts them back", async ({ page }) => {
+  await asTheWorker(page, null);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  const cards = page.locator("#games .game");
+  const visible = page.locator("#games .game:not([hidden])");
+  const hrefs = () => cards.evaluateAll((els) => els.map((e) => e.getAttribute("href")));
+  const built = await hrefs();
+  const classes = () => cards.evaluateAll((els) => els.map((e) => [...e.classList].sort().join(" ")));
+  const builtClasses = await classes();
+
+  await page.getByRole("button", { name: "A–Z" }).click();
+  await expect(page.getByRole("button", { name: "A–Z" })).toHaveAttribute("aria-pressed", "true");
+  const names = await visible.locator("h3").allTextContents();
+  expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base", numeric: true })));
+  expect(names.length).toBe(GAMES.length);
+  expect(await openRows(page)).toBe(0);
+
+  await page.getByRole("button", { name: "Genre" }).click();
+  const genres = await visible.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.genre!));
+  expect(genres).toEqual([...genres].sort((a, b) => a.localeCompare(b, "en")));
+
+  const search = page.getByRole("searchbox", { name: "Search the games" });
+  await search.fill("racing");
+  const hits = GAMES.filter((g) => [g.name, ...g.genre, g.meta, g.credit ?? ""].join(" ").match(/\bracing/i));
+  await expect(visible).toHaveCount(hits.length);
+  await expect(cards).toHaveCount(GAMES.length);
+  await expect(page.locator("#games-count")).toHaveText(`${hits.length} of ${GAMES.length} games`);
+
+  // a term matches the start of a word, not the middle: "rac" is not in "characters"
+  await search.fill("rac");
+  await expect(visible).toHaveCount(hits.length);
+
+  await search.fill("zzzz no such game");
+  await expect(visible).toHaveCount(0);
+  await expect(page.locator("#games-none")).toBeVisible();
+  await page.getByRole("button", { name: "Clear the search" }).click();
+  await expect(search).toHaveValue("");
+  await expect(visible).toHaveCount(GAMES.length);
+
+  await page.getByRole("button", { name: "Popular" }).click();
+  expect(await hrefs()).toEqual(built);
+  expect(await classes()).toEqual(builtClasses);
 });

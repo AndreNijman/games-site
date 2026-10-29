@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { GAMES, FEATURED, artPath, type Game } from "../../src/data/games";
-import { PINNED, holes, layout, orderGames } from "../../src/data/order";
+import { holes, layout, orderGames } from "../../src/data/order";
 
 // The Worker's own table, read out of worker/index.js without running the
 // Worker: the object literal between `const GAMES = {` and the next `};`.
@@ -61,13 +61,12 @@ describe("the gallery", () => {
 
 describe("the order", () => {
   const hosts = (games: Game[]) => games.map((g) => g.host);
-  it("puts the pins first, then the ranking, then the unranked in GAMES order", () => {
+  it("puts the ranking first, then the unranked in GAMES order", () => {
     const ranked = ["tung.andrenijman.com", "slingwreck.andrenijman.com", "bop.andrenijman.com", "nowhere.example.com"];
     const out = hosts(orderGames(GAMES, ranked));
-    const head = PINNED.length + 2;
-    expect(out.slice(0, head)).toEqual([...PINNED, "tung.andrenijman.com", "bop.andrenijman.com"]);
-    const rest = hosts(GAMES).filter((h) => !out.slice(0, head).includes(h));
-    expect(out.slice(head)).toEqual(rest);
+    expect(out.slice(0, 3)).toEqual(["tung.andrenijman.com", "slingwreck.andrenijman.com", "bop.andrenijman.com"]);
+    const rest = hosts(GAMES).filter((h) => !out.slice(0, 3).includes(h));
+    expect(out.slice(3)).toEqual(rest);
   });
   it("is every game exactly once whatever the ranking says", () => {
     for (const ranked of [[], ["x"], hosts(GAMES).reverse(), [...hosts(GAMES), ...hosts(GAMES)]]) {
@@ -75,9 +74,6 @@ describe("the order", () => {
       expect(out.length).toBe(GAMES.length);
       expect(new Set(out)).toEqual(new Set(hosts(GAMES)));
     }
-  });
-  it("pins only games that are on the hub", () => {
-    for (const host of PINNED) expect(GAMES.some((g) => g.host === host), host).toBe(true);
   });
 });
 
@@ -97,7 +93,7 @@ describe("the gallery layout", () => {
         expect(holes(w, 2), `${n} at two`).toBe(0);
         expect(holes(w, 3), `${n} at three`).toBe(0);
         expect(w[0]).toBe("all");
-        expect(w[1]).toBeUndefined(); // the second pin sits beside the first
+        expect(w[1]).toBeUndefined(); // the second card sits beside the first
       }
     }
   });
