@@ -363,7 +363,7 @@ function upstreamTarget(source, path) {
 
 function pagesFetchOptions(hostname, cacheTtlByStatus) {
   const cf = { cacheEverything: true, cacheTtlByStatus };
-  if (hostname !== MC_HOST) cf.resolveOverride = "andrenijman.github.io";
+  if (hostname !== MC_HOST) cf.resolveOverride = CATALOG.pagesHost;
   return { cf };
 }
 
