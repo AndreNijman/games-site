@@ -92,6 +92,7 @@ describe("validSummary", () => {
     expect(validSummary("Ok")).toBe(false);
     expect(validSummary("x".repeat(601))).toBe(false);
     expect(validSummary("A Terraria-style hotbar.")).toBe(false);
+    expect(validSummary("Rooms now follow Isaac-style rules.")).toBe(false);
     expect(validSummary("The commit message says little.")).toBe(false);
     expect(validSummary(null)).toBe(false);
   });

@@ -1449,7 +1449,7 @@
               "text": "Simulate takes only the pedestals present on arrival so a swapped active can't loop forever"
             }
           ],
-          "summary": "Combat feels heavier, with knockback, hit flashes, death gibs, screen shake and brief hit-stop on impacts. Rocks and walls now block movement and tears, and enemies use telegraphed attacks with spawn grace. Floor layouts, room types, enemy behaviours, sprites, boss attacks, characters, items and curses were reworked to follow the Isaac-style rules, and the two active item slots and Schoolbag were added.",
+          "summary": "Combat feels heavier, with knockback, hit flashes, death gibs, screen shake and brief hit-stop on impacts. Rocks and walls now block movement and tears, and enemies use telegraphed attacks with spawn grace. Floor layouts, room types, enemy behaviours, sprites, boss attacks, characters, items and curses were reworked, and two active item slots and the Schoolbag were added.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
