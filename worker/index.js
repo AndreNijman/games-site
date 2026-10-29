@@ -25,26 +25,6 @@ const MC_PAGES_BASE = "/one-world";
 // `text` lists the swaps that point upstream URLs in text bodies back here.
 // `immutable` paths are content-hashed and keep upstream's caching.
 const KRILLION_HOST = "krillion.andrenijman.com";
-const CHESS_HOST = "chess.andrenijman.com";
-const CHESS_PATHS = {
-  "/_api": "https://api.chess.com",
-  "/_ds": "https://assets-ds.chess.com",
-  "/_themes": "https://assets-themes.chess.com",
-  "/_speech": "https://speech-assets.chess.com",
-  "/_bots": "https://assets-bots.chess.com",
-  "/_tts": "https://text-and-audio.chess.com",
-  "/_services": "https://services.chess.com",
-  "/_analysis": "https://analysis101.chess.com",
-  "/_metrics": "https://client-metrics-cf.chess.com",
-  "/_live": "https://live.chess.com",
-  "/_live2": "https://live2.chess.com",
-  "/_live3": "https://live3.chess.com",
-  "/_voice": "https://voice.chess.com",
-  "/_img": "https://images.chesscomfiles.com",
-  "/_files": "https://files.chesscomfiles.com",
-  "/_avatars": "https://avatars.chesscomfiles.com",
-  "/_cf": "https://www.chesscomfiles.com",
-};
 const MIRRORS = {
   // krillion.io's Next.js app; its party server is the second host.
   [KRILLION_HOST]: {
@@ -58,21 +38,6 @@ const MIRRORS = {
       ["krillion.io/party/", `${host}/party/`],
     ],
     immutable: /^\/_next\/static\//,
-  },
-  // chess.com; its live game servers and image hosts are the other hosts.
-  [CHESS_HOST]: {
-    origin: "https://www.chess.com",
-    paths: CHESS_PATHS,
-    // Hostnames, not origins: the live servers are configured as bare
-    // `//live2.chess.com` and the client adds the scheme. Bare chess.com is
-    // left alone for the same reason as krillion.io.
-    text: (_origin, host) => [
-      ...Object.entries(CHESS_PATHS).map(([path, upstream]) => [new URL(upstream).host, `${host}${path}`]),
-      ["www.chess.com", host],
-      // The page sets document.domain to this, which throws anywhere else.
-      ['"domain.root": "chess.com"', `"domain.root": "${host.split(":")[0]}"`],
-    ],
-    immutable: /^\/(?:bundles|r2)\/|^\/_(?:ds|themes|speech|bots|tts|img|files|avatars|cf)\//,
   },
 };
 // The admin view holds every returned row in memory to group and search it, so
@@ -101,7 +66,6 @@ const HOSTS = new Set([
   "fart.andrenijman.com",
   "scoops.andrenijman.com",
   KRILLION_HOST,
-  CHESS_HOST,
   MC_HOST,
 ]);
 // Single source of truth for what each game is. Descriptions and genres are
@@ -281,18 +245,6 @@ const GAMES = {
     // and author keep that visible on the card, the page and structured data.
     credit: "by krillion.io",
     author: { name: "Krillion", url: "https://krillion.io" },
-  },
-  "chess.andrenijman.com": {
-    name: "Chess.com",
-    description: "Free online chess: play against computer bots at every level, solve puzzles and study openings and lessons, on chess.com's own site.",
-    genre: ["Chess", "Board", "Strategy"],
-    image: "chess.png",
-    imageWidth: 2000,
-    imageHeight: 1050,
-    origin: "original",
-    // chess.com's live site, mirrored, like Krillion.
-    credit: "by chess.com",
-    author: { name: "Chess.com", url: "https://www.chess.com" },
   },
   [MC_HOST]: {
     name: "ONE WORLD",
@@ -721,7 +673,7 @@ function mirrorLocalText(text, url, mirror) {
   return mirror.text(url.origin, url.host).reduce((out, [from, to]) => out.replaceAll(from, to), text);
 }
 
-// The same swaps backwards, longest first so `/_live2` is not read as `/_live`.
+// The same swaps backwards, longest first so a longer path wins over its prefix.
 function mirrorUpstreamText(text, url, mirror) {
   return mirror.text(url.origin, url.host).sort((a, b) => b[1].length - a[1].length)
     .reduce((out, [from, to]) => out.replaceAll(to, from), text);
