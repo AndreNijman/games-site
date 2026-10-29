@@ -198,7 +198,7 @@ const GAMES = {
   },
   "bladehymn.andrenijman.com": {
     name: "Blade Hymn",
-    description: "A free sword-fighting platformer made by Eason: three hand-crafted stages, three bosses, dash combos and per-stage speedrun leaderboards.",
+    description: "Eason's sword-fighting platformer, ported to the browser: three hand-crafted stages, three bosses, dash combos and per-stage speedrun leaderboards.",
     genre: ["Platformer", "Action"],
     image: "bladehymn.png",
     imageWidth: 1000,
@@ -208,8 +208,10 @@ const GAMES = {
     // carry that credit visibly. `author` overrides the default Andre
     // authorship everywhere it is generated (JSON-LD, llms.txt, FAQ,
     // cross-links).
-    credit: "made by Eason",
+    credit: "made by Eason, ported to the browser",
     author: { name: "Eason", url: "https://github.com/Eason-F" },
+    // Eason wrote the game in Python/Pygame; Andre ported it to the browser.
+    ported: true,
   },
   "celeste.andrenijman.com": {
     name: "Celeste",
@@ -2483,6 +2485,7 @@ function jsonLd(data) {
 // names the upstream projects in isBasedOn. Claiming authorship would be false.
 function gameCredit(game) {
   if (game.origin === "curated") return "open-source client curated by Andre Nijman";
+  if (game.author && game.ported) return `${game.author.name}'s game, ported to the browser by Andre Nijman`;
   return game.author
     ? `game made by ${game.author.name}, hosted by Andre Nijman`
     : game.credit ? `game made by Andre Nijman, ${game.credit}` : "game made by Andre Nijman";
@@ -2594,6 +2597,9 @@ function gameFaq(game) {
 }
 
 function gameAuthorAnswer(game) {
+  if (game.author && game.ported) {
+    return `${game.name} was made by ${game.author.name}${game.author.url ? ` (${game.author.url})` : ""} in Python/Pygame and ported to the browser by Andre Nijman, with credit.`;
+  }
   if (game.author) {
     return game.author.url
       ? `${game.name} was made by ${game.author.name} (${game.author.url}) and is hosted here with credit.`
