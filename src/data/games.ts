@@ -246,6 +246,17 @@ export const GAMES: Game[] = [
     alt: "SNACKARANG in play: snacks with boomerangs on sandy islands joined by wooden bridges over the sea, a lemon sliced in half beside a pickle mid-throw",
     label: "Play SNACKARANG, a free party brawler where snacks fight with boomerangs, on one screen or online",
   },
+  {
+    host: "chess.andrenijman.com",
+    added: "2026-10-29",
+    name: "ROOK & ROLL",
+    genre: ["Board", "Strategy"],
+    description: "A free pixel-art chess game: play nine computer opponents from beginner to full-strength Stockfish with hints and takebacks, explore any position with the engine, and review your games move by move with accuracy scores.",
+    meta: "Chess · 1 player · 9 bots up to full-strength Stockfish · hints and takebacks · analysis board · game review with accuracy",
+    image: "chess.png",
+    alt: "ROOK & ROLL in play: pixel-art chess pieces on a wooden board against the bot Nyx, a bishop selected with its moves dotted and the move list beside",
+    label: "Play ROOK & ROLL, a free pixel-art chess game against nine bots, with analysis and game review",
+  },
 ];
 
 /** The game that joined the hub last; on a tie, the later one in the list. */

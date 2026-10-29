@@ -66,6 +66,7 @@ const HOSTS = new Set([
   "fart.andrenijman.com",
   "scoops.andrenijman.com",
   "snackarang.andrenijman.com",
+  "chess.andrenijman.com",
   KRILLION_HOST,
   MC_HOST,
 ]);
@@ -239,6 +240,15 @@ const GAMES = {
     description: "A free 3D party brawler for 1 to 6 players, on one screen or in online rooms: snacks throw, curve, recall and slash with boomerangs, one hit and you're sliced, across 12 arenas with power-up books, bushes to hide in and edges to fall off. Keyboards, gamepads and bots.",
     genre: ["Party", "Action", "Multiplayer"],
     image: "snackarang.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+  },
+  "chess.andrenijman.com": {
+    name: "ROOK & ROLL",
+    description: "A free pixel-art chess game: play nine computer opponents from beginner to full-strength Stockfish with hints and takebacks, explore any position with the engine, and review your games move by move with accuracy scores.",
+    genre: ["Board", "Strategy"],
+    image: "chess.png",
     imageWidth: 2000,
     imageHeight: 1050,
     origin: "original",
@@ -2348,6 +2358,7 @@ const GENERATED_CRAWLER_FILES = new Set([
   "memoryburn.andrenijman.com",
   "scoops.andrenijman.com",
   "snackarang.andrenijman.com",
+  "chess.andrenijman.com",
   // Mirrored: the upstream sites' own files would point crawlers at them.
   ...Object.keys(MIRRORS),
   MC_HOST,
