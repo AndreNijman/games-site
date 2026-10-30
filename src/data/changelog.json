@@ -3876,8 +3876,8 @@
         }
       ]
     },
-    "round13": {
-      "repo": "AndreNijman/round-thirteen",
+    "esports": {
+      "repo": "AndreNijman/esports-manager",
       "public": false,
       "seen": [
         7430425665
