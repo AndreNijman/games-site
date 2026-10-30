@@ -7,6 +7,8 @@
 // the pages it draws on each game's host; tests/unit/games.test.ts holds the
 // two to the same names and screenshots.
 
+import { ART_VERSIONS } from "./art-versions.ts";
+
 export type Game = {
   host: string;
   /** the day it joined the hub, YYYY-MM-DD: the newest is advertised in the hero */
@@ -285,4 +287,9 @@ export const GAMES: Game[] = [
 export const newestGame = (games: Game[]) => games.reduce((a, b) => (b.added >= a.added ? b : a));
 
 export const gameUrl = (g: { host: string }) => `https://${g.host}/`;
-export const artPath = (image: string) => `/art/${image.replace(/\.png$/, ".webp")}`;
+export const artFile = (image: string) => `/art/${image.replace(/\.png$/, ".webp")}`;
+/** artFile with a hash of the picture (npm run art), so a new one is never served from an old cache */
+export const artPath = (image: string) => {
+  const v = ART_VERSIONS[image];
+  return v ? `${artFile(image)}?v=${v}` : artFile(image);
+};

@@ -8,8 +8,13 @@
 // Every picture keeps up to 1400 wide: which cards are wide depends on the
 // order the build gives them (src/data/order.ts), so any card may be one.
 // Run after changing a screenshot: npm run art
+//
+// It also writes src/data/art-versions.ts, a hash of each WebP. The hub asks
+// for /art/<game>.webp?v=<hash>, so a new picture gets a URL no cache has seen
+// and Cloudflare can't keep showing the old one.
 // ─────────────────────────────────────────────────────────────────────────────
-import { mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
@@ -30,3 +35,13 @@ for (const [png, width] of jobs) {
     .toFile(out);
   console.log(`art: ${png} → art/${png.replace(/\.png$/, ".webp")} ${info.width}×${info.height} ${Math.round(info.size / 1024)} KB`);
 }
+
+const versions = [...jobs.keys()].sort().map((png) => {
+  const webp = readFileSync(join(PUBLIC, "art", png.replace(/\.png$/, ".webp")));
+  return `  ${JSON.stringify(png)}: "${createHash("sha256").update(webp).digest("hex").slice(0, 10)}",`;
+});
+writeFileSync(
+  join(ROOT, "src", "data", "art-versions.ts"),
+  `// Written by npm run art: a hash of each card's WebP, for artPath's ?v=.\nexport const ART_VERSIONS: Record<string, string> = {\n${versions.join("\n")}\n};\n`,
+);
+console.log(`art: src/data/art-versions.ts, ${versions.length} pictures`);

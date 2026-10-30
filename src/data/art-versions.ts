@@ -1,0 +1,23 @@
+// Written by npm run art: a hash of each card's WebP, for artPath's ?v=.
+export const ART_VERSIONS: Record<string, string> = {
+  "bladehymn.png": "15867d8f93",
+  "bop.png": "85db839e13",
+  "celeste.png": "fd825a9f76",
+  "chess.png": "8b941f0f37",
+  "defenders.png": "57ad3856ee",
+  "fart.png": "7a5b00c9fb",
+  "isuck.png": "9a742359ec",
+  "krillion.png": "d507bc7116",
+  "mc.png": "3cbce5dc15",
+  "memoryburn.png": "b1b1672df4",
+  "overpop.png": "5a0041e030",
+  "rasists.png": "a2f38f7631",
+  "scoops.png": "faade2f6f4",
+  "slingwreck.png": "88933ec4a8",
+  "snackarang.png": "938d017be8",
+  "stink.png": "f99419151b",
+  "topout.png": "56e3d1530b",
+  "tree.png": "ac6d6e36d3",
+  "tung.png": "47081699f7",
+  "wildbound.png": "248e351827",
+};
