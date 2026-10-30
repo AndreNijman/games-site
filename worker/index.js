@@ -1,6 +1,7 @@
 import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
 import { NET_GAMES, netHealth, netPlayers, netRecent, netSince, netSummary, storeNetLog } from "./netlog.js";
 import { cleanBeat, liveDevices } from "./live.js";
+import { isProtectedAccount, isProtectedAccountId, isProtectedDevice, isProtectedVisit } from "./protected.js";
 import { cleanDevName, signDevPass } from "../shared/net/netdev.js";
 
 export { Live } from "./live.js";
@@ -1101,16 +1102,17 @@ async function identify(request, env, game) {
       first_referrer = CASE WHEN devices.first_referrer <> '' THEN devices.first_referrer ELSE excluded.first_referrer END,
       referrer = CASE WHEN excluded.referrer <> '' THEN excluded.referrer ELSE devices.referrer END,
       last_seen_at = CURRENT_TIMESTAMP
-    RETURNING banned_at, ban_reason, label, label_source, profile_at, model
+    RETURNING account_id, banned_at, ban_reason, label, label_source, profile_at, model
   `).bind(deviceId, account?.id || null, defaultDeviceLabel(metadata, deviceId), metadata.userAgent,
     metadata.browser, metadata.browserVersion, metadata.os, metadata.osVersion, metadata.model,
     metadata.arch, metadata.ipPrefix, metadata.country, metadata.city, metadata.region,
     metadata.asnOrg, game, metadata.referrer, metadata.referrer).first();
-  const reason = device?.banned_at
+  let reason = device?.banned_at
     ? device.ban_reason || "This device has been blocked."
     : account?.banned_at
       ? account.ban_reason || "This account has been blocked."
       : null;
+  if (reason && await isProtectedVisit(env.DB, account, device)) reason = null;
   return {
     account,
     device,
@@ -1371,7 +1373,9 @@ async function login(request, env, url, identity) {
   if (!account || !(await verifyPassword(password, account.password_salt, account.password_hash))) {
     return withCookies(authPage("Sign in", returnTo, "Incorrect username or password.", 401), identity.cookies);
   }
-  if (account.banned_at) return blockedResponse(account.ban_reason || "This account has been blocked.");
+  if (account.banned_at && !isProtectedAccount(account.username)) {
+    return blockedResponse(account.ban_reason || "This account has been blocked.");
+  }
 
   const token = randomToken();
   const expires = new Date(Date.now() + SESSION_DAYS * 86400000).toISOString();
@@ -1458,6 +1462,10 @@ async function adminRoutes(request, env, url, adminEmail, dev) {
     const id = String(form.get("id") || "");
     const accountId = String(form.get("account_id") || "");
     const reason = String(form.get("reason") || "").trim().slice(0, 200);
+    const protectedTarget = action === "ban-device" ? await isProtectedDevice(env.DB, id)
+      : action === "ban-account" || action === "rename-account" ? await isProtectedAccountId(env.DB, accountId)
+        : false;
+    if (protectedTarget) return new Response("That account is protected: it can't be banned or renamed.", { status: 403 });
     if (action === "ban-device") {
       await env.DB.prepare("UPDATE devices SET banned_at = CURRENT_TIMESTAMP, ban_reason = ? WHERE id = ?")
         .bind(reason, id).run();
@@ -2205,11 +2213,12 @@ function personSection(group, options) {
   const title = isAccount ? group.username || `Account ${group.accountId}` : "Unclaimed devices";
   const labels = options.customLabels;
   const labelled = labels.length ? labels.slice(0, 2).join(", ") : "Automatic labels only";
+  const owner = isAccount && isProtectedAccount(group.username);
   const accountControl = isAccount ? `<details class="manage account-manage"><summary>Account controls</summary>
     <div class="account-controls">
-      <form method="post"><input type="hidden" name="account_id" value="${escapeHtml(group.accountId)}"><label>Account name<input name="account_name" value="${escapeHtml(group.username || "")}" autocomplete="off" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_-]{3,32}"></label><button name="action" value="rename-account">Save account name</button></form>
+      ${owner ? `<p class="password-note">Protected account: it can't be renamed or banned, and nor can its devices.</p>` : `<form method="post"><input type="hidden" name="account_id" value="${escapeHtml(group.accountId)}"><label>Account name<input name="account_name" value="${escapeHtml(group.username || "")}" autocomplete="off" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_-]{3,32}"></label><button name="action" value="rename-account">Save account name</button></form>`}
       <form method="post"><input type="hidden" name="account_id" value="${escapeHtml(group.accountId)}"><label>New password<input type="password" name="new_password" autocomplete="new-password" required minlength="12" maxlength="128"></label><label>Confirm password<input type="password" name="confirm_password" autocomplete="new-password" required minlength="12" maxlength="128"></label><button name="action" value="reset-account-password">Reset password</button></form>
-      <form method="post"><input type="hidden" name="account_id" value="${escapeHtml(group.accountId)}"><label>Ban reason<input name="reason" maxlength="200" placeholder="Optional reason"></label><button class="danger" name="action" value="${group.accountBanned ? "unban-account" : "ban-account"}">${group.accountBanned ? "Unban account" : "Ban account"}</button></form>
+      ${owner && !group.accountBanned ? "" : `<form method="post"><input type="hidden" name="account_id" value="${escapeHtml(group.accountId)}"><label>Ban reason<input name="reason" maxlength="200" placeholder="Optional reason"></label><button class="danger" name="action" value="${group.accountBanned ? "unban-account" : "ban-account"}">${group.accountBanned ? "Unban account" : "Ban account"}</button></form>`}
     </div>
     <p class="password-note">Existing passwords are never available. A reset stores a new salted hash and signs the account out everywhere.</p>
   </details>` : "";
@@ -2307,7 +2316,7 @@ function deviceRow(device) {
     <td>${cell(identity, "Not reported yet")}${agent}</td>
     <td>${cell(network, "Unknown")}</td>
     <td>${escapeHtml(String(device.last_game || "").replace(".andrenijman.com", "")) || "&mdash;"}<small>${escapeHtml(formatAdminTime(device.last_seen_at))}</small><small>Since ${escapeHtml(formatAdminTime(device.first_seen_at))}</small>${referrerLine(device)}</td>
-    <td><details class="manage device-manage"><summary>Manage</summary><form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><label>Admin label<input name="device_label" value="${escapeHtml(device.label || "")}" required minlength="2" maxlength="80"></label><button name="action" value="label-device">Save label</button></form><form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><label>Ban reason<input name="reason" maxlength="200" placeholder="Optional reason"></label><button class="danger" name="action" value="${device.banned_at ? "unban-device" : "ban-device"}">${device.banned_at ? "Unban" : "Ban"}</button></form></details></td>
+    <td><details class="manage device-manage"><summary>Manage</summary><form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><label>Admin label<input name="device_label" value="${escapeHtml(device.label || "")}" required minlength="2" maxlength="80"></label><button name="action" value="label-device">Save label</button></form>${isProtectedAccount(device.username) && !device.banned_at ? "" : `<form method="post"><input type="hidden" name="id" value="${escapeHtml(device.id)}"><label>Ban reason<input name="reason" maxlength="200" placeholder="Optional reason"></label><button class="danger" name="action" value="${device.banned_at ? "unban-device" : "ban-device"}">${device.banned_at ? "Unban" : "Ban"}</button></form>`}</details></td>
   </tr>`;
 }
 
