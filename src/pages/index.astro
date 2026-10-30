@@ -4,7 +4,7 @@ import Header from "../components/Header.astro";
 import GameCard from "../components/GameCard.astro";
 import Ads from "../components/Ads.astro";
 import Update from "../components/Update.astro";
-import { ALL } from "../data/changelog";
+import { ALL, UPDATED } from "../data/changelog";
 import { gameUrl, artPath } from "../data/games";
 import { HERO, ORDERED, ORDER_SOURCE } from "../data/hub-order";
 
@@ -145,13 +145,14 @@ const site = {
           <input class="finder__q" id="games-q" type="search" placeholder="Search by name or genre" aria-label="Search the games" autocomplete="off" spellcheck="false" />
           <div class="finder__sort" role="group" aria-label="Sort the games">
             <button type="button" data-sort="popular" aria-pressed="true">Popular</button>
+            <button type="button" data-sort="updated" aria-pressed="false">Updated</button>
             <button type="button" data-sort="name" aria-pressed="false">A–Z</button>
             <button type="button" data-sort="genre" aria-pressed="false">Genre</button>
           </div>
           <p class="finder__count" id="games-count" role="status"></p>
         </div>
         <div class="games" data-order={ORDER_SOURCE}>
-          {ORDERED.map((game, i) => <GameCard game={game} eager={i < 3} />)}
+          {ORDERED.map((game, i) => <GameCard game={game} eager={i < 3} updated={UPDATED.get(game.host)} />)}
         </div>
         <p class="games-none" id="games-none" hidden>Nothing matches that. <button type="button" class="nav-link" id="games-clear">Clear the search</button></p>
       </div>
@@ -186,8 +187,8 @@ const site = {
   <Ads />
 
   <script>
-    // The hero reel: the most played game, then across to the newest one and
-    // back, every few seconds. It holds still while the pointer or focus is on
+    // The hero reel: the most played game, the newest one and the one just
+    // updated, moving on every few seconds. It holds still while the pointer or focus is on
     // it, while the tab is hidden, and for good once the visitor picks a slide
     // or scrolls it themselves. Reduced motion: no autoplay, no smooth scroll.
     const reel = document.getElementById("reel");
@@ -255,9 +256,12 @@ const site = {
     const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
     const name = new Map(cards.map((c) => [c, c.querySelector("h3")!.textContent!.trim()]));
     const genre = new Map(cards.map((c) => [c, c.dataset.genre ?? ""]));
+    const updated = new Map(cards.map((c) => [c, c.dataset.updated ?? ""]));
     const text = new Map(cards.map((c) => [c, ` ${fold(c.textContent ?? "")}`]));
     const byName = (a: HTMLElement, b: HTMLElement) => name.get(a)!.localeCompare(name.get(b)!, "en", { sensitivity: "base", numeric: true });
     const sorts: Record<string, (a: HTMLElement, b: HTMLElement) => number> = {
+      // newest update first; a game with none keeps its Popular place at the end
+      updated: (a, b) => updated.get(b)!.localeCompare(updated.get(a)!),
       name: byName,
       genre: (a, b) => genre.get(a)!.localeCompare(genre.get(b)!, "en") || byName(a, b),
     };

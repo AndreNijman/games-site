@@ -56,6 +56,12 @@ export const ALL: Placed[] = LOGS
   .flatMap((log) => log.updates.map((u) => ({ ...u, log })))
   .sort((a, b) => b.at.localeCompare(a.at) || b.id - a.id);
 
+/** When each game, by host, last had an update players would notice, for the hub's "Updated" sort. */
+export const UPDATED = new Map(LOGS.flatMap((log) => {
+  const u = log.updates.find((u) => u.playerFacing !== false && u.summary);
+  return u ? [[log.game.host, u.at] as const] : [];
+}));
+
 export const updatesPath = (slug: string) => `/updates/${slug}`;
 
 export const commitUrl = (log: GameLog, sha: string) => `https://github.com/${log.repo}/commit/${sha}`;
