@@ -68,6 +68,7 @@ const HOSTS = new Set([
   "scoops.andrenijman.com",
   "snackarang.andrenijman.com",
   "chess.andrenijman.com",
+  "round13.andrenijman.com",
   KRILLION_HOST,
   MC_HOST,
 ]);
@@ -196,6 +197,15 @@ const GAMES = {
     description: "A free pixel-art story roguelike in the browser: a year in a fen town as Rax Pu, seven backgrounds, about 250 branching stories played out where they happen, trades and magic to learn, a real-time dungeon under the old well, and a kingdom that falls and changes around you.",
     genre: ["Roguelike", "RPG", "Life sim"],
     image: "stink.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+  },
+  "round13.andrenijman.com": {
+    name: "Round Thirteen",
+    description: "A free browser Counter-Strike team management game on the real world rankings: pick any team in Valve's regional standings, run its roster, transfers, training, tactics and money through a season of events, and play every match round by round on a live radar. Rosters and ratings follow Valve's new standings.",
+    genre: ["Management", "Sports", "Strategy"],
+    image: "round13.png",
     imageWidth: 2000,
     imageHeight: 1050,
     origin: "original",
