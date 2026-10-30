@@ -36,6 +36,22 @@ describe("the hub and the Worker agree", () => {
       expect(g.credit, g.host).toBe(w.credit);
     }
   });
+  it("sends every moved host to a game on the hub, and still routes it", () => {
+    const src = readFileSync("worker/index.js", "utf8");
+    const start = src.indexOf("const MOVED_HOSTS = {");
+    const block = src.slice(start, src.indexOf("\n};\n", start));
+    const moves = [...block.matchAll(/"([^"]+)": \{\s*to: "([^"]+)"/g)].map((m) => [m[1], m[2]]);
+    expect(moves.length).toBeGreaterThan(0);
+    const routes = readFileSync("wrangler.jsonc", "utf8");
+    const hosts = src.slice(src.indexOf("const HOSTS = new Set(["), src.indexOf("]);", src.indexOf("const HOSTS")));
+    for (const [from, to] of moves) {
+      expect(GAMES.some((g) => g.host === to), to).toBe(true);
+      expect(GAMES.some((g) => g.host === from), from).toBe(false);
+      expect(worker[from], from).toBeUndefined();
+      expect(hosts.includes(`"${from}"`), from).toBe(true);
+      expect(routes.includes(`"${from}/*"`), from).toBe(true);
+    }
+  });
 });
 
 describe("pictures", () => {

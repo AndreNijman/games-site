@@ -68,10 +68,23 @@ const HOSTS = new Set([
   "scoops.andrenijman.com",
   "snackarang.andrenijman.com",
   "chess.andrenijman.com",
+  "esports.andrenijman.com",
   "round13.andrenijman.com",
   KRILLION_HOST,
   MC_HOST,
 ]);
+// Games that changed host. The old host stays routed so its links still land.
+// Browsers keep storage per host, so its root page hands over any career saved
+// there as a file to import on the new host; every other path redirects.
+const MOVED_HOSTS = {
+  "round13.andrenijman.com": {
+    to: "esports.andrenijman.com",
+    name: "Esports Manager",
+    was: "Round Thirteen",
+    saveKey: "round-thirteen:career",
+    saveFile: "round-thirteen-career.json",
+  },
+};
 // Single source of truth for what each game is. Descriptions and genres are
 // lifted from the hub's own structured data so the two cannot drift, and the
 // hub had no entry at all for Slope or Moto X3M until this table existed.
@@ -201,11 +214,11 @@ const GAMES = {
     imageHeight: 1050,
     origin: "original",
   },
-  "round13.andrenijman.com": {
-    name: "Round Thirteen",
+  "esports.andrenijman.com": {
+    name: "Esports Manager",
     description: "A free browser Counter-Strike team management game on the real world rankings: pick any team in Valve's regional standings, run its roster, transfers, training, tactics and money through a season of events, and play every match round by round on a live radar. Rosters and ratings follow Valve's new standings.",
     genre: ["Management", "Sports", "Strategy"],
-    image: "round13.png",
+    image: "esports-manager.png",
     imageWidth: 2000,
     imageHeight: 1050,
     origin: "original",
@@ -352,6 +365,7 @@ export default {
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
   if (!HOSTS.has(url.hostname)) return new Response("Unknown host", { status: 404 });
+  if (MOVED_HOSTS[url.hostname]) return movedHost(request, url, MOVED_HOSTS[url.hostname]);
 
   if (/\/(?:sw|service-worker)\.js$/i.test(url.pathname)) {
     return new Response(RETIRED_SERVICE_WORKER, {
@@ -2623,6 +2637,30 @@ function gameAuthorAnswer(game) {
   return game.credit
     ? `${game.name} was made by Andre Nijman, ${game.credit}.`
     : `${game.name} was made by Andre Nijman.`;
+}
+
+function movedHost(request, url, moved) {
+  const isRoot = url.pathname === "/" || url.pathname === "/index.html";
+  const target = `https://${moved.to}${isRoot ? "/" : url.pathname}${url.search}`;
+  if (!isRoot || !isTopLevelNavigation(request)) return Response.redirect(target, 301);
+  const home = `https://${moved.to}/`;
+  // Nothing from the request reaches the page, so its one inline script is safe.
+  const script = `(()=>{let s=null;try{s=localStorage.getItem(${JSON.stringify(moved.saveKey)})}catch{}
+if(!s){location.replace(${JSON.stringify(home)});return}
+document.getElementById("carry").hidden=false;
+document.getElementById("save").onclick=()=>{const a=document.createElement("a");
+a.href=URL.createObjectURL(new Blob([s],{type:"application/json"}));a.download=${JSON.stringify(moved.saveFile)};a.click()}})()`;
+  const response = shell(`${moved.was} is now ${moved.name}`, `<main class="auth"><p class="kicker">GAMES / MOVED</p>
+<h1>${escapeHtml(moved.was)} is now ${escapeHtml(moved.name)}</h1>
+<p>It lives at <a href="${escapeHtml(home)}">${escapeHtml(moved.to)}</a>.</p>
+<div id="carry" hidden><p>Your career is saved on this old address, and browsers keep saves per address. Download it, then import it from the Data screen on the new one.</p>
+<p><button id="save" type="button">Download your career</button></p></div>
+<p><a href="${escapeHtml(home)}">Go to ${escapeHtml(moved.name)}</a></p>
+<script>${script}</script></main>`, 200,
+  `<meta name="robots" content="noindex,follow"><link rel="canonical" href="${escapeHtml(home)}">`);
+  response.headers.set("Content-Security-Policy",
+    "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src https://games.andrenijman.com; base-uri 'none'; frame-ancestors 'none'");
+  return response;
 }
 
 function gameFramePage(url, game) {
