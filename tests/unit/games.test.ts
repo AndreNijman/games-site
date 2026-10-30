@@ -1,6 +1,7 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { GAMES, artPath, newestGame, type Game } from "../../src/data/games";
+import { GAMES, artFile, artPath, newestGame, type Game } from "../../src/data/games";
 import { holes, layout, orderGames } from "../../src/data/order";
 
 // The Worker's own table, read out of worker/index.js without running the
@@ -42,7 +43,13 @@ describe("pictures", () => {
     for (const g of GAMES) expect(existsSync(`public/${g.image}`), g.image).toBe(true);
   });
   it("every card has its WebP (npm run art), which the hero uses too", () => {
-    for (const g of GAMES) expect(existsSync(`public${artPath(g.image)}`), g.image).toBe(true);
+    for (const g of GAMES) expect(existsSync(`public${artFile(g.image)}`), g.image).toBe(true);
+  });
+  it("are asked for by a hash of the current WebP, so no cache serves an old one (npm run art)", () => {
+    for (const g of GAMES) {
+      const hash = createHash("sha256").update(readFileSync(`public${artFile(g.image)}`)).digest("hex").slice(0, 10);
+      expect(artPath(g.image), g.image).toBe(`${artFile(g.image)}?v=${hash}`);
+    }
   });
   it("say what they show", () => {
     for (const g of GAMES) expect(g.alt.length, g.host).toBeGreaterThan(20);
