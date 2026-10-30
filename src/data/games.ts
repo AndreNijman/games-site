@@ -35,6 +35,18 @@ export type Game = {
 
 export const GAMES: Game[] = [
   {
+    host: "round13.andrenijman.com",
+    repo: "AndreNijman/round-thirteen",
+    added: "2026-10-30",
+    name: "Round Thirteen",
+    genre: ["Management", "Sports", "Strategy"],
+    description: "A free browser Counter-Strike team management game on the real world rankings: pick any team in Valve's regional standings, run its roster, transfers, training, tactics and money through a season of events, and play every match round by round on a live radar. Rosters and ratings follow Valve's new standings.",
+    meta: "CS team management · real world rankings · transfers and tactics · every round on a live radar",
+    image: "round13.png",
+    alt: "Round Thirteen in play: a live round on an amber-and-slate radar of Inferno beside a huge 8:1 scoreboard, both teams' kill tables and the round feed",
+    label: "Play Round Thirteen, a free Counter-Strike team management game",
+  },
+  {
     host: "stink.andrenijman.com",
     repo: "AndreNijman/stinkwater",
     added: "2026-10-26",
