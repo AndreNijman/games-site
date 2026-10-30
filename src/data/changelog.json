@@ -7500,7 +7500,8 @@
         7406326067,
         7408348596,
         7412441305,
-        7414546065
+        7414546065,
+        7428221728
       ],
       "updates": [
         {
@@ -7892,6 +7893,28 @@
             }
           ],
           "summary": "The on-screen HUD is more compact: the leaderboard is smaller, the food, wood and stone counters are smaller while gold is larger, and the XP bar is thinner. The hotbar tiles are slightly larger and the selected slot is dark red. The age pick is now a compact strip of icons at the top centre, and resource nodes appear at a lower density.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7428221728,
+          "at": "2026-10-30T01:16:28Z",
+          "sha": "c52ee93d3c8b8b56d5b8283bde31453fce887ff2",
+          "counts": {
+            "new": 0,
+            "fixed": 1,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [
+            {
+              "sha": "c52ee93d3c8b8b56d5b8283bde31453fce887ff2",
+              "kind": "fixed",
+              "text": "Eat with the food slot selected and default the name to Leo"
+            }
+          ],
+          "summary": "Eating now works with the food slot selected, so you can eat straight from the hotbar.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
