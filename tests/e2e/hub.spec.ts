@@ -118,6 +118,13 @@ test("the games can be sorted and searched, and Popular puts them back", async (
   expect(names.length).toBe(GAMES.length);
   expect(await openRows(page)).toBe(0);
 
+  // newest update first, the games without one after
+  await page.getByRole("button", { name: "Updated", exact: true }).click();
+  const updated = await visible.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.updated ?? ""));
+  expect(updated.filter(Boolean).length).toBeGreaterThan(0);
+  expect(updated).toEqual([...updated].sort((a, b) => b.localeCompare(a)));
+  expect(await openRows(page)).toBe(0);
+
   await page.getByRole("button", { name: "Genre" }).click();
   const genres = await visible.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.genre!));
   expect(genres).toEqual([...genres].sort((a, b) => a.localeCompare(b, "en")));
@@ -171,6 +178,11 @@ test("the hub's latest updates lead to every update", async ({ page }) => {
   // the splash above the hero's heading is the newest of those four
   const first = await page.locator("#updates .upd").first().getAttribute("id");
   await expect(page.locator(".splash")).toHaveAttribute("href", `/updates#${first}`);
+  // and the hero reel has a slide for its game, unless an earlier slide already shows it
+  const game = await page.locator(".splash b").textContent();
+  const caps = await page.locator(".reel__slide .hero__cap").allTextContents();
+  expect(caps.some((c) => c.endsWith(` · ${game}`))).toBe(true);
+  expect(caps.filter((c) => c.startsWith("Just updated")).length).toBeLessThanOrEqual(1);
   await page.locator('#updates a[href="/updates"]').click();
   await expect(page).toHaveURL(/\/updates$/);
   await expect(page.locator("h1")).toContainText("Every update");
