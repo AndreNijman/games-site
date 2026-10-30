@@ -2653,7 +2653,7 @@ a.href=URL.createObjectURL(new Blob([s],{type:"application/json"}));a.download=$
   const response = shell(`${moved.was} is now ${moved.name}`, `<main class="auth"><p class="kicker">GAMES / MOVED</p>
 <h1>${escapeHtml(moved.was)} is now ${escapeHtml(moved.name)}</h1>
 <p>It lives at <a href="${escapeHtml(home)}">${escapeHtml(moved.to)}</a>.</p>
-<div id="carry" hidden><p>Your career is saved on this old address, and browsers keep saves per address. Download it, then import it from the Data screen on the new one.</p>
+<div id="carry" hidden><p>Your career is saved on this old address, and browsers keep saves per address. Download it, then choose <b>Load an exported save</b> on the new one.</p>
 <p><button id="save" type="button">Download your career</button></p></div>
 <p><a href="${escapeHtml(home)}">Go to ${escapeHtml(moved.name)}</a></p>
 <script>${script}</script></main>`, 200,
