@@ -816,6 +816,66 @@
         }
       ]
     },
+    "esports": {
+      "repo": "AndreNijman/esports-manager",
+      "public": false,
+      "seen": [
+        7430425665,
+        7430788376,
+        7430951051
+      ],
+      "updates": [
+        {
+          "id": 7430425665,
+          "at": "2026-10-30T04:03:41Z",
+          "sha": "a5538ffd796f7ee66059b63fcaad057308d182ff",
+          "launch": true,
+          "counts": {
+            "new": 0,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Esports Manager is a free browser game where you run a Counter-Strike team using Valve's regional rankings. Pick any ranked team and manage its roster, transfers, training, tactics and money through a season of events, then watch each match round by round on a live radar.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7430788376,
+          "at": "2026-10-30T04:32:24Z",
+          "sha": "3d8707b6a8f3900a8295b367e9437c6b31f4cf88",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Each live round now replays on an abstract plan of the seven maps, showing kills in order, the bomb site and the plant. Teams have generated crests in place of logos, and the map veto screen shows the plans.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7430951051,
+          "at": "2026-10-30T04:46:05Z",
+          "sha": "2fa4bd9b5fb771681b84d18f09b4e74de69e9f17",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "The game is now called Esports Manager and lives at esports.andrenijman.com.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        }
+      ]
+    },
     "fart": {
       "repo": "AndreNijman/fart-together",
       "public": false,
@@ -3873,31 +3933,6 @@
           "summary": "Cutting across the track no longer resets your car or cancels the lap. Rejoining the road far ahead of where you left it adds a time penalty to your finish time instead, and the penalty is shown in the results. Cars that wreck respawn just behind where they were last on the road.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
-        }
-      ]
-    },
-    "esports": {
-      "repo": "AndreNijman/esports-manager",
-      "public": false,
-      "seen": [
-        7430425665
-      ],
-      "updates": [
-        {
-          "id": 7430425665,
-          "at": "2026-10-30T04:03:41Z",
-          "sha": "a5538ffd796f7ee66059b63fcaad057308d182ff",
-          "launch": true,
-          "counts": {
-            "new": 0,
-            "fixed": 0,
-            "improved": 0,
-            "other": 0,
-            "hidden": 0
-          },
-          "commits": [],
-          "summary": null,
-          "playerFacing": null
         }
       ]
     },
