@@ -897,7 +897,8 @@
         7406199959,
         7406322592,
         7408565043,
-        7408939997
+        7408939997,
+        7458039647
       ],
       "updates": [
         {
@@ -1171,6 +1172,22 @@
           "commits": [],
           "summary": "Behind-the-scenes fixes and tidying.",
           "playerFacing": false,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7458039647,
+          "at": "2026-10-31T11:34:29Z",
+          "sha": "238748281368367ba7b61dfbeac7b41597cd5370",
+          "counts": {
+            "new": 4,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "A new physics option is available for rooms and solo practice, where the flume has hills, crests and waterfall drops and the raft pitches and rolls with the water. A raft that takes a crest too fast leaves the water and flies, and a fart boost can carry it through the air. The water banks up around bends and the hippos tilt along with the raft.",
+          "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
       ]
