@@ -5297,7 +5297,8 @@
         7350772030,
         7377571622,
         7377910251,
-        7402584581
+        7402584581,
+        7469229420
       ],
       "updates": [
         {
@@ -6798,6 +6799,28 @@
             }
           ],
           "summary": "The background parallax now scrolls smoothly.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7469229420,
+          "at": "2026-11-01T05:53:28Z",
+          "sha": "6cbc0bce280355fa38670cc54d5eda30a9be641b",
+          "counts": {
+            "new": 0,
+            "fixed": 0,
+            "improved": 0,
+            "other": 1,
+            "hidden": 0
+          },
+          "commits": [
+            {
+              "sha": "6cbc0bce280355fa38670cc54d5eda30a9be641b",
+              "kind": "other",
+              "text": "Release pending artwork, gameplay safeguards and lighting gradients"
+            }
+          ],
+          "summary": "Lighting now uses smoother gradients across the world. Gameplay safeguards are in place, and new artwork is included in this release.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
