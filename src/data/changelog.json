@@ -822,7 +822,8 @@
       "seen": [
         7430425665,
         7430788376,
-        7430951051
+        7430951051,
+        7516231418
       ],
       "updates": [
         {
@@ -871,6 +872,22 @@
           },
           "commits": [],
           "summary": "The game is now called Esports Manager and lives at esports.andrenijman.com.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7516231418,
+          "at": "2026-11-03T10:27:52Z",
+          "sha": "dfd25264208215cef1b6776dcb1e5a0f9db3cfb8",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Player management now covers more of your roster, with expanded options for managing players across the squad.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
