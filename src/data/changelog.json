@@ -823,7 +823,8 @@
         7430425665,
         7430788376,
         7430951051,
-        7516231418
+        7516231418,
+        7592021306
       ],
       "updates": [
         {
@@ -888,6 +889,22 @@
           },
           "commits": [],
           "summary": "Player management now covers more of your roster, with expanded options for managing players across the squad.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7592021306,
+          "at": "2026-11-06T04:02:28Z",
+          "sha": "fa9061847e666bd2278113f91ccd03384d9d7448",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Difficulty tiers can be selected when starting a career, and there is a new achievements list to work toward. Majors now run in a Swiss format, and you can hire fictional staff, create your own club with its own identity and cosmetics, and make counteroffers during contract negotiations.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
@@ -5315,7 +5332,8 @@
         7377571622,
         7377910251,
         7402584581,
-        7469229420
+        7469229420,
+        7590701607
       ],
       "updates": [
         {
@@ -6838,6 +6856,28 @@
             }
           ],
           "summary": "Lighting now uses smoother gradients across the world. Gameplay safeguards are in place, and new artwork is included in this release.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7590701607,
+          "at": "2026-11-06T02:26:28Z",
+          "sha": "ba243a454d5c8fe7e850c5b26868baed2ad72325",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [
+            {
+              "sha": "ba243a454d5c8fe7e850c5b26868baed2ad72325",
+              "kind": "new",
+              "text": "Finish combat feel and item parity work"
+            }
+          ],
+          "summary": "Combat feel has been tuned, with changes to how weapons and attacks respond during play.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
