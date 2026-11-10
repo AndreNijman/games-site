@@ -824,7 +824,9 @@
         7430788376,
         7430951051,
         7516231418,
-        7592021306
+        7592021306,
+        7673801020,
+        7673831031
       ],
       "updates": [
         {
@@ -906,6 +908,38 @@
           "commits": [],
           "summary": "Difficulty tiers can be selected when starting a career, and there is a new achievements list to work toward. Majors now run in a Swiss format, and you can hire fictional staff, create your own club with its own identity and cosmetics, and make counteroffers during contract negotiations.",
           "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7673801020,
+          "at": "2026-11-10T04:43:45Z",
+          "sha": "01189feddf7d7b5e510c1ac3e74d7987c2a6b004",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Sponsors now come with a brand system, and sponsor negotiations go through a fuller lifecycle. The academy has baskets and a cup, Elite events use double elimination, and challenger qualifiers have been added. Club sales can receive counteroffers, and debt pressure can now escalate to a final firing.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7673831031,
+          "at": "2026-11-10T04:45:51Z",
+          "sha": "2682b5fb92ece0caf4f387c327cc106d3bbdd756",
+          "counts": {
+            "new": 0,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 1
+          },
+          "commits": [],
+          "summary": "Behind-the-scenes fixes and tidying.",
+          "playerFacing": false,
           "model": "claude-haiku-5-5"
         }
       ]
