@@ -26,6 +26,7 @@ const MC_PAGES_BASE = "/one-world";
 // `text` lists the swaps that point upstream URLs in text bodies back here.
 // `immutable` paths are content-hashed and keep upstream's caching.
 const KRILLION_HOST = "krillion.andrenijman.com";
+const FOOTBAUCTION_HOST = "footbauction.andrenijman.com";
 const MIRRORS = {
   // krillion.io's Next.js app; its party server is the second host.
   [KRILLION_HOST]: {
@@ -39,6 +40,16 @@ const MIRRORS = {
       ["krillion.io/party/", `${host}/party/`],
     ],
     immutable: /^\/_next\/static\//,
+  },
+  // footbauction.com's static client; its lobby socket (/ws) and API (/api/)
+  // are on the same host, and invites are built from location.origin.
+  [FOOTBAUCTION_HOST]: {
+    origin: "https://footbauction.com",
+    paths: {},
+    // Only the canonical link and the support share URL name the host.
+    text: (origin) => [["https://footbauction.com", origin]],
+    // Assets are versioned by query string, not by path, so nothing is.
+    immutable: /^$/,
   },
 };
 // The admin view holds every returned row in memory to group and search it, so
@@ -71,6 +82,7 @@ const HOSTS = new Set([
   "esports.andrenijman.com",
   "round13.andrenijman.com",
   KRILLION_HOST,
+  FOOTBAUCTION_HOST,
   MC_HOST,
 ]);
 // Games that changed host. The old host stays routed so its links still land.
@@ -289,6 +301,19 @@ const GAMES = {
     // and author keep that visible on the card, the page and structured data.
     credit: "by krillion.io",
     author: { name: "Krillion", url: "https://krillion.io" },
+  },
+  "footbauction.andrenijman.com": {
+    name: "Footbauction",
+    description: "A free online football auction game for 2 to 10 friends: create a private lobby, bid against each other for real footballers from the same budget, pick a formation and tactics, then simulate a league and its final. No account needed.",
+    genre: ["Sports", "Strategy", "Multiplayer"],
+    image: "footbauction.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+    // Not Andre's game: footbauction.com's live site, mirrored, credited the
+    // same way as Krillion.
+    credit: "by footbauction.com",
+    author: { name: "Footbauction", url: "https://footbauction.com" },
   },
   [MC_HOST]: {
     name: "ONE WORLD",
