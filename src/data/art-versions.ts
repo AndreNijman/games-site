@@ -1,5 +1,6 @@
 // Written by npm run art: a hash of each card's WebP, for artPath's ?v=.
 export const ART_VERSIONS: Record<string, string> = {
+  "basket.png": "23d5ab13ce",
   "bladehymn.png": "15867d8f93",
   "bop.png": "85db839e13",
   "celeste.png": "fd825a9f76",

@@ -27,6 +27,10 @@ const MC_PAGES_BASE = "/one-world";
 // `immutable` paths are content-hashed and keep upstream's caching.
 const KRILLION_HOST = "krillion.andrenijman.com";
 const FOOTBAUCTION_HOST = "footbauction.andrenijman.com";
+// Games their publishers license for embedding: the frame page points its
+// iframe at the publisher's own build, ads and SDK included, and this host
+// serves nothing else (see handleRequest).
+const BASKET_HOST = "basket.andrenijman.com";
 const MIRRORS = {
   // krillion.io's Next.js app; its party server is the second host.
   [KRILLION_HOST]: {
@@ -83,6 +87,7 @@ const HOSTS = new Set([
   "round13.andrenijman.com",
   KRILLION_HOST,
   FOOTBAUCTION_HOST,
+  BASKET_HOST,
   MC_HOST,
 ]);
 // Games that changed host. The old host stays routed so its links still land.
@@ -315,6 +320,20 @@ const GAMES = {
     credit: "by footbauction.com",
     author: { name: "Footbauction", url: "https://footbauction.com" },
   },
+  "basket.andrenijman.com": {
+    name: "Basket Random",
+    description: "A free two-player physics basketball game where every player is a floppy ragdoll and the only control is one key: jump, grab the ball and dunk it. The court, the players and the ball change after every point; first to five wins, against a friend or the CPU.",
+    genre: ["Sports", "Arcade", "2 players"],
+    image: "basket.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+    // RHM Interactive's game, embedded from GameDistribution, which licenses
+    // it for any site with its own ads and SDK left in.
+    embed: "https://html5.gamedistribution.com/bf1268dccb5d43e7970bb3edaa54afc8/",
+    credit: "by RHM Interactive",
+    author: { name: "RHM Interactive", url: "https://gamedistribution.com/games/basket-random/" },
+  },
   [MC_HOST]: {
     name: "ONE WORLD",
     description: "A persistent shared anarchy survival world where every signed-in player joins the same map using their games.andrenijman.com username, with a private local-world option and consent-based teleport requests.",
@@ -408,6 +427,14 @@ async function handleRequest(request, env, ctx) {
   // extension test and would otherwise be proxied straight to upstream.
   const crawlerFile = crawlerFileResponse(url);
   if (crawlerFile) return crawlerFile;
+
+  // An embedded game has nothing upstream: only its frame page is served.
+  // Anything else would fall through to GitHub Pages under a hostname no
+  // repository there owns.
+  if (GAMES[url.hostname]?.embed && !(request.method === "GET" &&
+      isTopLevelNavigation(request) && !url.searchParams.has("_games_frame"))) {
+    return new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
+  }
 
   // A mirror's chunks, API calls and live traffic go straight through: the
   // page that holds them was already guarded, and they are per-player and
@@ -2436,6 +2463,7 @@ const GENERATED_CRAWLER_FILES = new Set([
   "scoops.andrenijman.com",
   "snackarang.andrenijman.com",
   "chess.andrenijman.com",
+  BASKET_HOST,
   // Mirrored: the upstream sites' own files would point crawlers at them.
   ...Object.keys(MIRRORS),
   MC_HOST,
@@ -2689,8 +2717,11 @@ a.href=URL.createObjectURL(new Blob([s],{type:"application/json"}));a.download=$
 }
 
 function gameFramePage(url, game) {
-  const gameUrl = new URL(url);
-  gameUrl.searchParams.set("_games_frame", "1");
+  // GameDistribution's embed names the page it runs on, for its ads.
+  const gameUrl = game.embed
+    ? new URL(`${game.embed}?gd_sdk_referrer_url=${encodeURIComponent(`https://${url.hostname}/`)}`)
+    : new URL(url);
+  if (!game.embed) gameUrl.searchParams.set("_games_frame", "1");
   const safeTitle = escapeHtml(game.name);
   const canonical = `https://${url.hostname}/`;
   const genreLine = game.genre.join(" · ");
@@ -2801,7 +2832,7 @@ function gameFramePage(url, game) {
       // blocks are data, not script — a script element whose type is not a
       // JavaScript MIME type is never prepared for execution, so it is not
       // subject to script-src. Worth confirming once in devtools.
-      "Content-Security-Policy": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; font-src https://games.andrenijman.com; frame-src 'self'; img-src https://games.andrenijman.com; base-uri 'none'; frame-ancestors 'self'",
+      "Content-Security-Policy": `default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; font-src https://games.andrenijman.com; frame-src ${game.embed ? new URL(game.embed).origin : "'self'"}; img-src https://games.andrenijman.com; base-uri 'none'; frame-ancestors 'self'`,
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "X-Content-Type-Options": "nosniff",
       "Accept-CH": ACCEPT_CH,
