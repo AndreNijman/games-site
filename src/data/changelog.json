@@ -610,7 +610,9 @@
         7406532850,
         7406557968,
         7408890828,
-        7412465925
+        7412465925,
+        7726616965,
+        7726749954
       ],
       "updates": [
         {
@@ -698,6 +700,50 @@
             }
           ],
           "summary": "Online play is new: quick matches against other players, friend games through a shareable link, and rated games with ratings tracked by category. Clocks run on the server, with flag-fall and draw offers, claims and rematches supported. Friend links now open the game directly instead of the home screen.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7726616965,
+          "at": "2026-11-12T02:26:33Z",
+          "sha": "1286d3a2ac5c8552de05595e037dc922ecb56e63",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [
+            {
+              "sha": "1286d3a2ac5c8552de05595e037dc922ecb56e63",
+              "kind": "new",
+              "text": "Spell Chess, a variant with 18 spell cards, a bot and god mode"
+            }
+          ],
+          "summary": "A new Spell Chess variant is available: every capture draws a spell card from a personal deck of 18, you hold up to three, and you can cast one before or after your move. You can play it against a bot at three strengths or against a friend on the same board.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7726749954,
+          "at": "2026-11-12T02:35:12Z",
+          "sha": "1f12112de9fb060d0863d36b7370ff2852217e61",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [
+            {
+              "sha": "1f12112de9fb060d0863d36b7370ff2852217e61",
+              "kind": "new",
+              "text": "Play Spell Chess online, by quick match or friend link"
+            }
+          ],
+          "summary": "Spell Chess can now be played online, either by quick match or through a friend link. Clocks run through each turn's actions, and the increment is added after the turn.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
