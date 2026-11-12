@@ -612,7 +612,8 @@
         7408890828,
         7412465925,
         7726616965,
-        7726749954
+        7726749954,
+        7730467080
       ],
       "updates": [
         {
@@ -744,6 +745,28 @@
             }
           ],
           "summary": "Spell Chess can now be played online, either by quick match or through a friend link. Clocks run through each turn's actions, and the increment is added after the turn.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7730467080,
+          "at": "2026-11-12T06:47:43Z",
+          "sha": "81e3b08f3463a10775e69892694adde0f49c6ec1",
+          "counts": {
+            "new": 0,
+            "fixed": 1,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [
+            {
+              "sha": "81e3b08f3463a10775e69892694adde0f49c6ec1",
+              "kind": "fixed",
+              "text": "Rebalance Royal Alarm and Rune Trap in Spell Chess"
+            }
+          ],
+          "summary": "Royal Alarm in Spell Chess now lets the alarmed player move a piece that is under attack, so it is less of a sure win. Rune Trap now covers two adjacent squares instead of one.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
