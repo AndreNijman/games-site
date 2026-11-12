@@ -79,6 +79,7 @@ const HOSTS = new Set([
   "scoops.andrenijman.com",
   "snackarang.andrenijman.com",
   "chess.andrenijman.com",
+  "crownfront.andrenijman.com",
   "esports.andrenijman.com",
   "round13.andrenijman.com",
   KRILLION_HOST,
@@ -285,6 +286,15 @@ const GAMES = {
     description: "A free pixel-art chess game: play rated games online or send a friend a link, take on nine bots up to full-strength Stockfish, solve rated puzzles and Puzzle Rush, and review your games move by move with accuracy scores.",
     genre: ["Board", "Strategy"],
     image: "chess.png",
+    imageWidth: 2000,
+    imageHeight: 1050,
+    origin: "original",
+  },
+  "crownfront.andrenijman.com": {
+    name: "Crownfront",
+    description: "A free real-time card battler: build an eight-card deck from 48 cards, spend energy to field troops, buildings and spells across two lanes, and bring down the enemy keep in three-minute online battles. Ranked and casual 1v1, 2v2, private rooms with friends, and four bots to train against.",
+    genre: ["Strategy", "Card", "Multiplayer"],
+    image: "crownfront.png",
     imageWidth: 2000,
     imageHeight: 1050,
     origin: "original",
@@ -516,6 +526,7 @@ async function handleGuardRoute(request, env, url) {
   if (url.pathname === "/_guard/tung-lobbies") return tungLobbies(request, env, url, identity);
   if (url.pathname === "/_guard/tung-ws") return tungSocket(request, env, url, identity);
   if (url.pathname === "/_guard/chess-ws") return chessSocket(request, env, url, identity);
+  if (url.pathname === "/_guard/crownfront-ws") return crownfrontSocket(request, env, url, identity);
   if (url.pathname === "/_guard/bop-lobbies") return bopLobbies(request, url, identity);
   if (url.pathname === "/_guard/bladehymn-runs") return bladeHymnRuns(request, env, url, identity);
   if (url.pathname.startsWith("/_guard/admin")) {
@@ -975,6 +986,24 @@ async function chessSocket(request, env, url, identity) {
   upstream.headers.set("X-Chess-Account", identity.account ? String(identity.account.id) : "");
   upstream.headers.set("X-Chess-Name", identity.account ? String(identity.account.username) : "");
   return env.CHESS_RELAY.fetch(upstream);
+}
+
+// Crownfront's lobby and match servers: the crownfront-relay Worker, reached
+// only through this binding, like chess-relay. The relay believes the account
+// named here because nothing else can reach it; guests carry their own secret
+// in the query string and get no account header.
+async function crownfrontSocket(request, env, url, identity) {
+  if (url.hostname !== "crownfront.andrenijman.com" || request.method !== "GET" ||
+      request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+    return new Response("WebSocket upgrade required", { status: 426 });
+  }
+  const target = new URL("https://crownfront-relay/ws");
+  target.search = url.search;
+  const upstream = new Request(target, request);
+  upstream.headers.delete("Cookie");
+  upstream.headers.set("X-Crownfront-Account", identity.account ? String(identity.account.id) : "");
+  upstream.headers.set("X-Crownfront-Name", identity.account ? String(identity.account.username) : "");
+  return env.CROWNFRONT_RELAY.fetch(upstream);
 }
 
 async function gameProfile(request, env, url, identity) {

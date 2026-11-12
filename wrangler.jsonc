@@ -25,6 +25,7 @@
     { "pattern": "scoops.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "snackarang.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "chess.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "crownfront.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "esports.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "round13.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "krillion.andrenijman.com/*", "zone_name": "andrenijman.com" },
@@ -43,7 +44,9 @@
   // ROOK & ROLL's online relay (chess repo, src/worker). It has no route of its
   // own: /_guard/chess-ws on chess.andrenijman.com is the only way in, which is
   // why it trusts the account this guard names. Deploy chess-relay first.
-  "services": [{ "binding": "CHESS_RELAY", "service": "chess-relay" }],
+  // Crownfront's relay (crownfront repo) is bound the same way, at
+  // /_guard/crownfront-ws on crownfront.andrenijman.com.
+  "services": [{ "binding": "CHESS_RELAY", "service": "chess-relay" }, { "binding": "CROWNFRONT_RELAY", "service": "crownfront-relay" }],
   // What rime-secretd deploys: `rime secret use cloudflare
   // cloudflare.wrangler.deploy games-guard` runs `wrangler deploy --env
   // production`. The same Worker, not a games-guard-production beside it, so
@@ -67,7 +70,7 @@
         }
       ],
       "durable_objects": { "bindings": [{ "name": "PROBES", "class_name": "Probe" }, { "name": "LIVE", "class_name": "Live" }] },
-      "services": [{ "binding": "CHESS_RELAY", "service": "chess-relay" }]
+      "services": [{ "binding": "CHESS_RELAY", "service": "chess-relay" }, { "binding": "CROWNFRONT_RELAY", "service": "crownfront-relay" }]
     }
   }
 }

@@ -8173,6 +8173,31 @@
           "model": "claude-haiku-5-5"
         }
       ]
+    },
+    "crownfront": {
+      "repo": "AndreNijman/crownfront",
+      "public": false,
+      "seen": [
+        7730588954
+      ],
+      "updates": [
+        {
+          "id": 7730588954,
+          "at": "2026-11-12T06:55:51Z",
+          "sha": "c58f329131a60d712570d17842e4866ac14cd9e6",
+          "launch": true,
+          "counts": {
+            "new": 0,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": null,
+          "playerFacing": null
+        }
+      ]
     }
   }
 }
