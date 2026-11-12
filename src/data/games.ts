@@ -21,6 +21,9 @@ export type Game = {
   meta: string;
   /** a visible credit, when the game is not only Andre's */
   credit?: string;
+  /** a temporary status line under the credit, such as a broken mode; the
+   * hub's cards only, kept out of structured data and games.json */
+  notice?: string;
   /** the screenshot at the root of public/; art/<name>.webp is made from it */
   image: string;
   alt: string;
@@ -264,6 +267,7 @@ export const GAMES: Game[] = [
     description: "A free daily word and trivia game: seven prompts a day, 25 seconds each, and the rarer your answer the deeper you dive. Endless mode, themed packs and party rooms with friends.",
     meta: "Daily word dive · 7 prompts · rarer answers sink deeper · endless mode · party rooms",
     credit: "by krillion.io",
+    notice: "Puffer Party broken at the moment",
     image: "krillion.png",
     alt: "Krillion's title screen: a pixel-art sky over dark water, The Daily Dive, a Puffer Party room and a Begin Descent button",
     label: "Play Krillion, a free daily word dive by krillion.io",
