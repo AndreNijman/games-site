@@ -309,6 +309,18 @@ export const GAMES: Game[] = [
     label: "Play SNACKARANG, a free party brawler where snacks fight with boomerangs, on one screen or online",
   },
   {
+    host: "crownfront.andrenijman.com",
+    repo: "AndreNijman/crownfront",
+    added: "2026-11-12",
+    name: "Crownfront",
+    genre: ["Strategy", "Card", "Multiplayer"],
+    description: "A free real-time card battler: build an eight-card deck from 48 cards, spend energy to field troops, buildings and spells across two lanes, and bring down the enemy keep in three-minute online battles. Ranked and casual 1v1, 2v2, private rooms with friends, and four bots to train against.",
+    meta: "Real-time card battles · ranked 1v1 and 2v2 · 48 cards · bots to train against",
+    image: "crownfront.png",
+    alt: "A Crownfront battle: two keeps and four bastions face each other across a rift with two bridges, troops crossing, and a hand of four cards below",
+    label: "Play Crownfront, a free real-time card battler with ranked online battles",
+  },
+  {
     host: "chess.andrenijman.com",
     repo: "AndreNijman/rook-and-roll",
     added: "2026-10-29",
