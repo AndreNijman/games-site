@@ -12,6 +12,7 @@ export const ART_VERSIONS: Record<string, string> = {
   "krillion.png": "d507bc7116",
   "mc.png": "3cbce5dc15",
   "memoryburn.png": "b1b1672df4",
+  "openfront.png": "635e585ce3",
   "overpop.png": "5a0041e030",
   "rasists.png": "a2f38f7631",
   "scoops.png": "faade2f6f4",

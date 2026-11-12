@@ -15,8 +15,9 @@ function workerGames(): Record<string, { name: string; image: string; credit?: s
   return new Function("MC_HOST", `return ${literal}`)(mcHost);
 }
 
-// On the hub but not behind the Worker, served by its own host: none at present.
-const OUTSIDE_WORKER = new Set<string>();
+// On the hub but not behind the Worker, served by its own host. OpenFront is a
+// self-hosted game server behind the Orange Pi's Cloudflare Tunnel (openfront/).
+const OUTSIDE_WORKER = new Set<string>(["openfront.andrenijman.com"]);
 
 describe("the hub and the Worker agree", () => {
   const worker = workerGames();
