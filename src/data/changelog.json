@@ -772,6 +772,66 @@
         }
       ]
     },
+    "crownfront": {
+      "repo": "AndreNijman/crownfront",
+      "public": false,
+      "seen": [
+        7730588954,
+        7730702399,
+        7730728747
+      ],
+      "updates": [
+        {
+          "id": 7730588954,
+          "at": "2026-11-12T06:55:51Z",
+          "sha": "c58f329131a60d712570d17842e4866ac14cd9e6",
+          "launch": true,
+          "counts": {
+            "new": 0,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Crownfront is a free real-time card battler where you build an eight-card deck from 48 cards, spend energy to field troops, buildings and spells across two lanes, and bring down the enemy keep in three-minute battles. Play ranked or casual 1v1 and 2v2, host private rooms with friends, or train against four bots.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7730702399,
+          "at": "2026-11-12T07:03:11Z",
+          "sha": "6e5de18d87e2ae28eb5d4c9a2586d3cf83e73da1",
+          "counts": {
+            "new": 0,
+            "fixed": 1,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "The tutorial now shows the real tower counts and no longer displays a match clock. The browser page title has been simplified.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7730728747,
+          "at": "2026-11-12T07:04:50Z",
+          "sha": "3ea12cfc74af3b60695b5936d0a835665e864f13",
+          "counts": {
+            "new": 0,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 1
+          },
+          "commits": [],
+          "summary": "Behind-the-scenes fixes and tidying.",
+          "playerFacing": false,
+          "model": "claude-haiku-5-5"
+        }
+      ]
+    },
     "defenders": {
       "repo": "AndreNijman/pvz",
       "public": false,
@@ -7778,7 +7838,8 @@
         7408348596,
         7412441305,
         7414546065,
-        7428221728
+        7428221728,
+        7730566641
       ],
       "updates": [
         {
@@ -8194,31 +8255,33 @@
           "summary": "Eating now works with the food slot selected, so you can eat straight from the hotbar.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
-        }
-      ]
-    },
-    "crownfront": {
-      "repo": "AndreNijman/crownfront",
-      "public": false,
-      "seen": [
-        7730588954
-      ],
-      "updates": [
+        },
         {
-          "id": 7730588954,
-          "at": "2026-11-12T06:55:51Z",
-          "sha": "c58f329131a60d712570d17842e4866ac14cd9e6",
-          "launch": true,
+          "id": 7730566641,
+          "at": "2026-11-12T06:54:21Z",
+          "sha": "ba1162b96f3d2a64727583307ec708dda29c6a0c",
           "counts": {
             "new": 0,
-            "fixed": 0,
+            "fixed": 2,
             "improved": 0,
             "other": 0,
             "hidden": 0
           },
-          "commits": [],
-          "summary": null,
-          "playerFacing": null
+          "commits": [
+            {
+              "sha": "cdd06f386d8a45caa94e5571b3f376d0197a58e9",
+              "kind": "fixed",
+              "text": "Correct survival mechanics, pet orders and progression"
+            },
+            {
+              "sha": "ba1162b96f3d2a64727583307ec708dda29c6a0c",
+              "kind": "fixed",
+              "text": "Implement species abilities, equipment effects and boss profiles"
+            }
+          ],
+          "summary": "Pets now follow orders and fight using their species abilities. Equipment has real effects on combat and survival, and each boss has its own fight profile. Survival and age progression have been corrected.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
         }
       ]
     }
