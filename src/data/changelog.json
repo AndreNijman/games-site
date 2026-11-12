@@ -7839,7 +7839,8 @@
         7412441305,
         7414546065,
         7428221728,
-        7730566641
+        7730566641,
+        7738523598
       ],
       "updates": [
         {
@@ -8280,6 +8281,28 @@
             }
           ],
           "summary": "Pets now follow orders and fight using their species abilities. Equipment has real effects on combat and survival, and each boss has its own fight profile. Survival and age progression have been corrected.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7738523598,
+          "at": "2026-11-12T13:26:23Z",
+          "sha": "2a7cf6614d2fac0c905d3e04fb78bc4a8c407612",
+          "counts": {
+            "new": 0,
+            "fixed": 1,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [
+            {
+              "sha": "2a7cf6614d2fac0c905d3e04fb78bc4a8c407612",
+              "kind": "fixed",
+              "text": "Complete targeted abilities, tower branches and boss combat"
+            }
+          ],
+          "summary": "Targeted abilities now complete when cast on a chosen target. Tower branches and boss combat have been fixed so they work as intended.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
