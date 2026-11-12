@@ -27,7 +27,8 @@
     { "pattern": "chess.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "esports.andrenijman.com/*", "zone_name": "andrenijman.com" },
     { "pattern": "round13.andrenijman.com/*", "zone_name": "andrenijman.com" },
-    { "pattern": "krillion.andrenijman.com/*", "zone_name": "andrenijman.com" }
+    { "pattern": "krillion.andrenijman.com/*", "zone_name": "andrenijman.com" },
+    { "pattern": "footbauction.andrenijman.com/*", "zone_name": "andrenijman.com" }
   ],
   "d1_databases": [
     {
