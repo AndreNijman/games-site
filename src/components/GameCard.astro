@@ -18,5 +18,6 @@ const joined = (s: string) => s.replace(/ · /g, "\u00a0· ");
     <h3>{game.name}</h3>
     <p>{joined(game.meta)}</p>
     {game.credit && <p class="game__credit">{game.credit}</p>}
+    {game.notice && <p class="game__credit game__notice">{game.notice}</p>}
   </div>
 </a>

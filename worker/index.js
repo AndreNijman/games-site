@@ -40,6 +40,22 @@ const MIRRORS = {
       ["krillion.io/party/", `${host}/party/`],
     ],
     immutable: /^\/_next\/static\//,
+    // Since November 2026 krillion.io asks for a Cloudflare Turnstile check
+    // before a Puffer Party join. Its site key works only on hostnames
+    // krillion.io lists, so the widget can never pass on this host. The
+    // client shows the `error` of any other refusal as the reason, so the
+    // check is answered with a plain one instead of a widget that fails.
+    // Remove this once krillion.io adds this host to its Turnstile widget.
+    refuse: (path, status, data) => path === "/api/party/token" && status === 403 &&
+      data?.code === "party-verification"
+      ? {
+        status: 503,
+        body: {
+          code: "party-unavailable",
+          error: "Puffer Party is broken on this site at the moment. The daily dive, endless mode and packs still work.",
+        },
+      }
+      : null,
   },
   // footbauction.com's static client; its lobby socket (/ws) and API (/api/)
   // are on the same host, and invites are built from location.origin.
@@ -744,7 +760,14 @@ async function mirrorProxy(request, url, mirror) {
   responseHeaders.delete("Content-Length");
   responseHeaders.delete("Content-Encoding");
   responseHeaders.delete("ETag");
-  return new Response(mirrorLocalText(await upstream.text(), url, mirror), {
+  const text = await upstream.text();
+  if (mirror.refuse && /json/i.test(type)) {
+    let data = null;
+    try { data = JSON.parse(text); } catch {}
+    const refusal = mirror.refuse(url.pathname, upstream.status, data);
+    if (refusal) return Response.json(refusal.body, { status: refusal.status, headers: responseHeaders });
+  }
+  return new Response(mirrorLocalText(text, url, mirror), {
     status: upstream.status,
     statusText: upstream.statusText,
     headers: responseHeaders,

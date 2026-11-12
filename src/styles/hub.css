@@ -48,6 +48,7 @@
   .game--wide-lg img { aspect-ratio: 2000 / 700; }
 }
 .game__body .game__credit { margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--accent); }
+.game__body .game__credit + .game__notice { margin-top: 2px; }
 .game[hidden] { display: none; }
 
 /* search and sort, above the gallery: shown once the script is running */
