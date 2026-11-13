@@ -778,7 +778,17 @@
       "seen": [
         7730588954,
         7730702399,
-        7730728747
+        7730728747,
+        7754527820,
+        7754776095,
+        7754909803,
+        7755285369,
+        7755323739,
+        7755383231,
+        7755426351,
+        7755519189,
+        7755569538,
+        7755612845
       ],
       "updates": [
         {
@@ -828,6 +838,166 @@
           "commits": [],
           "summary": "Behind-the-scenes fixes and tidying.",
           "playerFacing": false,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7754527820,
+          "at": "2026-11-13T01:29:19Z",
+          "sha": "269384db3acdfbec2506d85535697f7647a55718",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "The tutorial now walks you through each step with labels and coaching tips, and you can skip it at any time. It also has its own ending.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7754776095,
+          "at": "2026-11-13T01:46:03Z",
+          "sha": "11a5cb41529bcda4e1963bf1a14785634ed6b9b6",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Units, towers and arenas now use pixel-art sprites drawn in a new 2D renderer, replacing the previous 3D look. The battle screen also gets pixel fonts and updated skins.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7754909803,
+          "at": "2026-11-13T01:55:00Z",
+          "sha": "4e02323438895bc06afb9cca395d2f5161a1b823",
+          "counts": {
+            "new": 0,
+            "fixed": 1,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Units are drawn larger on the battlefield, with team-coloured rings under them. The ground is quieter and the numbers are easier to read during a match.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7755285369,
+          "at": "2026-11-13T02:19:15Z",
+          "sha": "7f0f3e12034c4712fdd3d39f80b402973b33c68a",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "2v2 parties are now available, along with private 2v2 rooms. You can send friend requests and watch a friend's battle, with a ten-second delay on ranked spectating. Home now offers triple and sudden-death queues.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7755323739,
+          "at": "2026-11-13T02:21:37Z",
+          "sha": "a01906ef739dde770edfd9d9a0a7e0d8791372a0",
+          "counts": {
+            "new": 0,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 1
+          },
+          "commits": [],
+          "summary": "Behind-the-scenes fixes and tidying.",
+          "playerFacing": false,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7755383231,
+          "at": "2026-11-13T02:25:26Z",
+          "sha": "aab4963a8c5793d7dad84bc7a15d4a3ca536129c",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Matches now play chiptune music loops, and every unit has its own deploy call and attack sound.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7755426351,
+          "at": "2026-11-13T02:28:22Z",
+          "sha": "02366bfe2779f04255b1364442eabc764a6b3069",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "A new draft mode for battles: from each of four pairs of cards, you keep one, and the other goes to your opponent.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7755519189,
+          "at": "2026-11-13T02:34:42Z",
+          "sha": "66074046c11e5f167ac3d5af87131368c66e2d03",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Seasonal events now run with a prize track that players can progress through. Knockout tournaments for four or eight players are also available.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7755569538,
+          "at": "2026-11-13T02:38:02Z",
+          "sha": "516fefbd1e3bea2e28882843a67494c6a47617ac",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Behind-the-scenes fixes and tidying.",
+          "playerFacing": false,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7755612845,
+          "at": "2026-11-13T02:41:03Z",
+          "sha": "fc3bfb6098d20ef85d93e255e3bb6a075b9b8d9d",
+          "counts": {
+            "new": 0,
+            "fixed": 0,
+            "improved": 1,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Matchmaking starts matches faster, with every match found in a search pass beginning at the same time.",
+          "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
       ]
