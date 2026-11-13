@@ -1144,7 +1144,8 @@
         7673801020,
         7673831031,
         7682622089,
-        7759951277
+        7759951277,
+        7765475550
       ],
       "updates": [
         {
@@ -1289,6 +1290,22 @@
           },
           "commits": [],
           "summary": "The transfer market and Major events are now fully playable, with more of each season's features in place. Saves are stored in a smaller compressed form and load faster.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7765475550,
+          "at": "2026-11-13T12:41:24Z",
+          "sha": "44582dd77441d9217e72830abbe92656ecbbae34",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "The season calendar is now complete, with a full schedule of events to play through. Academy players and the map have been reworked, and older saves pick up the upgrades.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
