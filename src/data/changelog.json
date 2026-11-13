@@ -788,7 +788,8 @@
         7755426351,
         7755519189,
         7755569538,
-        7755612845
+        7755612845,
+        7757258298
       ],
       "updates": [
         {
@@ -999,6 +1000,22 @@
           "summary": "Matchmaking starts matches faster, with every match found in a search pass beginning at the same time.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7757258298,
+          "at": "2026-11-13T04:36:14Z",
+          "sha": "51bc55563a78472c80a4fc5106811e0d3398ce9e",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Quiet queues are now filled with bots, so a match can start without waiting for a full lobby. Bots come from a roster of 200 and vary in skill, and a setting controls whether a bot opponent is marked as one or hidden.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
         }
       ]
     },
@@ -1126,7 +1143,8 @@
         7592021306,
         7673801020,
         7673831031,
-        7682622089
+        7682622089,
+        7759951277
       ],
       "updates": [
         {
@@ -1257,6 +1275,22 @@
           "summary": "Academy teams now offer choices when you develop young players, and you can keep a scouting shortlist of prospects to track. Players can also be offered retention packages to keep them on your roster.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7759951277,
+          "at": "2026-11-13T07:40:01Z",
+          "sha": "a9824dc6f026b92bdfd515699f9b9c74890f7798",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "The transfer market and Major events are now fully playable, with more of each season's features in place. Saves are stored in a smaller compressed form and load faster.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
         }
       ]
     },
@@ -1282,7 +1316,8 @@
         7406322592,
         7408565043,
         7408939997,
-        7458039647
+        7458039647,
+        7757161857
       ],
       "updates": [
         {
@@ -1571,6 +1606,22 @@
           },
           "commits": [],
           "summary": "A new physics option is available for rooms and solo practice, where the flume has hills, crests and waterfall drops and the raft pitches and rolls with the water. A raft that takes a crest too fast leaves the water and flies, and a fart boost can carry it through the air. The water banks up around bends and the hippos tilt along with the raft.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7757161857,
+          "at": "2026-11-13T04:29:26Z",
+          "sha": "9f9afac7b0bf102a16992b9035015e69d07562b2",
+          "counts": {
+            "new": 2,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Flumes are narrower and more crowded: spiked walls line most of the track on higher difficulties, and new zigzag sections force sharp alternating turns. Obstacles now also include saws on rails, spike strips along the walls, and whirlpools that drag and spin the raft.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
