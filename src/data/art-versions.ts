@@ -4,7 +4,7 @@ export const ART_VERSIONS: Record<string, string> = {
   "bop.png": "85db839e13",
   "celeste.png": "fd825a9f76",
   "chess.png": "8b941f0f37",
-  "crownfront.png": "44a71c735b",
+  "crownfront.png": "b893cae0ff",
   "defenders.png": "57ad3856ee",
   "esports-manager.png": "331b495ff9",
   "fart.png": "7a5b00c9fb",
