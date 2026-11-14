@@ -1145,7 +1145,8 @@
         7673831031,
         7682622089,
         7759951277,
-        7765475550
+        7765475550,
+        7781902830
       ],
       "updates": [
         {
@@ -1306,6 +1307,22 @@
           },
           "commits": [],
           "summary": "The season calendar is now complete, with a full schedule of events to play through. Academy players and the map have been reworked, and older saves pick up the upgrades.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7781902830,
+          "at": "2026-11-14T03:24:44Z",
+          "sha": "cb587fc8b8006d39c05d471956ceec25f18ed6dc",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Daily training is now available for your roster, with each player's progress capped by their potential so older saves keep working.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
