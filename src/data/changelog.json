@@ -1146,7 +1146,8 @@
         7682622089,
         7759951277,
         7765475550,
-        7781902830
+        7781902830,
+        7784118640
       ],
       "updates": [
         {
@@ -1323,6 +1324,22 @@
           },
           "commits": [],
           "summary": "Daily training is now available for your roster, with each player's progress capped by their potential so older saves keep working.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7784118640,
+          "at": "2026-11-14T07:03:30Z",
+          "sha": "2ab383f8a1ded2ea2f94209aaed70841f5815e7e",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "The management screens now use pixel-art styling. The match replay has been reworked, so matches play back differently than before.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
