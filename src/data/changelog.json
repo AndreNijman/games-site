@@ -1132,6 +1132,32 @@
         }
       ]
     },
+    "drivingblind": {
+      "repo": "AndreNijman/driving-blind",
+      "public": false,
+      "seen": [
+        7757526091
+      ],
+      "updates": [
+        {
+          "id": 7757526091,
+          "at": "2026-11-13T04:56:35Z",
+          "sha": "375dac792053ccd9f6686d549da756332dad1247",
+          "launch": true,
+          "counts": {
+            "new": 0,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Driving Blind is a free two-player online rally. One of you drives a hatchback flat out, too short-sighted to see the road, and the other holds the map and shouts the turns. Create a room, send the code, and pick the track difficulty, the length, the speed and how far the driver can see.",
+          "playerFacing": true,
+          "model": "hand"
+        }
+      ]
+    },
     "esports": {
       "repo": "AndreNijman/esports-manager",
       "public": false,
