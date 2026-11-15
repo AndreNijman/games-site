@@ -1147,7 +1147,8 @@
         7759951277,
         7765475550,
         7781902830,
-        7784118640
+        7784118640,
+        7800544006
       ],
       "updates": [
         {
@@ -1340,6 +1341,22 @@
           },
           "commits": [],
           "summary": "The management screens now use pixel-art styling. The match replay has been reworked, so matches play back differently than before.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7800544006,
+          "at": "2026-11-15T08:02:26Z",
+          "sha": "24f5ad437cc6778bf86ab29f218ef84a20edb3c3",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Pixel-style system screens now appear in the game, and the starting finances differ by team tier. Player role baselines have been reviewed and adjusted.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
