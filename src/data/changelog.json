@@ -1148,7 +1148,8 @@
         7765475550,
         7781902830,
         7784118640,
-        7800544006
+        7800544006,
+        7803169563
       ],
       "updates": [
         {
@@ -1357,6 +1358,22 @@
           },
           "commits": [],
           "summary": "Pixel-style system screens now appear in the game, and the starting finances differ by team tier. Player role baselines have been reviewed and adjusted.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7803169563,
+          "at": "2026-11-15T12:07:11Z",
+          "sha": "3e201cf5cc58f8c20a20bc386b79b306e9611f63",
+          "counts": {
+            "new": 2,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Each real organisation now starts with its own cash amount, based on its actual ownership, for about 75 teams instead of amounts set by ranking. Sponsor slots are clearer, and team funding options have been expanded.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
