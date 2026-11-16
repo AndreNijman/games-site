@@ -1149,7 +1149,8 @@
         7781902830,
         7784118640,
         7800544006,
-        7803169563
+        7803169563,
+        7817076595
       ],
       "updates": [
         {
@@ -1374,6 +1375,22 @@
           },
           "commits": [],
           "summary": "Each real organisation now starts with its own cash amount, based on its actual ownership, for about 75 teams instead of amounts set by ranking. Sponsor slots are clearer, and team funding options have been expanded.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7817076595,
+          "at": "2026-11-16T06:24:07Z",
+          "sha": "651d48cc96b90d81be34402ee44618e596a8322e",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "The transfer and loan screens have been reworked, so moving players in and out of a roster is easier to follow.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
