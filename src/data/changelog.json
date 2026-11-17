@@ -1152,7 +1152,8 @@
         7803169563,
         7817076595,
         7839624787,
-        7840126169
+        7840126169,
+        7850780777
       ],
       "updates": [
         {
@@ -1425,6 +1426,22 @@
           },
           "commits": [],
           "summary": "Player profiles now show skills on a radar chart, and the chart shifts to match each player's role.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7850780777,
+          "at": "2026-11-17T10:37:29Z",
+          "sha": "f1a25def3e57aa87f0b951db09cb79fdd0cd0fe0",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Career mode has a refreshed presentation with expanded management systems across roster, transfers, training, tactics and money.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
