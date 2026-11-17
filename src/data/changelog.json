@@ -1150,7 +1150,9 @@
         7784118640,
         7800544006,
         7803169563,
-        7817076595
+        7817076595,
+        7839624787,
+        7840126169
       ],
       "updates": [
         {
@@ -1391,6 +1393,38 @@
           },
           "commits": [],
           "summary": "The transfer and loan screens have been reworked, so moving players in and out of a roster is easier to follow.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7839624787,
+          "at": "2026-11-16T23:44:31Z",
+          "sha": "67b0aa8e7c08c50f5060040fc172eb877e8e7d1d",
+          "counts": {
+            "new": 0,
+            "fixed": 1,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Existing careers now pick up the latest gameplay changes instead of staying on the rules they started with.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7840126169,
+          "at": "2026-11-17T00:14:21Z",
+          "sha": "18ce6e20946f6b848036baab1236af3c8d9b4150",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Player profiles now show skills on a radar chart, and the chart shifts to match each player's role.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
