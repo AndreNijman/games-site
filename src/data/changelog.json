@@ -1155,7 +1155,8 @@
         7840126169,
         7850780777,
         7875143316,
-        7881227154
+        7881227154,
+        7900944686
       ],
       "updates": [
         {
@@ -1476,6 +1477,22 @@
           },
           "commits": [],
           "summary": "You can now sell a starter from your roster before you buy a replacement for them.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7900944686,
+          "at": "2026-11-19T01:06:01Z",
+          "sha": "c75f1c56f37792c6e2af5ed6ebd6c01e2e8c3d38",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "A new Bootcamp shop for buying training and team upgrades. Major events now end with a best-of-five final.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
         }
