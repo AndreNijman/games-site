@@ -789,7 +789,8 @@
         7755519189,
         7755569538,
         7755612845,
-        7757258298
+        7757258298,
+        7932823677
       ],
       "updates": [
         {
@@ -1016,6 +1017,22 @@
           "summary": "Quiet queues are now filled with bots, so a match can start without waiting for a full lobby. Bots come from a roster of 200 and vary in skill, and a setting controls whether a bot opponent is marked as one or hidden.",
           "playerFacing": true,
           "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7932823677,
+          "at": "2026-11-20T03:53:21Z",
+          "sha": "28683c9669a94f6fd71fa97120cb86216e12aafb",
+          "counts": {
+            "new": 5,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Every card and unit now shows a plain archetype name, and the cards, units, arenas and menus have new hand-inked cel-shaded art. Cards also carry role tags that show what each one does.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
         }
       ]
     },
@@ -1136,7 +1153,11 @@
       "repo": "AndreNijman/driving-blind",
       "public": false,
       "seen": [
-        7757526091
+        7757526091,
+        7757626192,
+        7757647849,
+        7932620027,
+        7933322911
       ],
       "updates": [
         {
@@ -1155,6 +1176,54 @@
           "summary": "Driving Blind is a free two-player online rally. One of you drives a hatchback flat out, too short-sighted to see the road, and the other holds the map and shouts the turns. Create a room, send the code, and pick the track difficulty, the length, the speed and how far the driver can see.",
           "playerFacing": true,
           "model": "hand"
+        },
+        {
+          "id": 7757647849,
+          "at": "2026-11-13T05:05:25Z",
+          "sha": "c7c86a64d93a03e0105ee88d03108070e6a47af0",
+          "counts": {
+            "new": 0,
+            "fixed": 1,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Behind-the-scenes fixes and tidying.",
+          "playerFacing": false,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7932620027,
+          "at": "2026-11-20T03:38:31Z",
+          "sha": "66a3396b9904807c0a3af15fb098aec44ade7c6b",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Animals now wait at the verge and cross the road as the car approaches, and they are not marked on the map, so the navigator has to watch the road too. The driver's blur is about twice as strong and starts nearer, and the default see distance is now 20 m. Steering is gentler.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
+        },
+        {
+          "id": 7933322911,
+          "at": "2026-11-20T04:27:16Z",
+          "sha": "76e061030822b2481e96fe49bc340eff5a6c52c6",
+          "counts": {
+            "new": 1,
+            "fixed": 0,
+            "improved": 0,
+            "other": 0,
+            "hidden": 0
+          },
+          "commits": [],
+          "summary": "Steering now responds more smoothly to a tap, so a short press nudges the car instead of snapping it into a spin. The wheel also springs back faster and turns in a little slower at high rally speeds.",
+          "playerFacing": true,
+          "model": "claude-haiku-5-5"
         }
       ]
     },
