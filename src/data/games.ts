@@ -337,6 +337,17 @@ export const GAMES: Game[] = [
     label: "Play Driving Blind, a free two-player rally where the driver can't see and the navigator has the map",
   },
   {
+    host: "odd.andrenijman.com",
+    added: "2026-11-20",
+    name: "ODD PAIR",
+    genre: ["Party", "Word", "Multiplayer"],
+    description: "A free online party word game for 3 to 10 friends: everyone gets the same prompt and secretly types one answer, and you score by giving the answer your friends give. Match the biggest group for 3 points; match nobody and you're the odd sock. Create a room, send the code, or fill the seats with bots.",
+    meta: "Party word game · 3 to 10 players · match your friends' answers · online rooms and bots",
+    image: "odd.png",
+    alt: "ODD PAIR in play: the prompt Name a yellow fruit on a paper tag, pixel socks pegged on washing lines by matching answer, two odd socks fallen on the grass and a scoreboard of seven players",
+    label: "Play ODD PAIR, a free online party word game where you score by matching your friends' answers",
+  },
+  {
     host: "chess.andrenijman.com",
     repo: "AndreNijman/rook-and-roll",
     added: "2026-10-29",
