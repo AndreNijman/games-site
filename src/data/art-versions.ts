@@ -6,6 +6,7 @@ export const ART_VERSIONS: Record<string, string> = {
   "chess.png": "8b941f0f37",
   "crownfront.png": "b893cae0ff",
   "defenders.png": "57ad3856ee",
+  "drivingblind.png": "36499a32fb",
   "esports-manager.png": "331b495ff9",
   "fart.png": "7a5b00c9fb",
   "footbauction.png": "9bbd11c4d9",

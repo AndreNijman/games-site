@@ -325,6 +325,18 @@ export const GAMES: Game[] = [
     label: "Play Crownfront, a free real-time card battler with ranked online battles",
   },
   {
+    host: "drivingblind.andrenijman.com",
+    repo: "AndreNijman/driving-blind",
+    added: "2026-11-13",
+    name: "Driving Blind",
+    genre: ["Racing", "Co-op", "Multiplayer"],
+    description: "A free two-player online rally: one of you drives a hatchback flat out, too short-sighted to see the road, and the other holds the map and shouts the turns. Create a room, send the code, and pick the track difficulty, the length, the speed (up to 500 km/h) and how far the driver can see.",
+    meta: "Two-player rally · one drives, one reads the map · online rooms",
+    image: "drivingblind.png",
+    alt: "Driving Blind from the driver's seat: low-poly hands on the wheel of a red hatchback, a gravel road ahead dissolving into a blur of forest",
+    label: "Play Driving Blind, a free two-player rally where the driver can't see and the navigator has the map",
+  },
+  {
     host: "chess.andrenijman.com",
     repo: "AndreNijman/rook-and-roll",
     added: "2026-10-29",
