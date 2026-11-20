@@ -17,7 +17,8 @@ function workerGames(): Record<string, { name: string; image: string; credit?: s
 
 // On the hub but not behind the Worker, served by its own host. OpenFront is a
 // self-hosted game server behind the Orange Pi's Cloudflare Tunnel (openfront/).
-const OUTSIDE_WORKER = new Set<string>(["openfront.andrenijman.com"]);
+// ODD PAIR is its own Cloudflare Worker (client and room relay on one host).
+const OUTSIDE_WORKER = new Set<string>(["openfront.andrenijman.com", "odd.andrenijman.com"]);
 
 describe("the hub and the Worker agree", () => {
   const worker = workerGames();
